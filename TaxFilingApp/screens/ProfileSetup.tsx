@@ -6,6 +6,7 @@ import { Progress } from './ui/progress';
 
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
+import SafeAreaWrapper from '../components/SafeAreaWrapper';
 
 const ProfileSetup = () => {
   const [step, setStep] = useState(1);
@@ -167,22 +168,24 @@ const ProfileSetup = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.progressBarContainer}>
-        <Progress value={progress} />
-      </View>
-      {renderStep()}
-      <View style={styles.buttonRow}>
-        <Button onPress={handleBack} variant="outline" style={styles.buttonNav}>
-          <Ionicons name="arrow-back" size={18} color="#007bff" style={{ marginRight: 4, alignSelf: 'center' }} />
-          <Text style={[styles.buttonText, { color: '#007bff', lineHeight: 18 }]}>Back</Text>
-        </Button>
-        <Button onPress={handleNext} style={styles.buttonNav}>
-          <Text style={[styles.buttonText, { lineHeight: 18 }]}>Next</Text>
-          <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 4, alignSelf: 'center' }} />
-        </Button>
-      </View>
-    </ScrollView>
+    <SafeAreaWrapper>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.progressBarContainer}>
+          <Progress value={progress} />
+        </View>
+        {renderStep()}
+        <View style={styles.buttonRow}>
+          <Button onPress={handleBack} variant="outline" style={styles.buttonNav}>
+            <Ionicons name="arrow-back" size={18} color="#007bff" style={{ marginRight: 4, alignSelf: 'center' }} />
+            <Text style={[styles.buttonText, { color: '#007bff', lineHeight: 18 }]}>Back</Text>
+          </Button>
+          <Button onPress={handleNext} style={styles.buttonNav}>
+            <Text style={[styles.buttonText, { lineHeight: 18 }]}>Next</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 4, alignSelf: 'center' }} />
+          </Button>
+        </View>
+      </ScrollView>
+    </SafeAreaWrapper>
   );
 };
 
