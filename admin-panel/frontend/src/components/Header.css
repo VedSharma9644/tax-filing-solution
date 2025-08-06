@@ -1,0 +1,129 @@
+.dashboard-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: 70px;
+}
+
+.dashboard-navbar-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.dashboard-navbar-logo {
+  margin-left: 1rem;
+}
+
+.dashboard-navbar-logo img {
+  height: 40px;
+  width: auto;
+}
+
+.dashboard-navbar-profile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #666;
+  font-size: 1.2rem;
+}
+
+.dashboard-navbar-profile:hover {
+  color: #333;
+}
+
+.profile-icon-container {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.profile-icon-container:hover {
+  background-color: #f8f9fa;
+}
+
+.dashboard-profile-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1001;
+  margin-top: 0.5rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-profile-popup .dashboard-sidebar-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-profile-popup .dashboard-sidebar-menu li {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  color: #2c3e50;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 0.25rem;
+}
+
+.dashboard-profile-popup .dashboard-sidebar-menu li:hover {
+  background-color: #f8f9fa;
+  color: #3498db;
+}
+
+.dashboard-profile-popup .dashboard-sidebar-menu li.active {
+  background-color: #3498db;
+  color: white;
+}
+
+.dashboard-profile-popup .dashboard-sidebar-menu li svg {
+  margin-right: 0.75rem;
+  width: 1em;
+  height: 1em;
+}
+
+.dashboard-profile-popup .dashboard-sidebar-menu li span {
+  font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .dashboard-navbar {
+    padding: 1rem;
+  }
+  
+  .dashboard-profile-popup {
+    right: -1rem;
+    min-width: 180px;
+  }
+} 

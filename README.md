@@ -1,226 +1,246 @@
-# TaxEase - Tax Filing Mobile App
+# Tax Filing Mobile App - Admin Panel
 
-A modern, user-friendly mobile application for filing taxes with ease. Built with React Native and Expo, TaxEase provides a streamlined tax filing experience with secure authentication, document upload capabilities, and a step-by-step tax wizard.
+A comprehensive admin panel for managing tax filing services, built with React frontend and Flask backend.
 
 ## 🚀 Features
 
-### Core Functionality
-- **Secure Authentication**: Email/phone-based OTP verification system
-- **Profile Setup**: Multi-step user profile creation with personal, address, and employment information
-- **Dashboard**: Overview of tax progress, refund estimates, and quick actions
-- **Tax Wizard**: Guided step-by-step tax filing process with 5 comprehensive steps
-- **Document Upload**: Secure document management for W-2s, 1099s, receipts, and tax documents
-- **Settings Management**: User preferences and notification controls
-- **Real-time Progress Tracking**: Visual progress indicators throughout the app
+### Admin Panel Features
+- **Dashboard Overview** - Real-time statistics and insights
+- **User Management** - View and manage user accounts
+- **Application Tracking** - Monitor tax filing applications
+- **Payment Processing** - Track payment status and history
+- **Scheduled Calls** - Manage client consultation appointments
+- **Feedback System** - Handle user feedback and support requests
+- **Support Requests** - Process customer inquiries and issues
+- **Profile Management** - Admin profile editing and settings
 
-### Tax Filing Features
-- **W-2 Income Entry**: Easy input of employment income and federal withholding
-- **Deduction Calculator**: Mortgage interest, property tax, charitable donations
-- **Medical & Education**: Medical expenses, student loan interest, education costs
-- **Tax Credits**: Child tax credits and dependent information
-- **Refund Estimation**: Real-time calculation of expected tax refunds
+### Technical Features
+- **Responsive Design** - Works on desktop, tablet, and mobile
+- **Collapsible Sidebar** - Space-efficient navigation
+- **Modern UI/UX** - Clean, professional interface
+- **Real-time Updates** - Dynamic data management
+- **Search & Filter** - Advanced data filtering capabilities
 
-### User Experience
-- **Modern UI/UX**: Clean, intuitive interface with consistent design system
-- **Responsive Design**: Optimized for mobile devices with touch-friendly controls
-- **Progress Indicators**: Visual feedback for multi-step processes
-- **Helpful Tooltips**: Contextual guidance throughout the tax filing process
-- **Notification System**: Important reminders for tax deadlines and updates
+## 🛠️ Tech Stack
 
-## 🛠️ Technology Stack
+### Frontend
+- **React 18** - Modern React with hooks
+- **React Router DOM** - Client-side routing
+- **CSS3** - Custom styling with responsive design
+- **SVG Icons** - Scalable vector graphics
 
-### Frontend Framework
-- **React Native**: Cross-platform mobile development
-- **Expo**: Development platform and build tools
-- **TypeScript**: Type-safe JavaScript development
+### Backend
+- **Flask 2.3.3** - Python web framework
+- **Flask-CORS** - Cross-origin resource sharing
+- **Flask-SQLAlchemy** - Database ORM
+- **Flask-JWT-Extended** - Authentication and authorization
+- **Python-dotenv** - Environment variable management
 
-### Navigation & State Management
-- **React Navigation**: Native stack navigation for screen management
-- **React Hooks**: State management with useState and useEffect
-
-### UI Components
-- **Custom UI Library**: Comprehensive component library built with React Native
-- **Expo Vector Icons**: Icon library (Ionicons, FontAwesome, MaterialIcons, Feather)
-- **Custom Styling**: Tailwind-inspired styling system
-
-### Development Tools
-- **Expo CLI**: Development and build tools
-- **Babel**: JavaScript compiler
-- **TypeScript**: Static type checking
-
-## 📱 App Structure
-
-### Screens
-1. **AuthScreen** (`AuthScreen.tsx`): Secure login with email/phone OTP
-2. **ProfileSetup** (`ProfileSetup.tsx`): Multi-step user profile creation
-3. **Dashboard** (`Dashboard.tsx`): Main dashboard with tax overview
-4. **TaxWizard** (`TaxWizard.tsx`): Step-by-step tax filing wizard
-5. **DocumentUpload** (`DocumentUpload.tsx`): Document management system
-6. **Settings** (`Settings.tsx`): User preferences and account settings
-7. **NotificationsScreen** (`NotificationsScreen.tsx`): Notification center
-
-### Navigation Flow
-```
-AuthScreen → ProfileSetup → Dashboard → TaxWizard/DocumentUpload/Settings
-```
-
-### UI Components
-The app includes a comprehensive UI component library with:
-- Buttons, Cards, Inputs, Select dropdowns
-- Progress bars, Badges, Checkboxes, Switches
-- Modals, Alerts, Toast notifications
-- And many more reusable components
-
-## 🚀 Installation Guide
-
-### Prerequisites
-- **Node.js**: Version 16 or higher
-- **npm** or **yarn**: Package manager
-- **Expo CLI**: Install globally with `npm install -g @expo/cli`
-- **Mobile Device** or **Emulator**: For testing the app
-
-### Step 1: Clone the Repository
-```bash
-git clone <repository-url>
-cd "Tax Filling Mobile App"
-```
-
-### Step 2: Install Dependencies
-```bash
-# Install root dependencies
-npm install
-
-# Navigate to the app directory and install app dependencies
-cd TaxFilingApp
-npm install
-```
-
-### Step 3: Start the Development Server
-```bash
-# From the TaxFilingApp directory
-npm start
-# or
-expo start
-```
-
-### Step 4: Run on Device/Emulator
-- **iOS**: Press `i` in the terminal or scan QR code with Expo Go app
-- **Android**: Press `a` in the terminal or scan QR code with Expo Go app
-- **Web**: Press `w` in the terminal
-
-### Alternative: Using Expo Go App
-1. Install Expo Go from App Store (iOS) or Google Play Store (Android)
-2. Scan the QR code displayed in the terminal
-3. The app will load on your device
-
-## 📦 Project Structure
+## 📁 Project Structure
 
 ```
 Tax Filling Mobile App/
-├── package.json                 # Root dependencies
-├── TaxFilingApp/
-│   ├── App.js                  # Main app entry point
-│   ├── app.json               # Expo configuration
-│   ├── package.json           # App dependencies
-│   ├── assets/               # App icons and images
-│   ├── navigation/
-│   │   └── AppNavigator.js   # Navigation configuration
-│   ├── screens/
-│   │   ├── AuthScreen.tsx    # Authentication screen
-│   │   ├── Dashboard.tsx     # Main dashboard
-│   │   ├── TaxWizard.tsx     # Tax filing wizard
-│   │   ├── DocumentUpload.tsx # Document management
-│   │   ├── ProfileSetup.tsx  # User profile setup
-│   │   ├── Settings.tsx      # Settings screen
-│   │   ├── NotificationsScreen.tsx # Notifications
-│   │   └── ui/              # Custom UI components
-│   └── components/           # Shared components
+├── admin-panel/
+│   ├── frontend/
+│   │   ├── src/
+│   │   │   ├── components/
+│   │   │   │   ├── Header.js
+│   │   │   │   ├── Header.css
+│   │   │   │   ├── Sidebar.js
+│   │   │   │   └── Sidebar.css
+│   │   │   ├── pages/
+│   │   │   │   ├── Homepage.jsx
+│   │   │   │   ├── Homepage.css
+│   │   │   │   ├── Users.jsx
+│   │   │   │   ├── Applications.jsx
+│   │   │   │   ├── Payments.jsx
+│   │   │   │   ├── ScheduledCalls.jsx
+│   │   │   │   ├── Feedbacks.jsx
+│   │   │   │   ├── SupportRequests.jsx
+│   │   │   │   ├── Logout.jsx
+│   │   │   │   └── Profile.jsx
+│   │   │   ├── App.js
+│   │   │   └── App.css
+│   │   ├── package.json
+│   │   └── README.md
+│   └── backend/
+│       ├── requirements.txt
+│       └── README.md
+├── .gitignore
+└── README.md
 ```
 
-## 🔧 Development
+## 🚀 Getting Started
 
-### Available Scripts
-```bash
-# Start development server
-npm start
+### Prerequisites
+- Node.js (v14 or higher)
+- Python 3.8 or higher
+- Git
 
-# Run on Android
-npm run android
+### Frontend Setup
 
-# Run on iOS
-npm run ios
+1. **Navigate to frontend directory:**
+   ```bash
+   cd admin-panel/frontend
+   ```
 
-# Run on web
-npm run web
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start development server:**
+   ```bash
+   npm start
+   ```
+
+4. **Open in browser:**
+   ```
+   http://localhost:3000
+   ```
+
+### Backend Setup
+
+1. **Navigate to backend directory:**
+   ```bash
+   cd admin-panel/backend
+   ```
+
+2. **Create virtual environment:**
+   ```bash
+   python -m venv venv
+   ```
+
+3. **Activate virtual environment:**
+   ```bash
+   # Windows
+   venv\Scripts\activate
+   
+   # macOS/Linux
+   source venv/bin/activate
+   ```
+
+4. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+5. **Run Flask server:**
+   ```bash
+   python app.py
+   ```
+
+## 📱 Admin Panel Screens
+
+### 1. Dashboard (Homepage)
+- Overview statistics
+- Recent activities
+- Quick actions
+
+### 2. User Management
+- View all users
+- User details and status
+- Search and filter users
+
+### 3. Applications
+- Track tax filing applications
+- Application status updates
+- Document management
+
+### 4. Payments
+- Payment history
+- Payment status tracking
+- Financial reports
+
+### 5. Scheduled Calls
+- Appointment management
+- Call scheduling
+- Notes and follow-ups
+
+### 6. Feedbacks
+- User feedback system
+- Response management
+- Feedback analytics
+
+### 7. Support Requests
+- Customer support tickets
+- Issue tracking
+- Resolution management
+
+### 8. Profile Management
+- Admin profile editing
+- Account settings
+- Security preferences
+
+## 🎨 UI Components
+
+### Navigation
+- **Collapsible Sidebar** - Toggle between expanded/collapsed view
+- **Header** - Logo and profile dropdown
+- **Responsive Design** - Adapts to different screen sizes
+
+### Interactive Elements
+- **Search Functionality** - Real-time search across data
+- **Status Updates** - Dynamic status management
+- **Form Handling** - Input validation and submission
+- **Modal Dialogs** - Confirmation and editing dialogs
+
+## 🔧 Configuration
+
+### Environment Variables
+Create a `.env` file in the backend directory:
+```env
+FLASK_APP=app.py
+FLASK_ENV=development
+SECRET_KEY=your-secret-key
+DATABASE_URL=your-database-url
 ```
 
-### Key Dependencies
-- `expo`: Development platform
-- `react-native`: Mobile framework
-- `@react-navigation/native`: Navigation
-- `@react-navigation/native-stack`: Stack navigation
-- `@expo/vector-icons`: Icon library
-- `react-native-safe-area-context`: Safe area handling
-- `react-native-screens`: Native screen components
+### API Endpoints
+The backend provides RESTful API endpoints for:
+- User management
+- Application tracking
+- Payment processing
+- Feedback handling
+- Support ticket management
 
-## 🎨 Design System
+## 🚀 Deployment
 
-The app uses a consistent design system with:
-- **Primary Color**: `#007bff` (Blue)
-- **Success Color**: `#28a745` (Green)
-- **Warning Color**: `#ffc107` (Yellow)
-- **Error Color**: `#dc3545` (Red)
-- **Typography**: System fonts with consistent sizing
-- **Spacing**: 8px grid system
-- **Border Radius**: 8px for cards, 6px for inputs
+### Frontend Deployment
+1. Build the production version:
+   ```bash
+   npm run build
+   ```
 
-## 🔒 Security Features
+2. Deploy to your preferred hosting service (Netlify, Vercel, etc.)
 
-- **OTP Authentication**: Secure email/phone verification
-- **Data Encryption**: All sensitive data is encrypted
-- **IRS Compliance**: Built to meet IRS security standards
-- **Bank-level Security**: Enterprise-grade security measures
-
-## 📊 Tax Filing Process
-
-1. **Authentication**: Secure login with OTP verification
-2. **Profile Setup**: Complete user profile with personal information
-3. **Document Upload**: Upload W-2s, 1099s, and other tax documents
-4. **Tax Wizard**: Step-by-step tax filing process
-   - W-2 Income Entry
-   - Deduction Calculations
-   - Medical & Education Expenses
-   - Tax Credits
-   - Review & Submit
-5. **Review & Submit**: Final review before e-filing
+### Backend Deployment
+1. Set up your production environment
+2. Configure environment variables
+3. Deploy to your preferred hosting service (Heroku, AWS, etc.)
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 📞 Support
 
 For support and questions:
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation for common issues
+- Email: support@equitastax.com
+- Website: https://equitastax.com
 
-## 🔮 Future Enhancements
+## 🏢 About Equitas Tax
 
-- **AI-Powered Tax Optimization**: Machine learning for tax savings
-- **Real-time Collaboration**: Multi-user tax filing for families
-- **Advanced Analytics**: Detailed tax insights and recommendations
-- **Integration**: Connect with financial institutions for automatic data import
-- **Multi-language Support**: International tax filing capabilities
+Equitas Tax Service LLC provides professional tax filing services with a focus on security, accuracy, and customer satisfaction.
 
 ---
 
-**Note**: This is a demonstration project. For actual tax filing, ensure compliance with local tax laws and regulations. 
+**Built with ❤️ by the Equitas Tax Team** 

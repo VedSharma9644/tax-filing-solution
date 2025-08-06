@@ -1,0 +1,170 @@
+.homepage {
+  margin-left: 250px;
+  margin-top: 70px;
+  padding: 2rem;
+  background-color: #f8f9fa;
+  min-height: calc(100vh - 70px);
+}
+
+.dashboard-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.payments-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  padding: 2rem;
+}
+
+.payments-title {
+  color: #2c3e50;
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.payments-description {
+  color: #7f8c8d;
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+}
+
+.payments-actions {
+  margin-bottom: 2rem;
+}
+
+.payments-search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.payments-search-input:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.payments-table thead {
+  background-color: #f8f9fa;
+}
+
+.payments-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #2c3e50;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.payments-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #e9ecef;
+  color: #2c3e50;
+}
+
+.payments-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Highlight amount column */
+.payments-table td:nth-child(5) {
+  font-weight: 600;
+  color: #27ae60;
+}
+
+/* Highlight currency column */
+.payments-table td:nth-child(6) {
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+/* Style payment ID column */
+.payments-table td:nth-child(7) {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  color: #34495e;
+}
+
+/* Style date column */
+.payments-table td:nth-child(8) {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid #e9ecef;
+}
+
+.pagination-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  background: white;
+  color: #2c3e50;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .homepage {
+    margin-left: 60px;
+  }
+  
+  .payments-container {
+    padding: 1rem;
+  }
+  
+  .payments-title {
+    font-size: 1.5rem;
+  }
+  
+  .payments-table {
+    font-size: 0.8rem;
+  }
+  
+  .payments-table th,
+  .payments-table td {
+    padding: 0.5rem;
+  }
+  
+  .pagination-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+} 
