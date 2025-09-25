@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -7,19 +7,110 @@ import { Progress } from './ui/progress';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { useAuth } from '../contexts/AuthContext';
+import ApiService from '../services/api';
 
 const Dashboard = () => {
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
+  const [taxForms, setTaxForms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Get user's display name
+  const getUserDisplayName = () => {
+    if (!user) return 'User';
+    
+    // If user has both firstName and lastName, use both
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    
+    // If user has only firstName, use it
+    if (user.firstName) {
+      return user.firstName;
+    }
+    
+    // If user has only lastName, use it
+    if (user.lastName) {
+      return user.lastName;
+    }
+    
+    // If user has email, extract name from email
+    if (user.email) {
+      const emailName = user.email.split('@')[0];
+      return emailName.charAt(0).toUpperCase() + emailName.slice(1);
+    }
+    
+    // Fallback to 'User'
+    return 'User';
+  };
+
+  // Fetch tax forms data
+  useEffect(() => {
+    const fetchTaxForms = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log('🔄 Fetching tax form history with token:', token ? 'Present' : 'Missing');
+        const response = await ApiService.getTaxFormHistory(token);
+        console.log('📊 Tax form history response:', response);
+        if (response.success) {
+          setTaxForms(response.data || []);
+          console.log('✅ Tax forms loaded:', response.data?.length || 0, 'forms');
+        } else {
+          console.error('❌ API returned error:', response.error);
+          setError(`Failed to load tax forms: ${response.error}`);
+        }
+      } catch (err) {
+        console.error('❌ Error fetching tax forms:', err);
+        setError(`Error loading tax forms: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTaxForms();
+  }, [token]);
 
   const notifications = [
     { id: 1, message: "W-2 uploaded successfully", time: "2 hours ago", type: "success" },
     { id: 2, message: "Tax deadline reminder: 45 days left", time: "1 day ago", type: "warning" },
   ];
 
-  const taxYears = [
-    { year: 2023, status: "in_progress", progress: 65, refund: 1250 },
-    { year: 2022, status: "completed", progress: 100, refund: 980 },
-  ];
+  // Calculate expected refund from latest tax form
+  const getExpectedRefund = () => {
+    if (taxForms.length === 0) return 0;
+    const latestForm = taxForms[0]; // Assuming forms are sorted by date
+    return latestForm.expectedReturn || 0;
+  };
+
+  // Get current year tax form data (only show current year, not previous years)
+  const getCurrentYearTaxForm = () => {
+    if (taxForms.length === 0) {
+      return {
+        year: new Date().getFullYear(),
+        status: "no_data",
+        progress: 0,
+        refund: 0
+      };
+    }
+
+    // Get the most recent tax form for current year only
+    const currentYear = new Date().getFullYear();
+    const currentYearForm = taxForms.find(form => form.taxYear === currentYear) || taxForms[0];
+    
+    return {
+      year: currentYearForm.taxYear || currentYear,
+      status: currentYearForm.status === 'completed' || currentYearForm.status === 'approved' ? 'completed' : 'in_progress',
+      progress: currentYearForm.status === 'completed' || currentYearForm.status === 'approved' ? 100 : 65,
+      refund: currentYearForm.expectedReturn || 0
+    };
+  };
 
   const processSteps = [
     { number: 1, title: "Upload Documents" },
@@ -33,8 +124,8 @@ const Dashboard = () => {
         {/* Header */}
         <View style={styles.heroHeader}>
           <View style={styles.heroContent}>
-            <View>
-              <Text style={styles.heroTitle}>Welcome back, John!</Text>
+            <View style={styles.heroTextContainer}>
+              <Text style={styles.heroTitle}>Welcome back, {getUserDisplayName()}!</Text>
               <Text style={styles.heroSubtitle}>Let's get your taxes done</Text>
             </View>
             <View style={styles.heroIcons}>
@@ -54,8 +145,10 @@ const Dashboard = () => {
               <CardContent>
                 <View style={styles.heroStatContent}>
                   <View>
-                    <Text style={styles.heroStatLabel}>Tax Year 2023</Text>
-                    <Text style={styles.heroStatValue}>65% Complete</Text>
+                    <Text style={styles.heroStatLabel}>Tax Year {new Date().getFullYear()}</Text>
+                    <Text style={styles.heroStatValue}>
+                      {loading ? '...' : `${getCurrentYearTaxForm().progress}% Complete`}
+                    </Text>
                   </View>
                 </View>
               </CardContent>
@@ -65,7 +158,9 @@ const Dashboard = () => {
                 <View style={styles.heroStatContent}>
                   <View>
                     <Text style={styles.heroStatLabel}>Expected Refund</Text>
-                    <Text style={styles.heroStatValue}>$1,250</Text>
+                    <Text style={styles.heroStatValue}>
+                      {loading ? '...' : `$${getExpectedRefund().toFixed(0)}`}
+                    </Text>
                   </View>
                 </View>
               </CardContent>
@@ -96,20 +191,43 @@ const Dashboard = () => {
           
 
         </View>
-        {/* Tax Years */}
-        <Text style={styles.sectionTitle}>Your Tax Years</Text>
-        {taxYears.map(year => (
-          <Card key={year.year} style={styles.card}>
+        {/* Current Tax Year */}
+        <Text style={styles.sectionTitle}>Tax Year {new Date().getFullYear()}</Text>
+        {loading ? (
+          <Card style={styles.card}>
             <CardContent>
-              <View style={styles.taxYearRow}>
-                <Text style={styles.taxYearLabel}>Tax Year {year.year}</Text>
-                <Badge>{year.status === 'completed' ? 'Completed' : 'In Progress'}</Badge>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#007bff" />
+                <Text style={styles.loadingText}>Loading tax form...</Text>
               </View>
-              <Progress value={year.progress} />
-              <Text style={styles.taxYearRefund}>Refund: ${year.refund}</Text>
             </CardContent>
           </Card>
-        ))}
+        ) : error ? (
+          <Card style={styles.card}>
+            <CardContent>
+              <Text style={styles.errorText}>{error}</Text>
+            </CardContent>
+          </Card>
+        ) : (() => {
+          const currentYear = getCurrentYearTaxForm();
+          return (
+            <Card style={styles.card}>
+              <CardContent>
+                <View style={styles.taxYearRow}>
+                  <Text style={styles.taxYearLabel}>Tax Year {currentYear.year}</Text>
+                  <Badge>
+                    {currentYear.status === 'completed' ? 'Completed' : 
+                     currentYear.status === 'no_data' ? 'Not Started' : 'In Progress'}
+                  </Badge>
+                </View>
+                <Progress value={currentYear.progress} />
+                <Text style={styles.taxYearRefund}>
+                  {currentYear.refund > 0 ? `Expected Refund: $${currentYear.refund.toFixed(0)}` : 'No refund estimate yet'}
+                </Text>
+              </CardContent>
+            </Card>
+          );
+        })()}
         {/* Notifications */}
         <Text style={styles.sectionTitle}>Notifications</Text>
         {notifications.map(note => (
@@ -162,10 +280,11 @@ const Dashboard = () => {
 const styles = StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16 },
   heroHeader: { backgroundColor: '#007bff', padding: 20, paddingTop: 40, marginHorizontal: -16 },
-  heroContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  heroTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  heroSubtitle: { color: '#e3f2fd', fontSize: 16 },
-  heroIcons: { flexDirection: 'row', gap: 8 },
+  heroContent: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
+  heroTextContainer: { flex: 1, marginRight: 12 },
+  heroTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', flexWrap: 'wrap' },
+  heroSubtitle: { color: '#e3f2fd', fontSize: 16, marginTop: 4 },
+  heroIcons: { flexDirection: 'row', gap: 8, flexShrink: 0 },
   heroIconButton: { 
     width: 40, 
     height: 40, 
@@ -214,6 +333,10 @@ const styles = StyleSheet.create({
   },
   stepNumberText: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
   stepLabel: { fontSize: 12, color: '#666', textAlign: 'center', fontWeight: '500' },
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  loadingText: { marginLeft: 8, color: '#666', fontSize: 14 },
+  errorText: { color: '#e74c3c', textAlign: 'center', padding: 20 },
+  noDataText: { color: '#666', textAlign: 'center', padding: 20, fontStyle: 'italic' },
 });
 
 export default Dashboard;

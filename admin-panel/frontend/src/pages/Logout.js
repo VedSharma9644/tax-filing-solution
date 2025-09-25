@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Logout.css';
 
-const Logout = () => {
+const Logout = ({ onLogout }) => {
   const [countdown, setCountdown] = useState(5);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
@@ -20,12 +20,18 @@ const Logout = () => {
   }, [countdown, isLoggingOut]);
 
   const handleLogout = () => {
-    // Clear any stored authentication data
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    sessionStorage.clear();
+    // Call parent logout handler if provided
+    if (onLogout) {
+      onLogout();
+    } else {
+      // Fallback: Clear any stored authentication data
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefreshToken');
+      localStorage.removeItem('adminUser');
+      sessionStorage.clear();
+    }
     
-    // Redirect to login page or home
+    // Redirect to login page
     navigate('/login');
   };
 
@@ -66,7 +72,7 @@ const Logout = () => {
                 </button>
                 <button 
                   className="cancel-button"
-                  onClick={() => navigate('/home')}
+                  onClick={() => navigate('/admin')}
                 >
                   Cancel
                 </button>

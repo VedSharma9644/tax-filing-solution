@@ -125,4 +125,12 @@ jspm_packages/
 
 # Temporary folders
 tmp/
-temp/ 
+temp/
+
+# Sensitive files - DO NOT COMMIT
+firebase-service-account.json
+gcs-service-account.json
+*.jks
+*.p12
+*.key
+*.pem 

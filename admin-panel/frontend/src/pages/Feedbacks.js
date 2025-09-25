@@ -1,85 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Feedbacks.css';
+import AdminApiService from '../services/api';
+import { useModal } from '../contexts/ModalContext';
 
 const Feedbacks = () => {
+  const { showAlert, showConfirm } = useModal();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [feedbacks, setFeedbacks] = useState([
-    {
-      id: 1,
-      user: 'Sreenivas Boddula',
-      email: 'sreenivas.boddula@gmail.com',
-      feedback: 'Great service! The tax filing process was smooth and professional. The team was very helpful throughout the entire process.',
-      reply: 'Thank you for your positive feedback! We\'re glad we could help make your tax filing experience smooth.',
-      date: 'Apr 4, 2025',
-      status: 'Replied'
-    },
-    {
-      id: 2,
-      user: 'Sai Sathya Maganti',
-      email: 'sathyamaganti08@gmail.com',
-      feedback: 'The mobile app is very user-friendly. However, I would like to see more payment options in the future.',
-      reply: 'Thank you for your feedback! We\'re working on adding more payment options to improve user experience.',
-      date: 'Apr 2, 2025',
-      status: 'Replied'
-    },
-    {
-      id: 3,
-      user: 'Sai Santhosh Reddy Nakireddy',
-      email: 'santhosh.nakireddy6@gmail.com',
-      feedback: 'The customer support team was excellent. They helped me resolve my issue quickly and professionally.',
-      reply: 'We\'re happy to hear that our support team was able to help you effectively. Thank you for choosing our service!',
-      date: 'Mar 31, 2025',
-      status: 'Replied'
-    },
-    {
-      id: 4,
-      user: 'Sai Krishna Vilasagaram',
-      email: 'saikrishna.vilasagaram@gmail.com',
-      feedback: 'The tax calculation was accurate and the refund was processed faster than expected. Highly recommended!',
-      reply: 'Thank you for your recommendation! We strive to provide accurate calculations and fast processing.',
-      date: 'Mar 19, 2025',
-      status: 'Replied'
-    },
-    {
-      id: 5,
-      user: 'Gokul Nandan Tammineni',
-      email: 'gokultammineni@gmail.com',
-      feedback: 'The interface could be more intuitive. Some features are hard to find.',
-      reply: 'Thank you for your feedback. We\'re continuously working on improving the user interface.',
-      date: 'Mar 19, 2025',
-      status: 'Pending'
-    },
-    {
-      id: 6,
-      user: 'varun Ikkurthi',
-      email: 'varun.tej1221@gmail.com',
-      feedback: 'Excellent service! The team was knowledgeable and helped me save money on my taxes.',
-      reply: 'We\'re glad we could help you save money! Thank you for your positive feedback.',
-      date: 'Mar 19, 2025',
-      status: 'Replied'
-    },
-    {
-      id: 7,
-      user: 'Seshi Vanukuri',
-      email: 'seshi.vanukuri@gmail.com',
-      feedback: 'The mobile app needs better offline functionality. Sometimes it doesn\'t work without internet.',
-      reply: 'We\'re working on improving offline functionality. Thank you for bringing this to our attention.',
-      date: 'Mar 7, 2025',
-      status: 'Replied'
-    },
-    {
-      id: 8,
-      user: 'Rajendar Korepu',
-      email: 'Rajendar4444@gmail.com',
-      feedback: 'Very professional service. The tax filing was completed without any issues.',
-      reply: 'Thank you for your feedback! We\'re committed to providing professional and reliable service.',
-      date: 'Mar 4, 2025',
-      status: 'Replied'
-    }
-  ]);
-
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({});
   const [replyText, setReplyText] = useState({});
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Load feedback data
+  const loadFeedbacks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = {
+        page: currentPage,
+        limit: 10,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchTerm || undefined
+      };
+
+      const response = await AdminApiService.getFeedback(params);
+      
+      if (response.success) {
+        setFeedbacks(response.data);
+        setPagination(response.pagination || {});
+      } else {
+        setError('Failed to load feedbacks');
+      }
+    } catch (err) {
+      console.error('Error loading feedbacks:', err);
+      setError('Failed to load feedbacks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load feedbacks on component mount and when filters change
+  useEffect(() => {
+    loadFeedbacks();
+  }, [currentPage, statusFilter, searchTerm]);
 
   const handleReplyChange = (feedbackId, text) => {
     setReplyText({
@@ -88,27 +56,165 @@ const Feedbacks = () => {
     });
   };
 
-  const handleSendReply = (feedbackId) => {
-    setFeedbacks(feedbacks.map(feedback => 
-      feedback.id === feedbackId 
-        ? { 
-            ...feedback, 
-            reply: replyText[feedbackId] || feedback.reply,
-            status: 'Replied'
-          }
-        : feedback
-    ));
-    setReplyText({
-      ...replyText,
-      [feedbackId]: ''
+  const handleSendReply = async (feedbackId) => {
+    try {
+      setReplyingTo(feedbackId);
+      const reply = replyText[feedbackId];
+      
+      if (!reply || reply.trim() === '') {
+        showAlert({
+          title: 'Validation Error',
+          message: 'Please enter a reply',
+          type: 'warning'
+        });
+        return;
+      }
+
+      const response = await AdminApiService.replyToFeedback(feedbackId, reply);
+      
+      if (response.success) {
+        // Update local state
+        setFeedbacks(feedbacks.map(feedback => 
+          feedback.id === feedbackId 
+            ? { 
+                ...feedback, 
+                adminReply: reply,
+                status: 'replied',
+                repliedBy: 'Admin',
+                repliedAt: new Date().toISOString()
+              }
+            : feedback
+        ));
+        
+        setReplyText({
+          ...replyText,
+          [feedbackId]: ''
+        });
+        
+        showAlert({
+          title: 'Success',
+          message: 'Reply sent successfully!',
+          type: 'success'
+        });
+      } else {
+        showAlert({
+          title: 'Error',
+          message: 'Failed to send reply. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      console.error('Error sending reply:', err);
+      showAlert({
+        title: 'Error',
+        message: 'Failed to send reply. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setReplyingTo(null);
+    }
+  };
+
+  const handleStatusChange = async (feedbackId, newStatus) => {
+    try {
+      const response = await AdminApiService.updateFeedbackStatus(feedbackId, newStatus);
+      
+      if (response.success) {
+        setFeedbacks(feedbacks.map(feedback => 
+          feedback.id === feedbackId 
+            ? { ...feedback, status: newStatus }
+            : feedback
+        ));
+        showAlert({
+          title: 'Success',
+          message: 'Status updated successfully!',
+          type: 'success'
+        });
+      } else {
+        showAlert({
+          title: 'Error',
+          message: 'Failed to update status. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      console.error('Error updating status:', err);
+      showAlert({
+        title: 'Error',
+        message: 'Failed to update status. Please try again.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    showConfirm({
+      title: 'Delete Feedback',
+      message: 'Are you sure you want to delete this feedback? This action cannot be undone.',
+      type: 'danger',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        await performDeleteFeedback(feedbackId);
+      }
     });
   };
 
-  const filteredFeedbacks = feedbacks.filter(feedback =>
-    feedback.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    feedback.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    feedback.feedback.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const performDeleteFeedback = async (feedbackId) => {
+    try {
+      const response = await AdminApiService.deleteFeedback(feedbackId);
+      
+      if (response.success) {
+        setFeedbacks(feedbacks.filter(feedback => feedback.id !== feedbackId));
+        showAlert({
+          title: 'Success',
+          message: 'Feedback deleted successfully!',
+          type: 'success'
+        });
+      } else {
+        showAlert({
+          title: 'Error',
+          message: 'Failed to delete feedback. Please try again.',
+          type: 'error'
+        });
+      }
+    } catch (err) {
+      console.error('Error deleting feedback:', err);
+      showAlert({
+        title: 'Error',
+        message: 'Failed to delete feedback. Please try again.',
+        type: 'error'
+      });
+    }
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'Unknown date';
+    
+    let date;
+    if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return '#ffc107';
+      case 'replied': return '#28a745';
+      case 'resolved': return '#17a2b8';
+      case 'closed': return '#6c757d';
+      default: return '#6c757d';
+    }
+  };
 
   return (
     <div className="homepage">
@@ -116,42 +222,106 @@ const Feedbacks = () => {
         <div className="feedbacks-container">
           <h1 className="feedbacks-title">User Feedbacks</h1>
           
-          <input
-            type="text"
-            placeholder="Search by user name, email or feedback content..."
-            className="feedbacks-search-input"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          {/* Filters */}
+          <div className="feedbacks-filters">
+            <input
+              type="text"
+              placeholder="Search by user name, email or feedback content..."
+              className="feedbacks-search-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            
+            <select
+              className="status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="replied">Replied</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
           
-          {filteredFeedbacks.length === 0 ? (
+          {/* Loading State */}
+          {loading && (
+            <div className="loading-container">
+              <p>Loading feedbacks...</p>
+            </div>
+          )}
+          
+          {/* Error State */}
+          {error && (
+            <div className="error-container">
+              <p className="error-message">{error}</p>
+              <button onClick={loadFeedbacks} className="retry-button">
+                Retry
+              </button>
+            </div>
+          )}
+          
+          {/* Feedbacks List */}
+          {!loading && !error && feedbacks.length === 0 && (
             <p className="no-feedback-msg">No feedbacks found.</p>
-          ) : (
+          )}
+          
+          {!loading && !error && feedbacks.length > 0 && (
             <div className="feedbacks-list">
-              {filteredFeedbacks.map((feedback) => (
+              {feedbacks.map((feedback) => (
                 <div key={feedback.id} className="feedback-card">
                   <div className="feedback-header">
                     <div className="feedback-user-info">
-                      <h3 className="feedback-user-name">{feedback.user}</h3>
-                      <p className="feedback-email">{feedback.email}</p>
-                      <span className="feedback-date">{feedback.date}</span>
+                      <h3 className="feedback-user-name">{feedback.userName || 'Unknown User'}</h3>
+                      <p className="feedback-email">{feedback.userEmail || 'No email'}</p>
+                      <span className="feedback-date">{formatDate(feedback.createdAt)}</span>
+                      {feedback.rating && (
+                        <div className="feedback-rating">
+                          Rating: {feedback.rating}/5
+                        </div>
+                      )}
                     </div>
                     <div className="feedback-status">
-                      <span className={`status-badge ${feedback.status.toLowerCase()}`}>
-                        {feedback.status}
-                      </span>
+                      <select
+                        className="status-select"
+                        value={feedback.status}
+                        onChange={(e) => handleStatusChange(feedback.id, e.target.value)}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="replied">Replied</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                      <button
+                        className="delete-feedback-button"
+                        onClick={() => handleDeleteFeedback(feedback.id)}
+                        title="Delete feedback"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
                   
                   <div className="feedback-content">
                     <h4 className="feedback-label">Feedback:</h4>
                     <p className="feedback-text">{feedback.feedback}</p>
+                    {feedback.category && (
+                      <span className="feedback-category">Category: {feedback.category}</span>
+                    )}
                   </div>
                   
                   <div className="feedback-reply">
-                    <h4 className="feedback-label">Reply:</h4>
-                    {feedback.status === 'Replied' ? (
-                      <p className="reply-text">{feedback.reply}</p>
+                    <h4 className="feedback-label">Admin Reply:</h4>
+                    {feedback.adminReply ? (
+                      <div className="reply-section">
+                        <p className="reply-text">{feedback.adminReply}</p>
+                        {feedback.repliedBy && (
+                          <p className="reply-meta">
+                            Replied by {feedback.repliedBy} on {formatDate(feedback.repliedAt)}
+                          </p>
+                        )}
+                      </div>
                     ) : (
                       <div className="reply-input-section">
                         <textarea
@@ -163,9 +333,9 @@ const Feedbacks = () => {
                         <button
                           className="send-reply-button"
                           onClick={() => handleSendReply(feedback.id)}
-                          disabled={!replyText[feedback.id] || replyText[feedback.id].trim() === ''}
+                          disabled={!replyText[feedback.id] || replyText[feedback.id].trim() === '' || replyingTo === feedback.id}
                         >
-                          Send Reply
+                          {replyingTo === feedback.id ? 'Sending...' : 'Send Reply'}
                         </button>
                       </div>
                     )}
@@ -175,19 +345,23 @@ const Feedbacks = () => {
             </div>
           )}
           
-          {filteredFeedbacks.length > 0 && (
+          {/* Pagination */}
+          {!loading && !error && pagination.totalPages > 1 && (
             <div className="pagination-controls">
               <button 
                 className="pagination-button" 
-                disabled={currentPage === 1}
+                disabled={!pagination.hasPrev}
                 onClick={() => setCurrentPage(currentPage - 1)}
               >
                 Previous
               </button>
-              <span className="pagination-info">Page {currentPage} of 1</span>
+              <span className="pagination-info">
+                Page {pagination.currentPage} of {pagination.totalPages} 
+                ({pagination.totalCount} total)
+              </span>
               <button 
                 className="pagination-button"
-                disabled
+                disabled={!pagination.hasNext}
                 onClick={() => setCurrentPage(currentPage + 1)}
               >
                 Next

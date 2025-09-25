@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput } from 'react-native';
+import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { Button } from './ui/button';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { useAuth } from '../contexts/AuthContext';
+// import GoogleLoginButton from '../components/GoogleLoginButton';
+// import GoogleLoginButtonDev from '../components/GoogleLoginButtonDev';
+// import GoogleLoginButtonSimple from '../components/GoogleLoginButtonSimple';
+import Constants from 'expo-constants';
 
 const AuthScreen = () => {
   const [email, setEmail] = useState('');
@@ -11,14 +16,93 @@ const AuthScreen = () => {
   const [otp, setOtp] = useState('');
   const [showOtp, setShowOtp] = useState(false);
   const [tab, setTab] = useState<'email' | 'phone'>('email');
+  const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpData, setOtpData] = useState(null);
   const navigation = useNavigation<any>();
+  const { sendEmailOTP, sendPhoneOTP, verifyOTP } = useAuth();
 
-  const handleEmailLogin = () => setShowOtp(true);
+  const handleEmailLogin = async () => {
+    if (!email || !email.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
 
-  const handleOtpVerify = () => {
-    setTimeout(() => {
-      navigation.navigate('CreateProfile');
-    }, 500);
+    setLoading(true);
+    try {
+      const response = await sendEmailOTP(email);
+      if (response.success) {
+        setOtpSent(true);
+        setOtpData({ email, phone: '' });
+        setShowOtp(true);
+        Alert.alert('Success', `OTP sent to ${email}. For testing, OTP is: ${response.otp}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneLogin = async () => {
+    if (!phone || phone.length < 10) {
+      Alert.alert('Error', 'Please enter a valid phone number');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await sendPhoneOTP(phone);
+      if (response.success) {
+        setOtpSent(true);
+        setOtpData({ email: '', phone });
+        setShowOtp(true);
+        Alert.alert('Success', `OTP sent to ${phone}. For testing, OTP is: ${response.otp}`);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpVerify = async () => {
+    if (!otp || otp.length !== 6) {
+      Alert.alert('Error', 'Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await verifyOTP(otpData.email, otpData.phone, otp);
+      if (response.success) {
+        Alert.alert('Success', response.message, [
+          {
+            text: 'Continue',
+            onPress: () => navigation.navigate('Home')
+          }
+        ]);
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to verify OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLoginSuccess = (userInfo: any) => {
+    console.log('Google Login Success:', userInfo);
+    Alert.alert('Success', 'Google login successful!', [
+      {
+        text: 'Continue',
+        onPress: () => navigation.navigate('CreateProfile')
+      }
+    ]);
+  };
+
+  const handleGoogleLoginError = (error: any) => {
+    console.log('Google Login Error:', error);
+    Alert.alert('Error', 'Google login failed. Please try again.');
   };
 
   return (
@@ -84,8 +168,12 @@ const AuthScreen = () => {
                   keyboardType="email-address"
                 />
                 <View style={styles.button}>
-                  <Button onPress={handleEmailLogin}>
-                    <Text style={styles.buttonText}>Send OTP</Text>
+                  <Button onPress={handleEmailLogin} disabled={loading}>
+                    {loading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Send OTP</Text>
+                    )}
                   </Button>
                 </View>
               </View>
@@ -109,8 +197,12 @@ const AuthScreen = () => {
                   keyboardType="numeric"
                 />
                 <View style={styles.button}>
-                  <Button onPress={handleOtpVerify}>
-                    <Text style={styles.buttonText}>Verify & Continue</Text>
+                  <Button onPress={handleOtpVerify} disabled={loading}>
+                    {loading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Verify & Continue</Text>
+                    )}
                   </Button>
                 </View>
                 <View style={styles.button}>
@@ -131,8 +223,12 @@ const AuthScreen = () => {
                   keyboardType="phone-pad"
                 />
                 <View style={styles.button}>
-                  <Button onPress={handleEmailLogin}>
-                    <Text style={styles.buttonText}>Send SMS Code</Text>
+                  <Button onPress={handlePhoneLogin} disabled={loading}>
+                    {loading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>Send SMS Code</Text>
+                    )}
                   </Button>
                 </View>
               </View>
@@ -149,6 +245,16 @@ const AuthScreen = () => {
                 <Text style={styles.trustText}>Data encrypted</Text>
               </View>
             </View>
+
+            {/* Google Login - Temporarily disabled for Expo Go compatibility */}
+            {/* <View style={styles.googleLoginSection}>
+              <View style={styles.separator} />
+              <Text style={styles.orText}>Or continue with</Text>
+              <GoogleLoginButtonSimple
+                onLoginSuccess={handleGoogleLoginSuccess}
+                onLoginError={handleGoogleLoginError}
+              />
+            </View> */}
 
             {/* Quick Access Button for Testing */}
             <View style={styles.quickAccessSection}>
@@ -202,6 +308,8 @@ const styles = StyleSheet.create({
   trustRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   trustText: { fontSize: 12, color: '#888', marginHorizontal: 4 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#888', marginHorizontal: 6 },
+  googleLoginSection: { marginTop: 24, paddingTop: 16 },
+  orText: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 12 },
   quickAccessSection: { marginTop: 24, paddingTop: 16 },
   separator: { height: 1, backgroundColor: '#eee', marginBottom: 12 },
   quickAccessText: { fontSize: 12, color: '#888', textAlign: 'center', marginBottom: 8 },

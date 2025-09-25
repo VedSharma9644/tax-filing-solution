@@ -9,26 +9,32 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~5.0.4",
+    "@expo/metro-runtime": "~6.1.2",
+    "@google-cloud/storage": "^7.17.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-google-signin/google-signin": "^16.0.0",
     "@react-native-picker/picker": "^2.11.1",
     "@react-navigation/native": "^7.1.14",
     "@react-navigation/native-stack": "^7.3.21",
     "@react-navigation/stack": "^7.4.2",
-    "expo": "~53.0.20",
-    "expo-document-picker": "^13.1.6",
-    "expo-image-picker": "^16.1.4",
-    "expo-status-bar": "~2.2.3",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-native": "0.79.5",
-    "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1",
-    "react-native-web": "^0.20.0"
+    "expo": "^54.0.0",
+    "expo-auth-session": "~7.0.8",
+    "expo-crypto": "~15.0.7",
+    "expo-document-picker": "~14.0.7",
+    "expo-image-picker": "~17.0.8",
+    "expo-status-bar": "~3.0.8",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.4",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.0",
+    "expo-image": "~3.0.8"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@types/react": "~19.0.10",
-    "typescript": "~5.8.3"
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

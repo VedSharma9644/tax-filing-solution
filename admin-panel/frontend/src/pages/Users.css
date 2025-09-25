@@ -142,6 +142,34 @@
   font-size: 0.9rem;
 }
 
+/* Loading and error states */
+.loading-spinner {
+  font-size: 3rem;
+  margin: 2rem 0;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.retry-button {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.retry-button:hover {
+  background: #2980b9;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .homepage {

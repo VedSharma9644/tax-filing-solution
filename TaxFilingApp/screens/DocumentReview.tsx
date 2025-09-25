@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Modal, Dimensions, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Modal, Dimensions, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Textarea } from './ui/textarea';
@@ -7,81 +7,91 @@ import { Checkbox } from './ui/checkbox';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { useAuth } from '../contexts/AuthContext';
+import ApiService from '../services/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const DocumentReview = () => {
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
   const [notes, setNotes] = useState('');
   const [isApproved, setIsApproved] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [taxForms, setTaxForms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
 
-  // Mock data - in real app, this would come from API
-  const adminDocument = {
-    id: '1',
-    name: 'Tax_Filing_Review_2023.pdf',
-    uploadedBy: 'Admin',
-    uploadedAt: '2024-01-15',
-    status: 'pending_review',
-    size: '2.4 MB'
+  // Fetch tax forms data
+  useEffect(() => {
+    const fetchTaxForms = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await ApiService.getTaxFormHistory(token);
+        if (response.success) {
+          setTaxForms(response.data || []);
+        } else {
+          setError('Failed to load tax forms');
+        }
+      } catch (err) {
+        console.error('Error fetching tax forms:', err);
+        setError('Error loading tax forms');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTaxForms();
+  }, [token]);
+
+  // Get the most recent approved tax form
+  const getApprovedTaxForm = () => {
+    return taxForms.find(form => form.status === 'approved') || taxForms[0];
   };
 
-  // Mock personal documents data
-  const personalDocuments = [
-    {
-      id: 'pd1',
-      title: 'Medical Expenses 2023',
-      name: 'medical_bills_2023.pdf',
-      category: 'Medical Expenses',
-      uploadedAt: '2024-01-10',
-      size: '1.2 MB',
-      description: 'All medical bills and prescriptions for 2023'
-    },
-    {
-      id: 'pd2',
-      title: 'Charitable Donations',
-      name: 'charitable_receipts.pdf',
-      category: 'Charitable Donations',
-      uploadedAt: '2024-01-12',
-      size: '856 KB',
-      description: 'Receipts for charitable contributions'
-    },
-    {
-      id: 'pd3',
-      title: 'Business Expenses',
-      name: 'business_expenses.pdf',
-      category: 'Business Documents',
-      uploadedAt: '2024-01-14',
-      size: '2.1 MB',
-      description: 'Home office and business-related expenses'
-    }
-  ];
+  // Get all documents from the approved tax form
+  const getAllDocuments = () => {
+    const approvedForm = getApprovedTaxForm();
+    if (!approvedForm || !approvedForm.documents) return [];
 
-  // Mock previous year tax returns
-  const previousYearReturns = [
-    {
-      id: 'py1',
-      name: 'Tax_Return_2022.pdf',
-      year: '2022',
-      uploadedAt: '2024-01-08',
-      size: '1.8 MB'
-    },
-    {
-      id: 'py2',
-      name: 'Tax_Return_2021.pdf',
-      year: '2021',
-      uploadedAt: '2024-01-08',
-      size: '1.6 MB'
-    }
-  ];
+    return approvedForm.documents.map(doc => ({
+      id: doc.id,
+      name: doc.name,
+      category: doc.category,
+      gcsPath: doc.gcsPath,
+      uploadedAt: doc.uploadedAt?.toDate ? doc.uploadedAt.toDate().toLocaleDateString() : 'Unknown',
+      size: doc.size ? `${(doc.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown',
+      type: 'Personal Document'
+    }));
+  };
 
-  // Combine all documents for the approval modal
-  const allDocuments = [
-    { ...adminDocument, type: 'Admin Review Document' },
-    ...personalDocuments.map(doc => ({ ...doc, type: 'Personal Document' })),
-    ...previousYearReturns.map(doc => ({ ...doc, type: 'Previous Year Return' }))
-  ];
+  // Get admin document (if any)
+  const getAdminDocument = () => {
+    const approvedForm = getApprovedTaxForm();
+    if (!approvedForm) return null;
+
+    return {
+      id: approvedForm.id,
+      name: `Tax_Review_${approvedForm.taxYear || new Date().getFullYear()}.pdf`,
+      uploadedBy: 'Admin',
+      uploadedAt: approvedForm.updatedAt?.toDate ? approvedForm.updatedAt.toDate().toLocaleDateString() : 'Unknown',
+      status: approvedForm.status,
+      size: '2.4 MB', // Mock size for admin document
+      adminNotes: approvedForm.adminNotes || '',
+      expectedReturn: approvedForm.expectedReturn || 0
+    };
+  };
+
+  const allDocuments = getAllDocuments();
+  const adminDocument = getAdminDocument();
 
   const handleApprove = () => {
     setShowApprovalModal(true);
@@ -133,9 +143,31 @@ const DocumentReview = () => {
     );
   };
 
-  const handleViewDocument = () => {
-    // In real app, this would open the PDF viewer
-    Alert.alert('View Document', 'This would open the PDF document for review.');
+  const handleViewDocument = (document) => {
+    if (!document) return;
+    
+    setSelectedDocument(document);
+    setShowDocumentModal(true);
+  };
+
+  const openDocumentInBrowser = (gcsPath) => {
+    if (!gcsPath) {
+      Alert.alert('Error', 'Document path not available');
+      return;
+    }
+
+    // For now, show an alert. In production, this would open the document
+    Alert.alert(
+      'View Document',
+      'This would open the document in a PDF viewer. The document is stored securely and can be viewed by authorized users only.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open', onPress: () => {
+          // In production, this would open the document using a PDF viewer
+          console.log('Opening document:', gcsPath);
+        }}
+      ]
+    );
   };
 
   return (
@@ -162,120 +194,121 @@ const DocumentReview = () => {
           </View>
 
           {/* Document Info Card */}
-          <Card style={styles.card}>
-            <CardHeader>
-              <CardTitle style={styles.cardTitle}>
-                <FontAwesome name="file-pdf-o" size={24} color="#dc3545" />
-                <Text style={styles.cardTitleText}>Admin Review Document</Text>
-              </CardTitle>
-              <CardDescription>
-                Review your tax filing document prepared by our team
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <View style={styles.documentInfo}>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Document:</Text>
-                  <Text style={styles.infoValue} numberOfLines={2}>{adminDocument.name}</Text>
+          {loading ? (
+            <Card style={styles.card}>
+              <CardContent>
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#007bff" />
+                  <Text style={styles.loadingText}>Loading tax form data...</Text>
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Uploaded by:</Text>
-                  <Text style={styles.infoValue}>{adminDocument.uploadedBy}</Text>
+              </CardContent>
+            </Card>
+          ) : error ? (
+            <Card style={styles.card}>
+              <CardContent>
+                <Text style={styles.errorText}>{error}</Text>
+              </CardContent>
+            </Card>
+          ) : !adminDocument ? (
+            <Card style={styles.card}>
+              <CardContent>
+                <Text style={styles.noDataText}>No approved tax form found. Please wait for admin approval.</Text>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card style={styles.card}>
+              <CardHeader>
+                <CardTitle style={styles.cardTitle}>
+                  <FontAwesome name="file-pdf-o" size={24} color="#dc3545" />
+                  <Text style={styles.cardTitleText}>Admin Review Document</Text>
+                </CardTitle>
+                <CardDescription>
+                  Review your tax filing document prepared by our team
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <View style={styles.documentInfo}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Document:</Text>
+                    <Text style={styles.infoValue} numberOfLines={2}>{adminDocument.name}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Uploaded by:</Text>
+                    <Text style={styles.infoValue}>{adminDocument.uploadedBy}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Date:</Text>
+                    <Text style={styles.infoValue}>{adminDocument.uploadedAt}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Status:</Text>
+                    <Text style={styles.infoValue}>{adminDocument.status}</Text>
+                  </View>
+                  {adminDocument.expectedReturn > 0 && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Expected Return:</Text>
+                      <Text style={styles.infoValue}>${adminDocument.expectedReturn.toFixed(0)}</Text>
+                    </View>
+                  )}
+                  {adminDocument.adminNotes && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>Admin Notes:</Text>
+                      <Text style={styles.infoValue} numberOfLines={3}>{adminDocument.adminNotes}</Text>
+                    </View>
+                  )}
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Date:</Text>
-                  <Text style={styles.infoValue}>{adminDocument.uploadedAt}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Size:</Text>
-                  <Text style={styles.infoValue}>{adminDocument.size}</Text>
-                </View>
-              </View>
 
-              <Button 
-                style={styles.viewButton} 
-                onPress={handleViewDocument}
-              >
-                <Feather name="eye" size={20} color="#fff" />
-                <Text style={styles.viewButtonText}>View Document</Text>
-              </Button>
-            </CardContent>
-          </Card>
+                <Button 
+                  style={styles.viewButton} 
+                  onPress={() => handleViewDocument(adminDocument)}
+                >
+                  <Feather name="eye" size={20} color="#fff" />
+                  <Text style={styles.viewButtonText}>View Document</Text>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Personal Documents Section */}
           <Card style={styles.card}>
             <CardHeader>
               <CardTitle style={styles.cardTitle}>
                 <FontAwesome name="user" size={24} color="#007bff" />
-                <Text style={styles.cardTitleText}>Personal Documents</Text>
+                <Text style={styles.cardTitleText}>Your Uploaded Documents</Text>
               </CardTitle>
               <CardDescription>
-                Your uploaded personal documents with custom titles
+                Documents you uploaded for tax filing
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {personalDocuments.map(doc => (
-                <View key={doc.id} style={styles.documentItem}>
-                  <View style={styles.documentItemHeader}>
-                    <FontAwesome name="file-text-o" size={20} color="#007bff" />
-                    <View style={styles.documentItemInfo}>
-                      <Text style={styles.documentItemTitle} numberOfLines={1}>{doc.title}</Text>
-                      <Text style={styles.documentItemName} numberOfLines={1}>{doc.name}</Text>
-                      <Text style={styles.documentItemMeta}>
-                        {doc.size} • {doc.category} • {doc.uploadedAt}
-                      </Text>
-                      {doc.description && (
-                        <Text style={styles.documentItemDesc} numberOfLines={2}>{doc.description}</Text>
-                      )}
+              {allDocuments.length === 0 ? (
+                <Text style={styles.noDataText}>No documents uploaded yet</Text>
+              ) : (
+                allDocuments.map(doc => (
+                  <View key={doc.id} style={styles.documentItem}>
+                    <View style={styles.documentItemHeader}>
+                      <FontAwesome name="file-text-o" size={20} color="#007bff" />
+                      <View style={styles.documentItemInfo}>
+                        <Text style={styles.documentItemTitle} numberOfLines={1}>{doc.category}</Text>
+                        <Text style={styles.documentItemName} numberOfLines={1}>{doc.name}</Text>
+                        <Text style={styles.documentItemMeta}>
+                          {doc.size} • {doc.uploadedAt}
+                        </Text>
+                      </View>
                     </View>
+                    <Button 
+                      variant="ghost" 
+                      style={styles.viewDocumentButton}
+                      onPress={() => handleViewDocument(doc)}
+                    >
+                      <Feather name="eye" size={16} color="#007bff" />
+                    </Button>
                   </View>
-                  <Button 
-                    variant="ghost" 
-                    style={styles.viewDocumentButton}
-                    onPress={() => Alert.alert('View Document', `Viewing ${doc.title}`)}
-                  >
-                    <Feather name="eye" size={16} color="#007bff" />
-                  </Button>
-                </View>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
 
-          {/* Previous Year Tax Returns Section */}
-          <Card style={styles.card}>
-            <CardHeader>
-              <CardTitle style={styles.cardTitle}>
-                <FontAwesome name="calendar" size={24} color="#28a745" />
-                <Text style={styles.cardTitleText}>Previous Year Tax Returns</Text>
-              </CardTitle>
-              <CardDescription>
-                Your previous year tax returns for reference
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {previousYearReturns.map(returnDoc => (
-                <View key={returnDoc.id} style={styles.documentItem}>
-                  <View style={styles.documentItemHeader}>
-                    <FontAwesome name="file-pdf-o" size={20} color="#28a745" />
-                    <View style={styles.documentItemInfo}>
-                      <Text style={styles.documentItemTitle}>Tax Return {returnDoc.year}</Text>
-                      <Text style={styles.documentItemName} numberOfLines={1}>{returnDoc.name}</Text>
-                      <Text style={styles.documentItemMeta}>
-                        {returnDoc.size} • {returnDoc.uploadedAt}
-                      </Text>
-                    </View>
-                  </View>
-                  <Button 
-                    variant="ghost" 
-                    style={styles.viewDocumentButton}
-                    onPress={() => Alert.alert('View Document', `Viewing Tax Return ${returnDoc.year}`)}
-                  >
-                    <Feather name="eye" size={16} color="#28a745" />
-                  </Button>
-                </View>
-              ))}
-            </CardContent>
-          </Card>
 
           {/* Review Actions */}
           <Card style={styles.card}>
@@ -432,6 +465,67 @@ const DocumentReview = () => {
                   >
                     <Ionicons name="checkmark" size={20} color="#fff" />
                     <Text style={styles.modalButtonText}>Accept & Continue</Text>
+                  </Button>
+                </View>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Document Viewing Modal */}
+          <Modal
+            visible={showDocumentModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setShowDocumentModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <FontAwesome name="file-text-o" size={32} color="#007bff" />
+                  <Text style={styles.modalTitle}>Document Preview</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {selectedDocument?.name || 'Document'}
+                  </Text>
+                </View>
+
+                <View style={styles.documentPreviewSection}>
+                  <Text style={styles.documentPreviewTitle}>Document Details</Text>
+                  <View style={styles.documentPreviewInfo}>
+                    <Text style={styles.documentPreviewLabel}>Name:</Text>
+                    <Text style={styles.documentPreviewValue}>{selectedDocument?.name}</Text>
+                  </View>
+                  <View style={styles.documentPreviewInfo}>
+                    <Text style={styles.documentPreviewLabel}>Category:</Text>
+                    <Text style={styles.documentPreviewValue}>{selectedDocument?.category}</Text>
+                  </View>
+                  <View style={styles.documentPreviewInfo}>
+                    <Text style={styles.documentPreviewLabel}>Size:</Text>
+                    <Text style={styles.documentPreviewValue}>{selectedDocument?.size}</Text>
+                  </View>
+                  <View style={styles.documentPreviewInfo}>
+                    <Text style={styles.documentPreviewLabel}>Uploaded:</Text>
+                    <Text style={styles.documentPreviewValue}>{selectedDocument?.uploadedAt}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.modalActions}>
+                  <Button 
+                    style={styles.cancelButton} 
+                    onPress={() => setShowDocumentModal(false)}
+                  >
+                    <Ionicons name="close" size={20} color="#fff" />
+                    <Text style={styles.modalButtonText}>Close</Text>
+                  </Button>
+                  
+                  <Button 
+                    style={styles.openButton} 
+                    onPress={() => {
+                      setShowDocumentModal(false);
+                      openDocumentInBrowser(selectedDocument?.gcsPath);
+                    }}
+                  >
+                    <Feather name="external-link" size={20} color="#fff" />
+                    <Text style={styles.modalButtonText}>Open Document</Text>
                   </Button>
                 </View>
               </View>
@@ -779,6 +873,73 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#666',
+    fontSize: 14,
+  },
+  errorText: {
+    color: '#e74c3c',
+    textAlign: 'center',
+    padding: 20,
+  },
+  noDataText: {
+    color: '#666',
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
+  },
+  documentPreviewSection: {
+    marginBottom: 20,
+  },
+  documentPreviewTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  documentPreviewInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  documentPreviewLabel: {
+    fontWeight: '500',
+    color: '#666',
+    fontSize: 14,
+  },
+  documentPreviewValue: {
+    fontWeight: '600',
+    color: '#333',
+    fontSize: 14,
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 8,
+  },
+  cancelButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#6c757d',
+  },
+  openButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#007bff',
   },
 });
 

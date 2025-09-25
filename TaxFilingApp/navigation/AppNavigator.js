@@ -11,6 +11,12 @@ import DocumentReviewScreen from '../screens/DocumentReview';
 import PaymentScreen from '../screens/Payment';
 import SettingsScreen from '../screens/Settings';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
+import SupportRequestScreen from '../screens/SupportRequestScreen';
+import AppointmentScreen from '../screens/AppointmentScreen';
+import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+import FAQHelpCenterScreen from '../screens/FAQHelpCenter';
+import TaxFilingGuideScreen from '../screens/TaxFilingGuide';
 
 const Stack = createNativeStackNavigator();
 
@@ -52,6 +58,36 @@ const AppNavigator = () => (
       <Stack.Screen 
         name="Payment" 
         component={PaymentScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Feedback" 
+        component={FeedbackScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="SupportRequest" 
+        component={SupportRequestScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Appointment" 
+        component={AppointmentScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="PaymentHistory" 
+        component={PaymentHistoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="FAQHelpCenter" 
+        component={FAQHelpCenterScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="TaxFilingGuide" 
+        component={TaxFilingGuideScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

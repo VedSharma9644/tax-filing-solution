@@ -1,11 +1,15 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Image, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Image, TouchableOpacity, Animated, Alert } from 'react-native';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Switch } from './ui/switch';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons, FontAwesome, Feather } from '@expo/vector-icons';
 import CustomHeader from '../components/CustomHeader';
+import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import ProfileForm from '../components/ProfileForm';
+import { useProfile } from '../hooks/useProfile';
+import { useAuth } from '../contexts/AuthContext';
 
 const Settings = () => {
   const [notifications, setNotifications] = useState({
@@ -22,246 +26,303 @@ const Settings = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation<any>();
   const scrollY = useRef(new Animated.Value(0)).current;
+  
+  // Profile management
+  const { profile, loading, saving, errors, updateProfile, resetProfile } = useProfile();
+  const { logout } = useAuth();
+  const [profileChanges, setProfileChanges] = useState({});
 
   const handleNotificationChange = (key: string, value: boolean) => {
     setNotifications(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleProfileChange = (field, value) => {
+    setProfileChanges(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProfileSave = async (profileData) => {
+    const success = await updateProfile(profileData);
+    if (success) {
+      setProfileChanges({});
+    }
+    return success;
+  };
+
+  const handleProfileReset = () => {
+    setProfileChanges({});
+    resetProfile();
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          style: 'destructive',
+          onPress: () => logout()
+        }
+      ]
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <CustomHeader 
-        title="Settings" 
-        subtitle="Account & Preferences"
-        avatarInitials="JD"
-        scrollY={scrollY}
-      />
-      <Animated.ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        scrollEventThrottle={16}
-      >
-        {/* Content */}
-        <View style={styles.content}>
-        {/* Profile Section */}
-        <Card style={styles.card}>
-          <CardHeader style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <FontAwesome name="user" size={20} color="#007bff" />
-              <Text style={styles.cardTitle}>Profile Information</Text>
-            </View>
-            <CardDescription style={styles.cardDescription}>Manage your personal information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Avatar */}
-            <View style={styles.avatarRow}>
-              <View style={styles.avatarContainer}>
-                <Image source={require('../assets/icon.png')} style={styles.avatarImage} />
-                <Button variant="secondary" style={styles.avatarEditButton}>
-                  <Feather name="camera" size={16} color="#007bff" />
-                </Button>
+    <SafeAreaWrapper>
+      <View style={styles.container}>
+        <CustomHeader 
+          title="Settings" 
+          subtitle="Account & Preferences"
+          avatarInitials="JD"
+          scrollY={scrollY}
+        />
+        <Animated.ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+        >
+          {/* Content */}
+          <View style={styles.content}>
+          {/* Profile Section */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <FontAwesome name="user" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Profile Information</Text>
               </View>
-              <View>
-                <Text style={styles.profileName}>John Doe</Text>
-                <Text style={styles.profileEmail}>john.doe@email.com</Text>
-                <Text style={styles.profileSince}>Member since 2023</Text>
-              </View>
-            </View>
-            {/* Personal Info */}
-            <View style={styles.inputGroup}>
-              <View style={styles.inputRow}>
-                <View style={styles.inputColumn}>
-                  <Text style={styles.label}>First Name</Text>
-                  <TextInput style={styles.input} placeholder="John" defaultValue="John" />
-                </View>
-                <View style={styles.inputColumn}>
-                  <Text style={styles.label}>Last Name</Text>
-                  <TextInput style={styles.input} placeholder="Doe" defaultValue="Doe" />
-                </View>
-              </View>
-              <Text style={styles.label}>Email Address</Text>
-              <View style={styles.inputWithIcon}>
-                <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-                <TextInput style={styles.inputWithIconText} placeholder="john.doe@email.com" defaultValue="john.doe@email.com" />
-              </View>
-              <Text style={styles.label}>Phone Number</Text>
-              <View style={styles.inputWithIcon}>
-                <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
-                <TextInput style={styles.inputWithIconText} placeholder="+1 (555) 123-4567" defaultValue="+1 (555) 123-4567" />
-              </View>
-            </View>
-          </CardContent>
-        </Card>
-        
-        {/* Security & Privacy Section */}
-        <Card style={styles.card}>
-          <CardHeader style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="shield-checkmark" size={20} color="#007bff" />
-              <Text style={styles.cardTitle}>Security & Privacy</Text>
-            </View>
-            <CardDescription style={styles.cardDescription}>Keep your account secure</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Current Password */}
-            <Text style={styles.label}>Current Password</Text>
-            <View style={styles.inputWithIcon}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput 
-                style={styles.inputWithIconText} 
-                placeholder="Enter current password" 
-                secureTextEntry={!showPassword}
+              <CardDescription style={styles.cardDescription}>Manage your personal information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProfileForm
+                profile={profile}
+                onProfileChange={handleProfileChange}
+                errors={errors}
+                loading={saving}
+                onSave={handleProfileSave}
+                onReset={handleProfileReset}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons 
-                  name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                  size={20} 
-                  color="#666" 
+            </CardContent>
+          </Card>
+          
+          {/* Security & Privacy Section */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="shield-checkmark" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Security & Privacy</Text>
+              </View>
+              <CardDescription style={styles.cardDescription}>Keep your account secure</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Current Password */}
+              <Text style={styles.label}>Current Password</Text>
+              <View style={styles.inputWithIcon}>
+                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+                <TextInput 
+                  style={styles.inputWithIconText} 
+                  placeholder="Enter current password" 
+                  secureTextEntry={!showPassword}
                 />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons 
+                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                    size={20} 
+                    color="#666" 
+                  />
+                </TouchableOpacity>
+              </View>
+              
+              {/* Security Features */}
+              <View style={styles.securityRow}>
+                <View style={styles.securityContent}>
+                  <Text style={styles.securityTitle}>Two-Factor Authentication</Text>
+                  <Text style={styles.securitySubtitle}>Add an extra layer of security</Text>
+                </View>
+                <Switch value={security.twoFactorAuth} onValueChange={val => setSecurity(prev => ({ ...prev, twoFactorAuth: val }))} />
+              </View>
+              
+              <View style={styles.securityRow}>
+                <View style={styles.securityContent}>
+                  <Text style={styles.securityTitle}>Biometric Login</Text>
+                  <Text style={styles.securitySubtitle}>Use fingerprint or face ID</Text>
+                </View>
+                <Switch value={security.biometricLogin} onValueChange={val => setSecurity(prev => ({ ...prev, biometricLogin: val }))} />
+              </View>
+              
+              <View style={styles.securityRow}>
+                <View style={styles.securityContent}>
+                  <Text style={styles.securityTitle}>Auto-Logout</Text>
+                  <Text style={styles.securitySubtitle}>Logout after 30 minutes of inactivity</Text>
+                </View>
+                <Switch value={security.autoLogout} onValueChange={val => setSecurity(prev => ({ ...prev, autoLogout: val }))} />
+              </View>
+            </CardContent>
+          </Card>
+          
+          {/* Notification Settings */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="notifications" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Notifications</Text>
+              </View>
+              <CardDescription style={styles.cardDescription}>Choose what you want to be notified about</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <View style={styles.notificationRow}>
+                <View style={styles.notificationContent}>
+                  <Text style={styles.notificationTitle}>Tax Deadline Reminders</Text>
+                  <Text style={styles.notificationSubtitle}>Get notified about upcoming deadlines</Text>
+                </View>
+                <Switch value={notifications.taxDeadlines} onValueChange={val => handleNotificationChange('taxDeadlines', val)} />
+              </View>
+              <View style={styles.notificationRow}>
+                <View style={styles.notificationContent}>
+                  <Text style={styles.notificationTitle}>Document Reminders</Text>
+                  <Text style={styles.notificationSubtitle}>Reminders to upload missing documents</Text>
+                </View>
+                <Switch value={notifications.documentReminders} onValueChange={val => handleNotificationChange('documentReminders', val)} />
+              </View>
+              <View style={styles.notificationRow}>
+                <View style={styles.notificationContent}>
+                  <Text style={styles.notificationTitle}>Refund Updates</Text>
+                  <Text style={styles.notificationSubtitle}>Status updates on your tax refund</Text>
+                </View>
+                <Switch value={notifications.refundUpdates} onValueChange={val => handleNotificationChange('refundUpdates', val)} />
+              </View>
+              <View style={styles.notificationRow}>
+                <View style={styles.notificationContent}>
+                  <Text style={styles.notificationTitle}>Marketing Emails</Text>
+                  <Text style={styles.notificationSubtitle}>Tips, promotions, and updates</Text>
+                </View>
+                <Switch value={notifications.marketingEmails} onValueChange={val => handleNotificationChange('marketingEmails', val)} />
+              </View>
+            </CardContent>
+          </Card>
+          
+          {/* Feedback & Reviews Section */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="star" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Feedback & Reviews</Text>
+              </View>
+              <CardDescription style={styles.cardDescription}>Share your experience and help us improve</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('Feedback')}>
+                <Text style={styles.supportButtonText}>Submit Feedback</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
-            </View>
-            
-            {/* Security Features */}
-            <View style={styles.securityRow}>
-              <View style={styles.securityContent}>
-                <Text style={styles.securityTitle}>Two-Factor Authentication</Text>
-                <Text style={styles.securitySubtitle}>Add an extra layer of security</Text>
+              <TouchableOpacity style={styles.supportButton}>
+                <Text style={styles.supportButtonText}>View My Reviews</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+          
+          {/* Payment History Section */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="card" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Payment History</Text>
               </View>
-              <Switch value={security.twoFactorAuth} onValueChange={val => setSecurity(prev => ({ ...prev, twoFactorAuth: val }))} />
-            </View>
-            
-            <View style={styles.securityRow}>
-              <View style={styles.securityContent}>
-                <Text style={styles.securityTitle}>Biometric Login</Text>
-                <Text style={styles.securitySubtitle}>Use fingerprint or face ID</Text>
+              <CardDescription style={styles.cardDescription}>View your payment history and receipts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('PaymentHistory')}>
+                <Text style={styles.supportButtonText}>View Payment History</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.supportButton}>
+                <Text style={styles.supportButtonText}>Download Receipts</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+          
+          {/* Help & Support Section */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="help-circle" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Help & Support</Text>
               </View>
-              <Switch value={security.biometricLogin} onValueChange={val => setSecurity(prev => ({ ...prev, biometricLogin: val }))} />
-            </View>
-            
-            <View style={styles.securityRow}>
-              <View style={styles.securityContent}>
-                <Text style={styles.securityTitle}>Auto-Logout</Text>
-                <Text style={styles.securitySubtitle}>Logout after 30 minutes of inactivity</Text>
+            </CardHeader>
+            <CardContent>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('SupportRequest')}>
+                <Text style={styles.supportButtonText}>Submit Support Request</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('Appointment')}>
+                <Text style={styles.supportButtonText}>Schedule Appointment</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('Feedback')}>
+                <Text style={styles.supportButtonText}>Submit Feedback</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('FAQHelpCenter')}>
+                <Text style={styles.supportButtonText}>FAQ & Help Center</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('TaxFilingGuide')}>
+                <Text style={styles.supportButtonText}>Tax Filing Guide</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+          
+          {/* Data & Privacy Section */}
+          <Card style={styles.card}>
+            <CardHeader style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Ionicons name="shield-outline" size={20} color="#007bff" />
+                <Text style={styles.cardTitle}>Data & Privacy</Text>
               </View>
-              <Switch value={security.autoLogout} onValueChange={val => setSecurity(prev => ({ ...prev, autoLogout: val }))} />
-            </View>
-          </CardContent>
-        </Card>
-        
-        {/* Notification Settings */}
-        <Card style={styles.card}>
-          <CardHeader style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="notifications" size={20} color="#007bff" />
-              <Text style={styles.cardTitle}>Notifications</Text>
-            </View>
-            <CardDescription style={styles.cardDescription}>Choose what you want to be notified about</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <View style={styles.notificationRow}>
-              <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>Tax Deadline Reminders</Text>
-                <Text style={styles.notificationSubtitle}>Get notified about upcoming deadlines</Text>
-              </View>
-              <Switch value={notifications.taxDeadlines} onValueChange={val => handleNotificationChange('taxDeadlines', val)} />
-            </View>
-            <View style={styles.notificationRow}>
-              <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>Document Reminders</Text>
-                <Text style={styles.notificationSubtitle}>Reminders to upload missing documents</Text>
-              </View>
-              <Switch value={notifications.documentReminders} onValueChange={val => handleNotificationChange('documentReminders', val)} />
-            </View>
-            <View style={styles.notificationRow}>
-              <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>Refund Updates</Text>
-                <Text style={styles.notificationSubtitle}>Status updates on your tax refund</Text>
-              </View>
-              <Switch value={notifications.refundUpdates} onValueChange={val => handleNotificationChange('refundUpdates', val)} />
-            </View>
-            <View style={styles.notificationRow}>
-              <View style={styles.notificationContent}>
-                <Text style={styles.notificationTitle}>Marketing Emails</Text>
-                <Text style={styles.notificationSubtitle}>Tips, promotions, and updates</Text>
-              </View>
-              <Switch value={notifications.marketingEmails} onValueChange={val => handleNotificationChange('marketingEmails', val)} />
-            </View>
-          </CardContent>
-        </Card>
-        
-        {/* Data & Privacy Section */}
-        <Card style={styles.card}>
-          <CardHeader style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="shield-outline" size={20} color="#007bff" />
-              <Text style={styles.cardTitle}>Data & Privacy</Text>
-            </View>
-            <CardDescription style={styles.cardDescription}>Manage your data and privacy settings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TouchableOpacity style={styles.privacyButton}>
-              <Ionicons name="download-outline" size={20} color="#666" />
-              <Text style={styles.privacyButtonText}>Download My Data</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.privacyButton}>
-              <Ionicons name="help-circle-outline" size={20} color="#666" />
-              <Text style={styles.privacyButtonText}>Privacy Policy</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteAccountButton}>
-              <Ionicons name="trash-outline" size={20} color="#fff" />
-              <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
-            </TouchableOpacity>
-          </CardContent>
-        </Card>
-        
-        {/* Help & Support Section */}
-        <Card style={styles.card}>
-          <CardHeader style={styles.cardHeader}>
-            <View style={styles.cardTitleRow}>
-              <Ionicons name="help-circle" size={20} color="#007bff" />
-              <Text style={styles.cardTitle}>Help & Support</Text>
-            </View>
-          </CardHeader>
-          <CardContent>
-            <TouchableOpacity style={styles.supportButton}>
-              <Text style={styles.supportButtonText}>Contact Support</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.supportButton}>
-              <Text style={styles.supportButtonText}>FAQ & Help Center</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.supportButton}>
-              <Text style={styles.supportButtonText}>Tax Filing Guide</Text>
-              <Ionicons name="chevron-forward" size={20} color="#666" />
-            </TouchableOpacity>
-          </CardContent>
-        </Card>
-        
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <Button style={styles.saveButton} onPress={() => {}}>
-            <Text style={styles.saveButtonText}>Save Changes</Text>
-          </Button>
-          <Button variant="outline" style={styles.logoutButton} onPress={() => {}}>
-            <Ionicons name="log-out-outline" size={20} color="#dc3545" />
-            <Text style={styles.logoutButtonText}>Log Out</Text>
-          </Button>
-        </View>
-        
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>TaxEase Mobile App</Text>
-          <Text style={styles.footerText}>Version 2.1.0 • Build 156</Text>
-          <Text style={styles.footerText}>© 2023 TaxEase Inc. All rights reserved.</Text>
-        </View>
-        </View>
-      </Animated.ScrollView>
-    </View>
+              <CardDescription style={styles.cardDescription}>Manage your data and privacy settings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TouchableOpacity style={styles.privacyButton}>
+                <Ionicons name="download-outline" size={20} color="#666" />
+                <Text style={styles.privacyButtonText}>Download My Data</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.privacyButton}>
+                <Ionicons name="help-circle-outline" size={20} color="#666" />
+                <Text style={styles.privacyButtonText}>Privacy Policy</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteAccountButton}>
+                <Ionicons name="trash-outline" size={20} color="#fff" />
+                <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+          
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <Button variant="outline" style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#dc3545" />
+              <Text style={styles.logoutButtonText}>Log Out</Text>
+            </Button>
+          </View>
+          
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>TaxEase Mobile App</Text>
+            <Text style={styles.footerText}>Version 2.1.0 • Build 156</Text>
+            <Text style={styles.footerText}>© 2023 TaxEase Inc. All rights reserved.</Text>
+          </View>
+          </View>
+        </Animated.ScrollView>
+      </View>
+    </SafeAreaWrapper>
   );
 };
 
