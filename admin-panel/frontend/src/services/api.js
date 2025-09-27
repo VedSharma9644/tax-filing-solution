@@ -125,7 +125,7 @@ class AdminApiService {
     });
   }
 
-  // Get secure file URL for viewing
+  // Get secure file for viewing
   async getSecureFileUrl(gcsPath) {
     const token = this.getAuthToken();
     if (!token) {
@@ -133,22 +133,73 @@ class AdminApiService {
     }
     
     try {
-      // Get fresh signed URL from main backend
-      const response = await fetch(`http://localhost:5000/api/files/signed-url/${encodeURIComponent(gcsPath)}`, {
+      // Use admin backend for viewing (with decryption)
+      const response = await fetch(`http://localhost:5001/admin/files/view/${encodeURIComponent(gcsPath)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
         }
       });
       
       if (!response.ok) {
-        throw new Error(`Failed to get signed URL: ${response.status}`);
+        throw new Error(`Failed to get file: ${response.status}`);
       }
       
-      const data = await response.json();
-      return data.signedUrl;
+      // Return the response object directly
+      return response;
     } catch (error) {
-      console.error('Error getting signed URL:', error);
+      console.error('Error getting file for viewing:', error);
+      throw error;
+    }
+  }
+
+  // Download single file (with decryption)
+  async downloadFile(gcsPath) {
+    const token = this.getAuthToken();
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+    
+    try {
+      // Use admin backend for downloads
+      const response = await fetch(`http://localhost:5001/admin/files/download/${encodeURIComponent(gcsPath)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status}`);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      throw error;
+    }
+  }
+
+  // Download all files for an application (ZIP)
+  async downloadAllFiles(applicationId) {
+    const token = this.getAuthToken();
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+    
+    try {
+      // Use admin backend for download all
+      const response = await fetch(`http://localhost:5001/admin/files/download-all/${applicationId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download all files: ${response.status}`);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Error downloading all files:', error);
       throw error;
     }
   }

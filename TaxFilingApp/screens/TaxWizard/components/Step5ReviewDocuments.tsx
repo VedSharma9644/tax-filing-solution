@@ -4,14 +4,16 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
-import { pickDocument, takePhoto } from '../utils/documentUtils';
+import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
 
-interface Step4ReviewDocumentsProps {
+interface Step5ReviewDocumentsProps {
   formData: {
     socialSecurityNumber: string;
     previousYearTaxDocuments: UploadedDocument[];
     w2Forms: UploadedDocument[];
+    hasAdditionalIncome: boolean;
+    additionalIncomeSources: any[];
     medicalDocuments: UploadedDocument[];
     educationDocuments: UploadedDocument[];
     dependentChildrenDocuments: UploadedDocument[];
@@ -28,7 +30,7 @@ interface Step4ReviewDocumentsProps {
   onInitializeImageStates: (documentId: string) => void;
 }
 
-const Step4ReviewDocuments: React.FC<Step4ReviewDocumentsProps> = ({
+const Step5ReviewDocuments: React.FC<Step5ReviewDocumentsProps> = ({
   formData,
   isUploading,
   imageLoadingStates,
@@ -91,6 +93,19 @@ const Step4ReviewDocuments: React.FC<Step4ReviewDocumentsProps> = ({
     },
   ];
 
+  // Calculate total additional income
+  const getTotalAdditionalIncome = () => {
+    const sources = formData.additionalIncomeSources || [];
+    return sources.reduce((total, source) => {
+      const amount = parseFloat(source.amount) || 0;
+      return total + amount;
+    }, 0);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const handlePickDocument = async (category: string) => {
     try {
       const result = await pickDocument();
@@ -103,17 +118,7 @@ const Step4ReviewDocuments: React.FC<Step4ReviewDocumentsProps> = ({
     }
   };
 
-  const handleTakePhoto = async (category: string) => {
-    try {
-      const result = await takePhoto();
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const file = result.assets[0];
-        onUploadDocument(file, category);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    }
-  };
+  // Camera functionality removed
 
   const handleDeleteDocument = (id: string, category: string) => {
     Alert.alert(
@@ -163,6 +168,40 @@ const Step4ReviewDocuments: React.FC<Step4ReviewDocumentsProps> = ({
           </View>
         </CardHeader>
       </Card>
+
+      {/* Additional Income Summary */}
+      {formData.hasAdditionalIncome && (
+        <Card style={styles.sectionCard}>
+          <CardHeader>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIcon, { backgroundColor: '#28a745' }]}>
+                <FontAwesome name="dollar" size={20} color="#fff" />
+              </View>
+              <View style={styles.sectionInfo}>
+                <CardTitle style={styles.sectionTitle}>Additional Income Sources</CardTitle>
+                <CardDescription>
+                  {(formData.additionalIncomeSources || []).length} income source{(formData.additionalIncomeSources || []).length !== 1 ? 's' : ''} • 
+                  Total: {formatCurrency(getTotalAdditionalIncome())}
+                </CardDescription>
+              </View>
+            </View>
+          </CardHeader>
+          <CardContent>
+            {(formData.additionalIncomeSources || []).map((source, index) => (
+              <View key={source.id} style={styles.incomeSourceItem}>
+                <View style={styles.incomeSourceHeader}>
+                  <Text style={styles.incomeSourceNumber}>#{index + 1}</Text>
+                  <Text style={styles.incomeSourceAmount}>{formatCurrency(parseFloat(source.amount) || 0)}</Text>
+                </View>
+                <Text style={styles.incomeSourceName}>{source.source}</Text>
+                {source.description && (
+                  <Text style={styles.incomeSourceDescription}>{source.description}</Text>
+                )}
+              </View>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Document Categories */}
       {documentCategories.map((category) => (
@@ -415,6 +454,41 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  incomeSourceItem: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  incomeSourceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  incomeSourceNumber: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#28a745',
+  },
+  incomeSourceAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#28a745',
+  },
+  incomeSourceName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  incomeSourceDescription: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
 });
 
-export default Step4ReviewDocuments;
+export default Step5ReviewDocuments;

@@ -1486,312 +1486,8 @@ app.get('/admin/files/debug', (req, res) => {
   });
 });
 
-// IMPORTANT: Specific routes must come before catch-all routes
-// View single file (with decryption for mobile app documents) - MOVED FROM LINE 2080
-app.get('/admin/files/view/:gcsPath(*)', authenticateAdmin, async (req, res) => {
-  try {
-    const gcsPath = req.params.gcsPath;
-    
-    if (!gcsPath) {
-      return res.status(400).json({
-        success: false,
-        error: 'File path is required'
-      });
-    }
 
-    console.log(`👁️ Admin viewing file: ${gcsPath}`);
-    console.log(`🔍 Raw gcsPath parameter:`, req.params.gcsPath);
-    console.log(`🔍 Decoded gcsPath:`, decodeURIComponent(gcsPath));
-
-    const fileRef = bucket.file(gcsPath);
-    
-    // Check if file exists
-    const [exists] = await fileRef.exists();
-    if (!exists) {
-      return res.status(404).json({
-        success: false,
-        error: 'File not found'
-      });
-    }
-
-    // Check if this is a mobile app document (encrypted) or admin document
-    const isMobileAppDocument = !gcsPath.includes('admin-returns');
-    
-    if (isMobileAppDocument) {
-      console.log(`🔐 Viewing encrypted mobile app document`);
-      
-      // Download the encrypted file from GCS
-      const [encryptedBuffer] = await fileRef.download();
-      
-      // Parse the encrypted data structure
-      const encryptedDataString = encryptedBuffer.toString();
-      const encryptedFileData = JSON.parse(encryptedDataString);
-      
-      // Convert base64 strings back to buffers
-      const encryptedData = {
-        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-        iv: Buffer.from(encryptedFileData.iv, 'base64'),
-        algorithm: encryptedFileData.algorithm
-      };
-
-      // Decrypt the file using DEK approach
-      const decryptedBuffer = await decryptFileWithDEK(encryptedData);
-      
-      // Get file metadata
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
-      const originalName = metadata.metadata?.originalName || 'document';
-
-      // Set headers for viewing
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${originalName}"`,
-        'Content-Length': decryptedBuffer.length,
-        'Cache-Control': 'private, max-age=3600'
-      });
-
-      // Send the decrypted file
-      res.send(decryptedBuffer);
-      
-    } else {
-      console.log(`📄 Viewing admin document directly from GCS`);
-      
-      // For admin documents, stream directly from GCS
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
-      const originalName = metadata.metadata?.originalName || 'document';
-
-      // Set headers for viewing
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${originalName}"`,
-        'Cache-Control': 'private, max-age=3600'
-      });
-
-      // Stream the file directly from GCS
-      const stream = fileRef.createReadStream();
-      stream.pipe(res);
-    }
-    
-  } catch (error) {
-    console.error('Error viewing file:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to view file',
-      details: error.message
-    });
-  }
-});
-
-// Download single file (with decryption for mobile app documents) - MOVED FROM LINE 2177
-app.get('/admin/files/download/:gcsPath(*)', authenticateAdmin, async (req, res) => {
-  try {
-    const gcsPath = req.params.gcsPath;
-    
-    if (!gcsPath) {
-      return res.status(400).json({
-        success: false,
-        error: 'File path is required'
-      });
-    }
-
-    console.log(`📥 Admin downloading file: ${gcsPath}`);
-    console.log(`🔍 Raw gcsPath parameter:`, req.params.gcsPath);
-    console.log(`🔍 Decoded gcsPath:`, decodeURIComponent(gcsPath));
-
-    const fileRef = bucket.file(gcsPath);
-    
-    // Check if file exists
-    const [exists] = await fileRef.exists();
-    if (!exists) {
-      return res.status(404).json({
-        success: false,
-        error: 'File not found'
-      });
-    }
-
-    // Check if this is a mobile app document (encrypted) or admin document
-    const isMobileAppDocument = !gcsPath.includes('admin-returns');
-    
-    if (isMobileAppDocument) {
-      console.log(`🔐 Downloading encrypted mobile app document`);
-      
-      // Download the encrypted file from GCS
-      const [encryptedBuffer] = await fileRef.download();
-      
-      // Parse the encrypted data structure
-      const encryptedDataString = encryptedBuffer.toString();
-      const encryptedFileData = JSON.parse(encryptedDataString);
-      
-      // Convert base64 strings back to buffers
-      const encryptedData = {
-        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-        iv: Buffer.from(encryptedFileData.iv, 'base64'),
-        algorithm: encryptedFileData.algorithm
-      };
-
-      // Decrypt the file using DEK approach
-      const decryptedBuffer = await decryptFileWithDEK(encryptedData);
-      
-      // Get file metadata
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
-      const originalName = metadata.metadata?.originalName || 'document';
-
-      // Set headers for download
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${originalName}"`,
-        'Content-Length': decryptedBuffer.length,
-        'Cache-Control': 'private, max-age=3600'
-      });
-
-      // Send the decrypted file
-      res.send(decryptedBuffer);
-      
-    } else {
-      console.log(`📄 Downloading admin document directly from GCS`);
-      
-      // For admin documents, stream directly from GCS
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
-      const originalName = metadata.metadata?.originalName || 'document';
-
-      // Set headers for download
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${originalName}"`,
-        'Cache-Control': 'private, max-age=3600'
-      });
-
-      // Stream the file directly from GCS
-      const stream = fileRef.createReadStream();
-      stream.pipe(res);
-    }
-    
-  } catch (error) {
-    console.error('Error downloading file:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to download file',
-      details: error.message
-    });
-  }
-});
-
-// Download all files for an application (ZIP archive) - MOVED FROM LINE 2274
-app.get('/admin/files/download-all/:applicationId', authenticateAdmin, async (req, res) => {
-  try {
-    const { applicationId } = req.params;
-    
-    if (!applicationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Application ID is required'
-      });
-    }
-
-    console.log(`📦 Admin downloading all files for application: ${applicationId}`);
-
-    // Get tax form document to find all files
-    const taxFormRef = db.collection('taxForms').doc(applicationId);
-    const taxFormDoc = await taxFormRef.get();
-    
-    if (!taxFormDoc.exists) {
-      return res.status(404).json({
-        success: false,
-        error: 'Application not found'
-      });
-    }
-
-    const taxFormData = taxFormDoc.data();
-    const documents = taxFormData.documents || [];
-    
-    if (documents.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'No documents found for this application'
-      });
-    }
-
-    console.log(`📁 Found ${documents.length} documents to download`);
-
-    // Create a ZIP file
-    const archiver = require('archiver');
-    const archive = archiver('zip', { zlib: { level: 9 } });
-
-    // Set response headers
-    res.set({
-      'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="application-${applicationId}-documents.zip"`,
-      'Cache-Control': 'private, max-age=3600'
-    });
-
-    // Pipe archive to response
-    archive.pipe(res);
-
-    // Process each document
-    for (let i = 0; i < documents.length; i++) {
-      const doc = documents[i];
-      const gcsPath = doc.gcsPath;
-      
-      try {
-        console.log(`📥 Processing document ${i + 1}/${documents.length}: ${doc.name}`);
-        
-        const fileRef = bucket.file(gcsPath);
-        const isMobileAppDocument = !gcsPath.includes('admin-returns');
-        
-        let fileBuffer;
-        
-        if (isMobileAppDocument) {
-          // Download and decrypt mobile app document
-          const [encryptedBuffer] = await fileRef.download();
-          const encryptedDataString = encryptedBuffer.toString();
-          const encryptedFileData = JSON.parse(encryptedDataString);
-          
-          const encryptedData = {
-            encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-            encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-            iv: Buffer.from(encryptedFileData.iv, 'base64'),
-            algorithm: encryptedFileData.algorithm
-          };
-
-          fileBuffer = await decryptFileWithDEK(encryptedData);
-        } else {
-          // Download admin document directly
-          const [buffer] = await fileRef.download();
-          fileBuffer = buffer;
-        }
-        
-        // Add file to ZIP with proper name
-        const fileName = `${doc.category || 'misc'}/${doc.name}`;
-        archive.append(fileBuffer, { name: fileName });
-        
-      } catch (error) {
-        console.error(`❌ Error processing document ${doc.name}:`, error);
-        // Continue with other documents even if one fails
-        archive.append(`Error loading ${doc.name}: ${error.message}`, { name: `errors/${doc.name}.txt` });
-      }
-    }
-
-    // Finalize the archive
-    await archive.finalize();
-    
-    console.log(`✅ ZIP archive created successfully for application ${applicationId}`);
-
-  } catch (error) {
-    console.error('Error creating download all archive:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create download archive',
-      details: error.message
-    });
-  }
-});
-
-// Catch-all route for other file operations (MUST come after specific routes)
+// Download file (with authentication) - handle downloads with query parameter
 app.get('/admin/files/*', authenticateAdmin, async (req, res) => {
   // Check if this is a download request by looking for /download in the path
   if (req.params[0].includes('/download')) {
@@ -2375,6 +2071,310 @@ app.get('/admin/returns/:applicationId/:returnType/view', authenticateAdmin, asy
     res.status(500).json({
       success: false,
       error: 'Failed to view return',
+      details: error.message
+    });
+  }
+});
+
+// View single file (with decryption for mobile app documents)
+app.get('/admin/files/view/:gcsPath(*)', authenticateAdmin, async (req, res) => {
+  try {
+    const gcsPath = req.params.gcsPath;
+    
+    if (!gcsPath) {
+      return res.status(400).json({
+        success: false,
+        error: 'File path is required'
+      });
+    }
+
+    console.log(`👁️ Admin viewing file: ${gcsPath}`);
+    console.log(`🔍 Raw gcsPath parameter:`, req.params.gcsPath);
+    console.log(`🔍 Decoded gcsPath:`, decodeURIComponent(gcsPath));
+
+    const fileRef = bucket.file(gcsPath);
+    
+    // Check if file exists
+    const [exists] = await fileRef.exists();
+    if (!exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'File not found'
+      });
+    }
+
+    // Check if this is a mobile app document (encrypted) or admin document
+    const isMobileAppDocument = !gcsPath.includes('admin-returns');
+    
+    if (isMobileAppDocument) {
+      console.log(`🔐 Viewing encrypted mobile app document`);
+      
+      // Download the encrypted file from GCS
+      const [encryptedBuffer] = await fileRef.download();
+      
+      // Parse the encrypted data structure
+      const encryptedDataString = encryptedBuffer.toString();
+      const encryptedFileData = JSON.parse(encryptedDataString);
+      
+      // Convert base64 strings back to buffers
+      const encryptedData = {
+        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+        iv: Buffer.from(encryptedFileData.iv, 'base64'),
+        algorithm: encryptedFileData.algorithm
+      };
+
+      // Decrypt the file using DEK approach
+      const decryptedBuffer = await decryptFileWithDEK(encryptedData);
+      
+      // Get file metadata
+      const [metadata] = await fileRef.getMetadata();
+      const contentType = metadata.contentType || 'application/octet-stream';
+      const originalName = metadata.metadata?.originalName || 'document';
+
+      // Set headers for viewing
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${originalName}"`,
+        'Content-Length': decryptedBuffer.length,
+        'Cache-Control': 'private, max-age=3600'
+      });
+
+      // Send the decrypted file
+      res.send(decryptedBuffer);
+      
+    } else {
+      console.log(`📄 Viewing admin document directly from GCS`);
+      
+      // For admin documents, stream directly from GCS
+      const [metadata] = await fileRef.getMetadata();
+      const contentType = metadata.contentType || 'application/octet-stream';
+      const originalName = metadata.metadata?.originalName || 'document';
+
+      // Set headers for viewing
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${originalName}"`,
+        'Cache-Control': 'private, max-age=3600'
+      });
+
+      // Stream the file directly from GCS
+      const stream = fileRef.createReadStream();
+      stream.pipe(res);
+    }
+    
+  } catch (error) {
+    console.error('Error viewing file:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to view file',
+      details: error.message
+    });
+  }
+});
+
+// Download single file (with decryption for mobile app documents)
+app.get('/admin/files/download/:gcsPath(*)', authenticateAdmin, async (req, res) => {
+  try {
+    const gcsPath = req.params.gcsPath;
+    
+    if (!gcsPath) {
+      return res.status(400).json({
+        success: false,
+        error: 'File path is required'
+      });
+    }
+
+    console.log(`📥 Admin downloading file: ${gcsPath}`);
+    console.log(`🔍 Raw gcsPath parameter:`, req.params.gcsPath);
+    console.log(`🔍 Decoded gcsPath:`, decodeURIComponent(gcsPath));
+
+    const fileRef = bucket.file(gcsPath);
+    
+    // Check if file exists
+    const [exists] = await fileRef.exists();
+    if (!exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'File not found'
+      });
+    }
+
+    // Check if this is a mobile app document (encrypted) or admin document
+    const isMobileAppDocument = !gcsPath.includes('admin-returns');
+    
+    if (isMobileAppDocument) {
+      console.log(`🔐 Downloading encrypted mobile app document`);
+      
+      // Download the encrypted file from GCS
+      const [encryptedBuffer] = await fileRef.download();
+      
+      // Parse the encrypted data structure
+      const encryptedDataString = encryptedBuffer.toString();
+      const encryptedFileData = JSON.parse(encryptedDataString);
+      
+      // Convert base64 strings back to buffers
+      const encryptedData = {
+        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+        iv: Buffer.from(encryptedFileData.iv, 'base64'),
+        algorithm: encryptedFileData.algorithm
+      };
+
+      // Decrypt the file using DEK approach
+      const decryptedBuffer = await decryptFileWithDEK(encryptedData);
+      
+      // Get file metadata
+      const [metadata] = await fileRef.getMetadata();
+      const contentType = metadata.contentType || 'application/octet-stream';
+      const originalName = metadata.metadata?.originalName || 'document';
+
+      // Set headers for download
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${originalName}"`,
+        'Content-Length': decryptedBuffer.length,
+        'Cache-Control': 'private, max-age=3600'
+      });
+
+      // Send the decrypted file
+      res.send(decryptedBuffer);
+      
+    } else {
+      console.log(`📄 Downloading admin document directly from GCS`);
+      
+      // For admin documents, stream directly from GCS
+      const [metadata] = await fileRef.getMetadata();
+      const contentType = metadata.contentType || 'application/octet-stream';
+      const originalName = metadata.metadata?.originalName || 'document';
+
+      // Set headers for download
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${originalName}"`,
+        'Cache-Control': 'private, max-age=3600'
+      });
+
+      // Stream the file directly from GCS
+      const stream = fileRef.createReadStream();
+      stream.pipe(res);
+    }
+    
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to download file',
+      details: error.message
+    });
+  }
+});
+
+// Download all files for an application (ZIP archive)
+app.get('/admin/files/download-all/:applicationId', authenticateAdmin, async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    
+    if (!applicationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application ID is required'
+      });
+    }
+
+    console.log(`📦 Admin downloading all files for application: ${applicationId}`);
+
+    // Get tax form document to find all files
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    const taxFormDoc = await taxFormRef.get();
+    
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+    const documents = taxFormData.documents || [];
+    
+    if (documents.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No documents found for this application'
+      });
+    }
+
+    console.log(`📁 Found ${documents.length} documents to download`);
+
+    // Create a ZIP file
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    // Set response headers
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="application-${applicationId}-documents.zip"`,
+      'Cache-Control': 'private, max-age=3600'
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Process each document
+    for (let i = 0; i < documents.length; i++) {
+      const doc = documents[i];
+      const gcsPath = doc.gcsPath;
+      
+      try {
+        console.log(`📥 Processing document ${i + 1}/${documents.length}: ${doc.name}`);
+        
+        const fileRef = bucket.file(gcsPath);
+        const isMobileAppDocument = !gcsPath.includes('admin-returns');
+        
+        let fileBuffer;
+        
+        if (isMobileAppDocument) {
+          // Download and decrypt mobile app document
+          const [encryptedBuffer] = await fileRef.download();
+          const encryptedDataString = encryptedBuffer.toString();
+          const encryptedFileData = JSON.parse(encryptedDataString);
+          
+          const encryptedData = {
+            encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+            encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+            iv: Buffer.from(encryptedFileData.iv, 'base64'),
+            algorithm: encryptedFileData.algorithm
+          };
+
+          fileBuffer = await decryptFileWithDEK(encryptedData);
+        } else {
+          // Download admin document directly
+          const [buffer] = await fileRef.download();
+          fileBuffer = buffer;
+        }
+        
+        // Add file to ZIP with proper name
+        const fileName = `${doc.category || 'misc'}/${doc.name}`;
+        archive.append(fileBuffer, { name: fileName });
+        
+      } catch (error) {
+        console.error(`❌ Error processing document ${doc.name}:`, error);
+        // Continue with other documents even if one fails
+        archive.append(`Error loading ${doc.name}: ${error.message}`, { name: `errors/${doc.name}.txt` });
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+    
+    console.log(`✅ ZIP archive created successfully for application ${applicationId}`);
+
+  } catch (error) {
+    console.error('Error creating download all archive:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create download archive',
       details: error.message
     });
   }

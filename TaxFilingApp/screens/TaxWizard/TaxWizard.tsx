@@ -5,9 +5,10 @@ import { Progress } from '../ui/progress';
 import { useTaxWizard } from './hooks/useTaxWizard';
 import SafeAreaWrapper from '../../components/SafeAreaWrapper';
 import Step1TaxDocuments from './components/Step1TaxDocuments';
-import Step2DeductionDocuments from './components/Step2DeductionDocuments';
-import Step3PersonalInfo from './components/Step3PersonalInfo';
-import Step4ReviewDocuments from './components/Step4ReviewDocuments';
+import Step2AdditionalIncome from './components/Step2AdditionalIncome';
+import Step3DeductionDocuments from './components/Step3DeductionDocuments';
+import Step4PersonalInfo from './components/Step4PersonalInfo';
+import Step5ReviewDocuments from './components/Step5ReviewDocuments';
 import DataLoadingScreen from './components/DataLoadingScreen';
 import { useAuth } from '../../contexts/AuthContext';
 import TaxFormService from '../../services/taxFormService';
@@ -146,7 +147,14 @@ const TaxWizard: React.FC = () => {
         );
       case 2:
         return (
-          <Step2DeductionDocuments
+          <Step2AdditionalIncome
+            formData={formData}
+            onUpdateFormData={updateFormData}
+          />
+        );
+      case 3:
+        return (
+          <Step3DeductionDocuments
             formData={formData}
             dependents={dependents}
             numberOfDependents={numberOfDependents}
@@ -163,9 +171,9 @@ const TaxWizard: React.FC = () => {
             onRemoveDependent={removeDependent}
           />
         );
-      case 3:
+      case 4:
         return (
-          <Step3PersonalInfo
+          <Step4PersonalInfo
             formData={formData}
             isUploading={isUploading}
             imageLoadingStates={imageLoadingStates}
@@ -178,9 +186,9 @@ const TaxWizard: React.FC = () => {
             onInitializeImageStates={initializeImageStates}
           />
         );
-      case 4:
+      case 5:
         return (
-          <Step4ReviewDocuments
+          <Step5ReviewDocuments
             formData={formData}
             isUploading={isUploading}
             imageLoadingStates={imageLoadingStates}
@@ -207,6 +215,7 @@ const TaxWizard: React.FC = () => {
   const getStepTitle = () => {
     const stepTitles = [
       'Tax Related Documents',
+      'Additional Income Sources',
       'Deduction Related Documents',
       'Personal Information',
       'Review Documents',

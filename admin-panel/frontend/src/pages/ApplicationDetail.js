@@ -81,8 +81,20 @@ const ApplicationDetail = () => {
 
   const openDocument = async (doc) => {
     try {
-      const secureUrl = await AdminApiService.getSecureFileUrl(doc.gcsPath);
-      window.open(secureUrl, '_blank');
+      console.log(`🔓 Opening document: ${doc.name}`);
+      
+      // Create a blob URL from the file response
+      const response = await AdminApiService.getSecureFileUrl(doc.gcsPath);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      console.log(`🔗 Document blob URL created`);
+      window.open(blobUrl, '_blank');
+      
+      // Clean up the blob URL after a delay
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 60000); // Clean up after 1 minute
     } catch (error) {
       console.error('Error opening document:', error);
       alert('Error opening document. Please try again.');
@@ -91,13 +103,10 @@ const ApplicationDetail = () => {
 
   const downloadDocument = async (doc) => {
     try {
-      const secureUrl = await AdminApiService.getSecureFileUrl(doc.gcsPath);
+      console.log(`📥 Downloading document: ${doc.name}`);
       
-      // Use fetch to download the file
-      const response = await fetch(secureUrl);
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-      }
+      // Use the new download endpoint that handles decryption
+      const response = await AdminApiService.downloadFile(doc.gcsPath);
       
       // Get the blob data
       const blob = await response.blob();
@@ -116,6 +125,8 @@ const ApplicationDetail = () => {
       
       // Clean up the blob URL
       window.URL.revokeObjectURL(blobUrl);
+      
+      console.log(`✅ Document downloaded successfully: ${doc.name}`);
     } catch (error) {
       console.error('Error downloading document:', error);
       alert(`Error downloading document: ${error.message}`);
@@ -129,24 +140,34 @@ const ApplicationDetail = () => {
     }
 
     try {
-      alert(`Starting download of ${application.documents.length} documents...`);
+      console.log(`📦 Starting download of all ${application.documents.length} documents as ZIP...`);
+      alert(`Starting download of all ${application.documents.length} documents as ZIP...`);
       
-      // Download each document with a small delay to avoid browser blocking
-      for (let i = 0; i < application.documents.length; i++) {
-        const doc = application.documents[i];
-        try {
-          await downloadDocument(doc);
-          // Small delay between downloads
-          if (i < application.documents.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        } catch (error) {
-          console.error(`Error downloading ${doc.name}:`, error);
-        }
-      }
+      // Use the new download all endpoint that creates a ZIP file
+      const response = await AdminApiService.downloadAllFiles(application.id);
+      
+      // Get the blob data
+      const blob = await response.blob();
+      
+      // Create a blob URL and download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `application-${application.id}-documents.zip`;
+      link.style.display = 'none';
+      
+      // Append to body, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(blobUrl);
+      
+      console.log(`✅ ZIP archive downloaded successfully`);
     } catch (error) {
-      console.error('Error in download all:', error);
-      alert('Error starting downloads. Please try again.');
+      console.error('Error downloading all documents:', error);
+      alert(`Error downloading all documents: ${error.message}`);
     }
   };
 

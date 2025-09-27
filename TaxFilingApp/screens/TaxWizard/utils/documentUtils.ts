@@ -1,18 +1,9 @@
-import { Platform, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
+// ImagePicker import removed (camera functionality removed)
 import { uploadDocumentToGCS, deleteDocumentFromGCS } from '../../../services/gcsService';
 
-export const requestCameraPermission = async (): Promise<boolean> => {
-  if (Platform.OS !== 'web') {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos.');
-      return false;
-    }
-  }
-  return true;
-};
+// Camera permission functionality removed
 
 export const pickDocument = async (): Promise<DocumentPicker.DocumentPickerResult> => {
   return await DocumentPicker.getDocumentAsync({
@@ -22,19 +13,7 @@ export const pickDocument = async (): Promise<DocumentPicker.DocumentPickerResul
   });
 };
 
-export const takePhoto = async (): Promise<ImagePicker.ImagePickerResult> => {
-  const hasPermission = await requestCameraPermission();
-  if (!hasPermission) {
-    throw new Error('Camera permission denied');
-  }
-
-  return await ImagePicker.launchCameraAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    quality: 0.8,
-    aspect: [4, 3],
-  });
-};
+// Camera functionality removed
 
 
 export const formatFileSize = (bytes: number): string => {

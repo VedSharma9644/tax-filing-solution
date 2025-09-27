@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { TaxFormData, UploadedDocument, Dependent } from '../types';
+import { TaxFormData, UploadedDocument, Dependent, AdditionalIncomeSource } from '../types';
 import { uploadToGCS, deleteFromGCS } from '../utils/documentUtils';
 import { 
   saveAllFormData, 
@@ -22,6 +22,8 @@ export const useTaxWizard = () => {
     socialSecurityNumber: '',
     previousYearTaxDocuments: [],
     w2Forms: [],
+    hasAdditionalIncome: false,
+    additionalIncomeSources: [],
     medicalDocuments: [],
     educationDocuments: [],
     dependentChildrenDocuments: [],
@@ -36,7 +38,7 @@ export const useTaxWizard = () => {
   const [imageErrorStates, setImageErrorStates] = useState<{[key: string]: boolean}>({});
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progress = (step / totalSteps) * 100;
 
   // Load saved data on mount
@@ -107,7 +109,7 @@ export const useTaxWizard = () => {
     }
   }, [step, navigation]);
 
-  const updateFormData = useCallback((field: keyof TaxFormData, value: string | UploadedDocument[]) => {
+  const updateFormData = useCallback((field: keyof TaxFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
@@ -155,6 +157,30 @@ export const useTaxWizard = () => {
     // Debug logging
     logUserFlow('Upload Start', userId, { category, fileName: file.name });
     
+    // Debug: Log the actual file object structure
+    console.log('🔍 File object structure:', {
+      keys: Object.keys(file),
+      name: file.name,
+      fileName: file.fileName,
+      type: file.type,
+      mimeType: file.mimeType,
+      size: file.size,
+      fileSize: file.fileSize,
+      uri: file.uri,
+      width: file.width,
+      height: file.height
+    });
+
+    // Calculate file size in MB for debugging
+    const fileSizeBytes = file.size || file.fileSize || 0;
+    const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
+    console.log(`📏 File size: ${fileSizeBytes} bytes (${fileSizeMB} MB)`);
+    
+    // Warn if file is very large
+    if (fileSizeBytes > 5 * 1024 * 1024) { // 5MB
+      console.warn(`⚠️ Large file detected: ${fileSizeMB} MB - may cause upload issues`);
+    }
+    
     if (!userId) {
       console.error('❌ No user ID available for upload');
       throw new Error('User not authenticated. Please log in to upload documents.');
@@ -175,8 +201,8 @@ export const useTaxWizard = () => {
 
     const document: UploadedDocument = {
       id: Math.random().toString(36).substr(2, 9),
-      name: file.name || 'Document',
-      type: file.mimeType || 'application/octet-stream',
+      name: file.name || file.fileName || 'Document',
+      type: file.mimeType || file.type || 'application/octet-stream',
       size: file.size || file.fileSize || 0,
       status: 'uploading',
       progress: 0,
@@ -310,25 +336,25 @@ export const useTaxWizard = () => {
     
     switch (category) {
       case 'previousYearTax':
-        documentToDelete = formData.previousYearTaxDocuments.find(doc => doc.id === id);
+        documentToDelete = (formData.previousYearTaxDocuments || []).find(doc => doc.id === id);
         break;
       case 'w2Forms':
-        documentToDelete = formData.w2Forms.find(doc => doc.id === id);
+        documentToDelete = (formData.w2Forms || []).find(doc => doc.id === id);
         break;
       case 'medical':
-        documentToDelete = formData.medicalDocuments.find(doc => doc.id === id);
+        documentToDelete = (formData.medicalDocuments || []).find(doc => doc.id === id);
         break;
       case 'education':
-        documentToDelete = formData.educationDocuments.find(doc => doc.id === id);
+        documentToDelete = (formData.educationDocuments || []).find(doc => doc.id === id);
         break;
       case 'dependentChildren':
-        documentToDelete = formData.dependentChildrenDocuments.find(doc => doc.id === id);
+        documentToDelete = (formData.dependentChildrenDocuments || []).find(doc => doc.id === id);
         break;
       case 'homeownerDeduction':
-        documentToDelete = formData.homeownerDeductionDocuments.find(doc => doc.id === id);
+        documentToDelete = (formData.homeownerDeductionDocuments || []).find(doc => doc.id === id);
         break;
       case 'personalId':
-        documentToDelete = formData.personalIdDocuments.find(doc => doc.id === id);
+        documentToDelete = (formData.personalIdDocuments || []).find(doc => doc.id === id);
         break;
     }
 

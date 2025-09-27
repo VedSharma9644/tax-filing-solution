@@ -4,7 +4,7 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
-import { pickDocument, takePhoto } from '../utils/documentUtils';
+import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
 
 interface Dependent {
@@ -14,7 +14,7 @@ interface Dependent {
   relationship: string;
 }
 
-interface Step2DeductionDocumentsProps {
+interface Step3DeductionDocumentsProps {
   formData: {
     medicalDocuments: UploadedDocument[];
     educationDocuments: UploadedDocument[];
@@ -36,7 +36,7 @@ interface Step2DeductionDocumentsProps {
   onRemoveDependent: (id: string) => void;
 }
 
-const Step2DeductionDocuments: React.FC<Step2DeductionDocumentsProps> = ({
+const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
   formData,
   dependents,
   numberOfDependents,
@@ -91,17 +91,7 @@ const Step2DeductionDocuments: React.FC<Step2DeductionDocumentsProps> = ({
     }
   };
 
-  const handleTakePhoto = async (category: string) => {
-    try {
-      const result = await takePhoto();
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const file = result.assets[0];
-        onUploadDocument(file, category);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    }
-  };
+  // Camera functionality removed
 
   const handleDeleteDocument = (id: string, category: string) => {
     Alert.alert(
@@ -224,36 +214,20 @@ const Step2DeductionDocuments: React.FC<Step2DeductionDocumentsProps> = ({
                   <Ionicons name="document-outline" size={16} color="#fd7e14" />
                   <Text style={[styles.actionButtonText, { color: '#fd7e14' }]}>Select File</Text>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={() => handleTakePhoto('dependentChildren')}
-                  style={[styles.actionButton, { borderColor: '#fd7e14' }] as any}
-                >
-                  <Ionicons name="camera-outline" size={16} color="#fd7e14" />
-                  <Text style={[styles.actionButtonText, { color: '#fd7e14' }]}>Take Photo</Text>
-                </Button>
+                {/* Camera button removed */}
               </View>
 
               {/* Uploaded Documents for Dependents */}
-              {formData.dependentChildrenDocuments.length > 0 && (
+              {(formData.dependentChildrenDocuments || []).length > 0 && (
                 <View style={styles.documentsList}>
-                  <Text style={styles.documentsTitle}>Uploaded Documents ({formData.dependentChildrenDocuments.length})</Text>
-                  {formData.dependentChildrenDocuments.map((doc) => (
+                  <Text style={styles.documentsTitle}>Uploaded Documents ({(formData.dependentChildrenDocuments || []).length})</Text>
+                  {(formData.dependentChildrenDocuments || []).map((doc) => (
                     <DocumentPreview
                       key={doc.id}
                       document={doc}
                       onDelete={() => handleDeleteDocument(doc.id, 'dependentChildren')}
                       onReplace={() => {
-                        Alert.alert(
-                          'Replace Document',
-                          'How would you like to replace this document?',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Select File', onPress: () => handlePickDocument('dependentChildren') },
-                            { text: 'Take Photo', onPress: () => handleTakePhoto('dependentChildren') },
-                          ]
-                        );
+                        handlePickDocument('dependentChildren');
                       }}
                       showActions={true}
                     />
@@ -290,15 +264,7 @@ const Step2DeductionDocuments: React.FC<Step2DeductionDocumentsProps> = ({
                   <Ionicons name="document-outline" size={16} color={category.color} />
                   <Text style={[styles.actionButtonText, { color: category.color }]}>Select File</Text>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={() => handleTakePhoto(category.id)}
-                  style={[styles.actionButton, { borderColor: category.color }] as any}
-                >
-                  <Ionicons name="camera-outline" size={16} color={category.color} />
-                  <Text style={[styles.actionButtonText, { color: category.color }]}>Take Photo</Text>
-                </Button>
+                {/* Camera button removed */}
               </View>
 
               {/* Uploaded Documents for this category */}
@@ -311,15 +277,7 @@ const Step2DeductionDocuments: React.FC<Step2DeductionDocumentsProps> = ({
                       document={doc}
                       onDelete={() => handleDeleteDocument(doc.id, category.id)}
                       onReplace={() => {
-                        Alert.alert(
-                          'Replace Document',
-                          'How would you like to replace this document?',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Select File', onPress: () => handlePickDocument(category.id) },
-                            { text: 'Take Photo', onPress: () => handleTakePhoto(category.id) },
-                          ]
-                        );
+                        handlePickDocument(category.id);
                       }}
                       showActions={true}
                     />
@@ -619,4 +577,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Step2DeductionDocuments;
+export default Step3DeductionDocuments;

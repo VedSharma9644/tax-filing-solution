@@ -271,6 +271,8 @@ const getDefaultFormState = () => ({
     socialSecurityNumber: '',
     previousYearTaxDocuments: [],
     w2Forms: [],
+    hasAdditionalIncome: false,
+    additionalIncomeSources: [],
     medicalDocuments: [],
     educationDocuments: [],
     dependentChildrenDocuments: [],

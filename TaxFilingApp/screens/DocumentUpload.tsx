@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
+// ImagePicker import removed (camera functionality removed)
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -40,17 +40,7 @@ const DocumentUpload = () => {
     { id: 'tax-docs', name: 'Tax Documents', description: 'Prior year returns, 1098 forms', icon: 'file-text-o' },
   ];
 
-  // Request camera permissions
-  const requestCameraPermission = async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Camera permission is required to take photos.');
-        return false;
-      }
-    }
-    return true;
-  };
+  // Camera functionality removed
 
   // Pick document from device
   const pickDocument = async () => {
@@ -80,37 +70,7 @@ const DocumentUpload = () => {
     }
   };
 
-  // Take photo with camera
-  const takePhoto = async () => {
-    if (!selectedCategory) {
-      Alert.alert('Select Category', 'Please select a document category first.');
-      return;
-    }
-
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) return;
-
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-        aspect: [4, 3],
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        await uploadFile({
-          name: `Photo_${new Date().toISOString().slice(0, 10)}.jpg`,
-          uri: asset.uri,
-          size: asset.fileSize || 0,
-          type: 'image/jpeg',
-        });
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    }
-  };
+  // Camera functionality removed
 
   // Upload file with progress simulation
   const uploadFile = async (file: { name: string; uri: string; size: number; type: string }) => {
@@ -310,10 +270,7 @@ const DocumentUpload = () => {
                 <Feather name="file" size={20} color="#fff" />
                 <Text style={styles.actionButtonText}>Pick Document</Text>
               </Button>
-              <Button style={styles.actionButton} onPress={takePhoto}>
-                <Feather name="camera" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Take Photo</Text>
-              </Button>
+              {/* Camera button removed */}
             </View>
           </View>
         )}

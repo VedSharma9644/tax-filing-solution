@@ -4,7 +4,7 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
-import { pickDocument, takePhoto } from '../utils/documentUtils';
+import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
 
 interface Step1TaxDocumentsProps {
@@ -64,17 +64,7 @@ const Step1TaxDocuments: React.FC<Step1TaxDocumentsProps> = ({
     }
   };
 
-  const handleTakePhoto = async (category: string) => {
-    try {
-      const result = await takePhoto();
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const file = result.assets[0];
-        onUploadDocument(file, category);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    }
-  };
+  // Camera functionality removed
 
   const handleDeleteDocument = (id: string, category: string) => {
     Alert.alert(
@@ -121,15 +111,7 @@ const Step1TaxDocuments: React.FC<Step1TaxDocumentsProps> = ({
                   <Ionicons name="document-outline" size={16} color={category.color} />
                   <Text style={[styles.actionButtonText, { color: category.color }]}>Select File</Text>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={() => handleTakePhoto(category.id)}
-                  style={[styles.actionButton, { borderColor: category.color }] as any}
-                >
-                  <Ionicons name="camera-outline" size={16} color={category.color} />
-                  <Text style={[styles.actionButtonText, { color: category.color }]}>Take Photo</Text>
-                </Button>
+                {/* Camera button removed */}
               </View>
 
               {/* Uploaded Documents for this category */}
@@ -143,15 +125,7 @@ const Step1TaxDocuments: React.FC<Step1TaxDocumentsProps> = ({
                       onDelete={() => handleDeleteDocument(doc.id, category.id)}
                       onReplace={() => {
                         // Handle replace functionality
-                        Alert.alert(
-                          'Replace Document',
-                          'How would you like to replace this document?',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Select File', onPress: () => handlePickDocument(category.id) },
-                            { text: 'Take Photo', onPress: () => handleTakePhoto(category.id) },
-                          ]
-                        );
+                        handlePickDocument(category.id);
                       }}
                       showActions={true}
                     />

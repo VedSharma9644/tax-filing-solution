@@ -35,8 +35,8 @@ export const uploadDocumentToGCS = async (file, userId, category, onProgress) =>
     if (isGCSAvailable) {
       return await uploadViaBackend(file, userId, category, onProgress);
     } else {
-      // Web environment - simulate upload
-      return await simulateUpload(file, userId, category, onProgress);
+      // Web environment - throw error instead of simulation
+      throw new Error('File upload not supported in web environment. Please use the mobile app.');
     }
   } catch (error) {
     console.error('Document upload error:', error);
@@ -70,32 +70,59 @@ const uploadViaBackend = async (file, userId, category, onProgress) => {
     const formData = new FormData();
     
     // Add file to FormData
-    formData.append('file', {
+    const fileData = {
       uri: file.uri,
-      type: file.type || 'image/jpeg', // Default to image/jpeg for photos
-      name: file.name || 'document.jpg',
-    });
+      type: file.type || file.mimeType || 'image/jpeg', // Default to image/jpeg for photos
+      name: file.name || file.fileName || 'document.jpg',
+    };
+    
+    console.log('📤 File data for FormData:', fileData);
+    formData.append('file', fileData);
     
     // Add metadata
     formData.append('userId', userId);
     formData.append('category', category);
     
+    // Calculate estimated FormData size
+    const estimatedSize = (fileData.size || 0) + (userId?.length || 0) + (category?.length || 0) + 1000; // Rough estimate
+    console.log(`📊 Estimated upload size: ${(estimatedSize / 1024).toFixed(2)} KB`);
+    
     console.log(`📤 Uploading to: ${API_BASE_URL}/upload/document`);
     
     // Upload to backend
+    const startTime = Date.now();
+    console.log('🌐 Starting fetch request to:', `${API_BASE_URL}/upload/document`);
+    console.log('⏱️ Upload started at:', new Date().toISOString());
+    
     const response = await fetch(`${API_BASE_URL}/upload/document`, {
       method: 'POST',
       body: formData,
-      timeout: 30000, // 30 seconds for large file uploads
+      timeout: 60000, // 60 seconds for large photo uploads
       // Let fetch() automatically set Content-Type with boundary for multipart/form-data
     });
     
+    const endTime = Date.now();
+    const uploadDuration = (endTime - startTime) / 1000;
+    
+    console.log('📡 Upload response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      duration: `${uploadDuration.toFixed(2)}s`
+    });
+    
     if (!response.ok) {
+      console.error('❌ Upload failed with status:', response.status);
+      console.error('❌ Response status text:', response.statusText);
+      
       if (response.status === 0) {
+        console.error('❌ Network connectivity issue - server unreachable');
         throw new Error('Network error: Cannot reach server. Check your internet connection.');
       } else if (response.status >= 400 && response.status < 500) {
+        console.error('❌ Client error - likely file format or size issue');
         throw new Error(`Client error: ${response.status} - Invalid request format`);
       } else {
+        console.error('❌ Server error - backend processing issue');
         throw new Error(`Server error: ${response.status} - Backend server issue`);
       }
     }
@@ -121,7 +148,10 @@ const uploadViaBackend = async (file, userId, category, onProgress) => {
       uploadedAt: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Backend upload error:', error);
+    console.error('❌ Backend upload error:', error);
+    console.error('❌ Error type:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
     
     // Provide specific error messages based on error type
     if (error.name === 'TypeError' && error.message.includes('Network request failed')) {
@@ -132,40 +162,12 @@ const uploadViaBackend = async (file, userId, category, onProgress) => {
       throw new Error('Upload timeout: File is too large or connection is too slow. Please try a smaller file.');
     } else {
       console.error('❌ Upload failed:', error.message);
-      // Fallback to simulation if backend fails for other reasons
-      return await simulateUpload(file, userId, category, onProgress);
+      // Re-throw the error instead of falling back to simulation
+      throw error;
     }
   }
 };
 
-/**
- * Simulate upload for web environment
- */
-const simulateUpload = async (file, userId, category, onProgress) => {
-  console.log('🌐 Simulating upload for web environment');
-  
-  return new Promise((resolve) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      if (onProgress) {
-        onProgress(progress);
-      }
-      if (progress >= 100) {
-        clearInterval(interval);
-        resolve({
-          success: true,
-          fileName: `simulated-${category}/${userId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`,
-          publicUrl: `https://storage.googleapis.com/simulated-bucket/simulated-${category}/${userId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`,
-          gcsPath: `simulated-${category}/${userId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`,
-          size: file.size || 0,
-          contentType: file.type || 'application/octet-stream',
-          uploadedAt: new Date().toISOString(),
-        });
-      }
-    }, 100);
-  });
-};
 
 /**
  * Delete a document from Google Cloud Storage
@@ -190,14 +192,12 @@ export const deleteDocumentFromGCS = async (gcsPath) => {
       
       return true;
     } else {
-      // Web environment - simulate deletion
-      console.log('🌐 Simulating delete for web environment');
-      return true;
+      // Web environment - throw error instead of simulation
+      throw new Error('File deletion not supported in web environment. Please use the mobile app.');
     }
   } catch (error) {
     console.error('Delete error:', error);
-    // Return true to not block the UI
-    return true;
+    throw error;
   }
 };
 

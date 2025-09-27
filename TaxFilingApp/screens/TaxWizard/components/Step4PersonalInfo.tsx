@@ -4,10 +4,10 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
-import { pickDocument, takePhoto } from '../utils/documentUtils';
+import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
 
-interface Step3PersonalInfoProps {
+interface Step4PersonalInfoProps {
   formData: {
     socialSecurityNumber: string;
     personalIdDocuments: UploadedDocument[];
@@ -23,7 +23,7 @@ interface Step3PersonalInfoProps {
   onInitializeImageStates: (documentId: string) => void;
 }
 
-const Step3PersonalInfo: React.FC<Step3PersonalInfoProps> = ({
+const Step4PersonalInfo: React.FC<Step4PersonalInfoProps> = ({
   formData,
   isUploading,
   imageLoadingStates,
@@ -78,17 +78,7 @@ const Step3PersonalInfo: React.FC<Step3PersonalInfoProps> = ({
     }
   };
 
-  const handleTakePhoto = async (category: string) => {
-    try {
-      const result = await takePhoto();
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const file = result.assets[0];
-        onUploadDocument(file, category);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    }
-  };
+  // Camera functionality removed
 
   const handleDeleteDocument = (id: string, category: string) => {
     Alert.alert(
@@ -162,38 +152,22 @@ const Step3PersonalInfo: React.FC<Step3PersonalInfoProps> = ({
               style={[styles.actionButton, { borderColor: '#28a745' }] as any}
             >
               <Ionicons name="document-outline" size={16} color="#28a745" />
-              <Text style={[styles.actionButtonText, { color: '#28a745' }]}>Select File</Text>
+              <Text style={[styles.actionButtonText, { color: '#28a745' }]}>Select File(s)</Text>
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onPress={() => handleTakePhoto('personalId')}
-              style={[styles.actionButton, { borderColor: '#28a745' }] as any}
-            >
-              <Ionicons name="camera-outline" size={16} color="#28a745" />
-              <Text style={[styles.actionButtonText, { color: '#28a745' }]}>Take Photo</Text>
-            </Button>
+            {/* Camera button removed */}
           </View>
 
           {/* Uploaded Personal Documents */}
-          {formData.personalIdDocuments.length > 0 && (
+          {(formData.personalIdDocuments || []).length > 0 && (
             <View style={styles.documentsList}>
-              <Text style={styles.documentsTitle}>Uploaded Documents ({formData.personalIdDocuments.length})</Text>
-              {formData.personalIdDocuments.map((doc) => (
+              <Text style={styles.documentsTitle}>Uploaded Documents ({(formData.personalIdDocuments || []).length})</Text>
+              {(formData.personalIdDocuments || []).map((doc) => (
                 <DocumentPreview
                   key={doc.id}
                   document={doc}
                   onDelete={() => handleDeleteDocument(doc.id, 'personalId')}
                   onReplace={() => {
-                    Alert.alert(
-                      'Replace Document',
-                      'How would you like to replace this document?',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Select File', onPress: () => handlePickDocument('personalId') },
-                        { text: 'Take Photo', onPress: () => handleTakePhoto('personalId') },
-                      ]
-                    );
+                    handlePickDocument('personalId');
                   }}
                   showActions={true}
                 />
@@ -388,10 +362,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
   },
-  errorText: {
-    color: '#fff',
-    fontSize: 16,
-  },
   uploadingOverlay: {
     position: 'absolute',
     top: 0,
@@ -409,4 +379,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Step3PersonalInfo;
+export default Step4PersonalInfo;

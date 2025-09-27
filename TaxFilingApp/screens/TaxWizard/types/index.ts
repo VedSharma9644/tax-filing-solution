@@ -21,6 +21,14 @@ export interface Dependent {
   relationship: string;
 }
 
+export interface AdditionalIncomeSource {
+  id: string;
+  source: string;
+  amount: string;
+  description?: string;
+  documents?: UploadedDocument[];
+}
+
 export interface TaxFormData {
   // Personal Information
   socialSecurityNumber: string;
@@ -29,13 +37,17 @@ export interface TaxFormData {
   previousYearTaxDocuments: UploadedDocument[];
   w2Forms: UploadedDocument[];
   
-  // Deduction Documents (Step 2)
+  // Additional Income (Step 2)
+  hasAdditionalIncome: boolean;
+  additionalIncomeSources: AdditionalIncomeSource[];
+  
+  // Deduction Documents (Step 3)
   medicalDocuments: UploadedDocument[];
   educationDocuments: UploadedDocument[];
   dependentChildrenDocuments: UploadedDocument[];
   homeownerDeductionDocuments: UploadedDocument[];
   
-  // Personal Documents (Step 3)
+  // Personal Documents (Step 4)
   personalIdDocuments: UploadedDocument[];
 }
 
