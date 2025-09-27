@@ -14,10 +14,21 @@ const ApplicationDetail = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [draftReturnFile, setDraftReturnFile] = useState(null);
+  const [finalReturnFile, setFinalReturnFile] = useState(null);
+  const [uploadingDraft, setUploadingDraft] = useState(false);
+  const [uploadingFinal, setUploadingFinal] = useState(false);
+  const [uploadedReturns, setUploadedReturns] = useState({});
 
   useEffect(() => {
     fetchApplicationDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (application && application.id) {
+      loadUploadedReturns();
+    }
+  }, [application]);
 
   const fetchApplicationDetails = async () => {
     try {
@@ -68,9 +79,9 @@ const ApplicationDetail = () => {
     }
   };
 
-  const openDocument = (doc) => {
+  const openDocument = async (doc) => {
     try {
-      const secureUrl = AdminApiService.getSecureFileUrl(doc.gcsPath);
+      const secureUrl = await AdminApiService.getSecureFileUrl(doc.gcsPath);
       window.open(secureUrl, '_blank');
     } catch (error) {
       console.error('Error opening document:', error);
@@ -80,7 +91,7 @@ const ApplicationDetail = () => {
 
   const downloadDocument = async (doc) => {
     try {
-      const secureUrl = AdminApiService.getSecureDownloadUrl(doc.gcsPath);
+      const secureUrl = await AdminApiService.getSecureFileUrl(doc.gcsPath);
       
       // Use fetch to download the file
       const response = await fetch(secureUrl);
@@ -154,6 +165,156 @@ const ApplicationDetail = () => {
       completed: '#2ecc71'
     };
     return colors[status] || '#95a5a6';
+  };
+
+  const loadUploadedReturns = async () => {
+    try {
+      const response = await AdminApiService.getReturns(application.id);
+      if (response.success) {
+        setUploadedReturns(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading uploaded returns:', error);
+    }
+  };
+
+  const downloadReturn = async (returnType) => {
+    try {
+      const response = await AdminApiService.downloadReturn(application.id, returnType);
+      if (response.success) {
+        // Open the download URL in a new tab
+        window.open(response.downloadUrl, '_blank');
+      } else {
+        throw new Error(response.error || 'Download failed');
+      }
+    } catch (error) {
+      console.error(`Error downloading ${returnType} return:`, error);
+      alert(`Error downloading ${returnType} return: ${error.message}`);
+    }
+  };
+
+  const viewReturn = async (returnType) => {
+    try {
+      // Use the new decryption endpoint for viewing
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+      
+      // Add timestamp to prevent caching
+      const timestamp = Date.now();
+      const viewUrl = `http://localhost:5001/admin/returns/${application.id}/${returnType}/view?token=${token}&t=${timestamp}`;
+      console.log(`🔓 Opening decrypted view URL: ${viewUrl}`);
+      console.log(`📁 Current uploaded returns state:`, uploadedReturns);
+      
+      // Open the decrypted file in a new tab
+      window.open(viewUrl, '_blank');
+    } catch (error) {
+      console.error(`Error viewing ${returnType} return:`, error);
+      alert(`Error viewing ${returnType} return: ${error.message}`);
+    }
+  };
+
+  const handleDraftReturnUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check if application is loaded
+    if (!application || !application.id) {
+      alert('Application not loaded yet. Please wait and try again.');
+      return;
+    }
+
+    // File validation
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
+      return;
+    }
+
+    if (file.size > maxSize) {
+      alert('File size too large. Maximum size is 10MB.');
+      return;
+    }
+
+    setDraftReturnFile(file);
+    setUploadingDraft(true);
+
+    try {
+      console.log('Uploading draft return:', file.name);
+      console.log('Application ID:', application.id);
+      
+      const response = await AdminApiService.uploadReturn(application.id, 'draft', file);
+      
+      if (response.success) {
+        alert('Draft return uploaded successfully!');
+        // Refresh application data to show the uploaded file
+        await fetchApplicationDetails();
+        // Also refresh uploaded returns specifically
+        await loadUploadedReturns();
+      } else {
+        throw new Error(response.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading draft return:', error);
+      alert(`Error uploading draft return: ${error.message}`);
+    } finally {
+      setUploadingDraft(false);
+      setDraftReturnFile(null);
+    }
+  };
+
+  const handleFinalReturnUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check if application is loaded
+    if (!application || !application.id) {
+      alert('Application not loaded yet. Please wait and try again.');
+      return;
+    }
+
+    // File validation
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file type. Only PDF, DOC, and DOCX files are allowed.');
+      return;
+    }
+
+    if (file.size > maxSize) {
+      alert('File size too large. Maximum size is 10MB.');
+      return;
+    }
+
+    setFinalReturnFile(file);
+    setUploadingFinal(true);
+
+    try {
+      console.log('Uploading final return:', file.name);
+      console.log('Application ID:', application.id);
+      
+      const response = await AdminApiService.uploadReturn(application.id, 'final', file);
+      
+      if (response.success) {
+        alert('Final return uploaded successfully!');
+        // Refresh application data to show the uploaded file
+        await fetchApplicationDetails();
+        // Also refresh uploaded returns specifically
+        await loadUploadedReturns();
+      } else {
+        throw new Error(response.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading final return:', error);
+      alert(`Error uploading final return: ${error.message}`);
+    } finally {
+      setUploadingFinal(false);
+      setFinalReturnFile(null);
+    }
   };
 
   if (loading) {
@@ -359,6 +520,119 @@ const ApplicationDetail = () => {
               placeholder="Add notes about this application..."
               rows="3"
             />
+          </div>
+          
+          {/* File Upload Fields */}
+          <div className="form-group">
+            <label htmlFor="draftReturn">Draft Return Upload:</label>
+            <div className="file-upload-container">
+              <input
+                type="file"
+                id="draftReturn"
+                accept=".pdf,.doc,.docx"
+                onChange={handleDraftReturnUpload}
+                disabled={uploadingDraft}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="draftReturn" className="file-upload-button">
+                {uploadingDraft ? (
+                  <span>📤 Uploading...</span>
+                ) : (
+                  <span>📄 {draftReturnFile ? draftReturnFile.name : 'Choose Draft Return File'}</span>
+                )}
+              </label>
+              {draftReturnFile && (
+                <button
+                  type="button"
+                  className="file-remove-button"
+                  onClick={() => setDraftReturnFile(null)}
+                  disabled={uploadingDraft}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {uploadedReturns.draftReturn && (
+              <div className="uploaded-file-info">
+                <div className="file-info">
+                  <span className="file-name">📄 {uploadedReturns.draftReturn.originalName}</span>
+                  <span className="file-size">({(uploadedReturns.draftReturn.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  <span className="file-date">{formatDate(uploadedReturns.draftReturn.uploadedAt)}</span>
+                </div>
+                <div className="file-actions">
+                  <button
+                    className="view-button"
+                    onClick={() => viewReturn('draft')}
+                    title="View file in new tab"
+                  >
+                    👁️ View
+                  </button>
+                  <button
+                    className="download-button"
+                    onClick={() => downloadReturn('draft')}
+                    title="Download file"
+                  >
+                    📥 Download
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="finalReturn">Final Return Upload:</label>
+            <div className="file-upload-container">
+              <input
+                type="file"
+                id="finalReturn"
+                accept=".pdf,.doc,.docx"
+                onChange={handleFinalReturnUpload}
+                disabled={uploadingFinal}
+                style={{ display: 'none' }}
+              />
+              <label htmlFor="finalReturn" className="file-upload-button">
+                {uploadingFinal ? (
+                  <span>📤 Uploading...</span>
+                ) : (
+                  <span>📄 {finalReturnFile ? finalReturnFile.name : 'Choose Final Return File'}</span>
+                )}
+              </label>
+              {finalReturnFile && (
+                <button
+                  type="button"
+                  className="file-remove-button"
+                  onClick={() => setFinalReturnFile(null)}
+                  disabled={uploadingFinal}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {uploadedReturns.finalReturn && (
+              <div className="uploaded-file-info">
+                <div className="file-info">
+                  <span className="file-name">📄 {uploadedReturns.finalReturn.originalName}</span>
+                  <span className="file-size">({(uploadedReturns.finalReturn.size / 1024 / 1024).toFixed(2)} MB)</span>
+                  <span className="file-date">{formatDate(uploadedReturns.finalReturn.uploadedAt)}</span>
+                </div>
+                <div className="file-actions">
+                  <button
+                    className="view-button"
+                    onClick={() => viewReturn('final')}
+                    title="View file in new tab"
+                  >
+                    👁️ View
+                  </button>
+                  <button
+                    className="download-button"
+                    onClick={() => downloadReturn('final')}
+                    title="Download file"
+                  >
+                    📥 Download
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="action-buttons">
             <button 

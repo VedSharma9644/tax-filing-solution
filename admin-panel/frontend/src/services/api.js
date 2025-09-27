@@ -4,6 +4,7 @@ const API_BASE_URL = 'http://localhost:5001';
 class AdminApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.baseUrl = API_BASE_URL; // Add this for consistency
   }
 
   // Get authentication token
@@ -125,13 +126,31 @@ class AdminApiService {
   }
 
   // Get secure file URL for viewing
-  getSecureFileUrl(gcsPath) {
+  async getSecureFileUrl(gcsPath) {
     const token = this.getAuthToken();
     if (!token) {
       throw new Error('Authentication required');
     }
-    // Use the correct admin backend port (5001)
-    return `http://localhost:5001/admin/files/${gcsPath}?token=${token}`;
+    
+    try {
+      // Get fresh signed URL from main backend
+      const response = await fetch(`http://localhost:5000/api/files/signed-url/${encodeURIComponent(gcsPath)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get signed URL: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.signedUrl;
+    } catch (error) {
+      console.error('Error getting signed URL:', error);
+      throw error;
+    }
   }
 
   // Get secure file URL for downloading
@@ -140,8 +159,8 @@ class AdminApiService {
     if (!token) {
       throw new Error('Authentication required');
     }
-    // Use the correct admin backend port (5001)
-    return `http://localhost:5001/admin/files/${gcsPath}/download?token=${token}`;
+    // Use the correct admin backend port (5001) and properly encode the GCS path
+    return `http://localhost:5001/admin/files/${encodeURIComponent(gcsPath)}/download?token=${token}`;
   }
 
   // Get all appointments with pagination and filters
@@ -269,6 +288,42 @@ class AdminApiService {
     return this.makeRequest(`/api/users/${userId}`, {
       method: 'DELETE'
     });
+  }
+
+  // Admin file upload methods (using admin backend on port 5001)
+  async uploadReturn(applicationId, returnType, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('applicationId', applicationId);
+    formData.append('returnType', returnType);
+
+    const url = `${this.baseUrl}/admin/upload/return`;
+    console.log('Upload URL:', url);
+    console.log('Base URL:', this.baseUrl);
+    console.log('Application ID:', applicationId);
+
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.getAuthToken()}`,
+      },
+      body: formData
+    }).then(response => {
+      console.log('Response status:', response.status);
+      console.log('Response URL:', response.url);
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    });
+  }
+
+  async getReturns(applicationId) {
+    return this.makeRequest(`/admin/returns/${applicationId}`);
+  }
+
+  async downloadReturn(applicationId, returnType) {
+    return this.makeRequest(`/admin/returns/${applicationId}/${returnType}`);
   }
 }
 

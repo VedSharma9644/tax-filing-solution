@@ -2,6 +2,7 @@
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  margin-top: 90px; /* Account for fixed header height (70px) + some spacing */
 }
 
 .application-detail-loading,
@@ -12,6 +13,7 @@
   justify-content: center;
   height: 50vh;
   text-align: center;
+  margin-top: 90px; /* Account for fixed header height (70px) + some spacing */
 }
 
 .loading-spinner {
@@ -331,6 +333,164 @@
   outline: none;
   border-color: rgba(255, 255, 255, 0.6);
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* File Upload Styles */
+.file-upload-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.file-upload-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 200px;
+  justify-content: center;
+}
+
+.file-upload-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.file-upload-button:active {
+  transform: translateY(1px);
+}
+
+.file-upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-remove-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.file-remove-button:hover {
+  background: #c0392b;
+  transform: scale(1.1);
+}
+
+.file-remove-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Uploaded File Info Styles */
+.uploaded-file-info {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.file-name {
+  font-weight: 600;
+  color: white;
+  font-size: 14px;
+}
+
+.file-size {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.file-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* File Actions Container */
+.file-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.view-button {
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.view-button:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+.view-button:active {
+  transform: translateY(0);
+}
+
+.download-button {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.download-button:hover {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.download-button:active {
+  transform: translateY(0);
 }
 
 .action-buttons {

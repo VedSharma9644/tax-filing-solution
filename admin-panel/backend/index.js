@@ -8,6 +8,8 @@ const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const admin = require('firebase-admin');
 const { Storage } = require('@google-cloud/storage');
+const { KeyManagementServiceClient } = require('@google-cloud/kms');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -28,6 +30,9 @@ const ADMIN_CREDENTIALS = {
 // Initialize Firebase Admin SDK
 const serviceAccount = require('./firebase-service-account.json');
 
+// Initialize GCS/KMS Service Account (different from Firebase)
+const gcsServiceAccount = require('../../TaxFilingApp/gcs-service-account.json');
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   projectId: 'tax-filing-app-3649f'
@@ -37,11 +42,188 @@ const db = admin.firestore();
 
 // Initialize Google Cloud Storage
 const storage = new Storage({ 
-  projectId: 'tax-filing-app-3649f', 
-  credentials: serviceAccount 
+  projectId: 'tax-filing-app-472019', 
+  credentials: gcsServiceAccount 
 });
 const BUCKET_NAME = 'tax-filing-documents-tax-filing-app-472019';
 const bucket = storage.bucket(BUCKET_NAME);
+
+// Initialize KMS
+console.log('🔧 Initializing KMS Client...');
+console.log('  - Service Account Project:', gcsServiceAccount.project_id);
+console.log('  - Service Account Email:', gcsServiceAccount.client_email);
+console.log('  - KMS Project ID:', 'tax-filing-app-472019');
+
+const kmsClient = new KeyManagementServiceClient({
+  credentials: gcsServiceAccount,
+  projectId: 'tax-filing-app-472019'
+});
+
+console.log('✅ KMS Client initialized');
+
+// Test KMS connection and permissions
+const testKMSConnection = async () => {
+  try {
+    console.log('🧪 Testing KMS connection...');
+    const name = `projects/${PROJECT_ID}/locations/${LOCATION_ID}/keyRings/${KEY_RING_ID}/cryptoKeys/${KEY_ID}`;
+    
+    // Try to get the key info first
+    const [key] = await kmsClient.getCryptoKey({ name });
+    console.log('✅ KMS Key found:', {
+      name: key.name,
+      purpose: key.purpose,
+      state: key.primary?.state,
+      algorithm: key.primary?.algorithm
+    });
+    
+    // Try a small test encryption
+    const testData = Buffer.from('test-encryption-data');
+    console.log('🧪 Testing encryption with small data...');
+    
+    const [testEncryptResponse] = await kmsClient.encrypt({
+      name: name,
+      plaintext: testData
+    });
+    
+    console.log('✅ Test encryption successful!');
+    console.log('  - Original size:', testData.length);
+    console.log('  - Encrypted size:', testEncryptResponse.ciphertext.length);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ KMS Connection Test Failed:', error);
+    console.error('❌ Error Code:', error.code);
+    console.error('❌ Error Message:', error.message);
+    console.error('❌ Error Details:', error.details);
+    return false;
+  }
+};
+
+// KMS Configuration
+const PROJECT_ID = 'tax-filing-app-472019';
+const KEY_RING_ID = 'tax-filing-keys';
+const KEY_ID = 'file-encryption-key';
+const LOCATION_ID = 'global';
+
+
+// DEK (Data Encryption Key) approach for large files
+const crypto = require('crypto');
+
+const encryptFileWithDEK = async (fileBuffer) => {
+  try {
+    console.log('🔐 Starting DEK encryption process...');
+    console.log('  - File size:', fileBuffer.length, 'bytes');
+    
+    // Step 1: Generate a random 256-bit (32-byte) key for AES-256
+    const dataKey = crypto.randomBytes(32);
+    console.log('  - Generated DEK:', dataKey.length, 'bytes');
+    
+    // Step 2: Encrypt the file with AES-256-CBC using createCipheriv
+    const iv = crypto.randomBytes(16); // 128-bit IV for CBC
+    const cipher = crypto.createCipheriv('aes-256-cbc', dataKey, iv);
+    
+    let encryptedData = cipher.update(fileBuffer);
+    encryptedData = Buffer.concat([encryptedData, cipher.final()]);
+    
+    console.log('  - File encrypted with AES-256-CBC (createCipheriv)');
+    console.log('  - Encrypted size:', encryptedData.length, 'bytes');
+    
+    // Step 3: Encrypt the data key with KMS
+    console.log('  - Encrypting DEK with KMS...');
+    const name = `projects/${PROJECT_ID}/locations/${LOCATION_ID}/keyRings/${KEY_RING_ID}/cryptoKeys/${KEY_ID}`;
+    
+    const [kmsResponse] = await kmsClient.encrypt({
+      name: name,
+      plaintext: dataKey
+    });
+    
+    console.log('  - DEK encrypted with KMS');
+    
+    // Step 4: Combine everything
+    const result = {
+      encryptedData: encryptedData,
+      encryptedKey: kmsResponse.ciphertext,
+      iv: iv,
+      algorithm: 'aes-256-cbc'
+    };
+    
+    console.log('✅ DEK encryption completed successfully');
+    return result;
+    
+  } catch (error) {
+    console.error('❌ DEK Encryption Error:', error);
+    throw new Error('Failed to encrypt file with DEK');
+  }
+};
+
+const decryptFileWithDEK = async (encryptedFileData) => {
+  try {
+    console.log('🔓 Starting DEK decryption process...');
+    
+    // Step 1: Decrypt the data key with KMS
+    const name = `projects/${PROJECT_ID}/locations/${LOCATION_ID}/keyRings/${KEY_RING_ID}/cryptoKeys/${KEY_ID}`;
+    
+    const [kmsResponse] = await kmsClient.decrypt({
+      name: name,
+      ciphertext: encryptedFileData.encryptedKey
+    });
+    
+    const dataKey = kmsResponse.plaintext;
+    console.log('  - DEK decrypted with KMS');
+    
+    // Step 2: Decrypt the file with AES-256-CBC using createDecipheriv
+    const decipher = crypto.createDecipheriv('aes-256-cbc', dataKey, encryptedFileData.iv);
+    
+    let decryptedData = decipher.update(encryptedFileData.encryptedData);
+    decryptedData = Buffer.concat([decryptedData, decipher.final()]);
+    
+    console.log('✅ DEK decryption completed successfully');
+    return decryptedData;
+    
+  } catch (error) {
+    console.error('❌ DEK Decryption Error:', error);
+    throw new Error('Failed to decrypt file with DEK');
+  }
+};
+
+// Multer configuration for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, and DOCX files are allowed.'), false);
+    }
+  }
+});
+
+// Multer error handling middleware
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: 'File size too large. Maximum size is 10MB.'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+  if (error.message === 'Invalid file type. Only PDF, DOC, and DOCX files are allowed.') {
+    return res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+  next(error);
+});
 
 // Security middleware
 app.use(helmet({
@@ -1482,11 +1664,433 @@ app.get('/', (req, res) => {
   });
 });
 
+// Admin file upload endpoints
+app.post('/admin/upload/return', upload.single('file'), authenticateAdmin, async (req, res) => {
+  try {
+    console.log('📁 Admin upload request received');
+    console.log('📁 Request body:', req.body);
+    console.log('📁 File:', req.file ? 'Present' : 'Missing');
+    
+    if (!req.file) {
+      console.log('❌ No file uploaded');
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    const { applicationId, returnType } = req.body; // returnType: 'draft' or 'final'
+    
+    if (!applicationId || !returnType) {
+      return res.status(400).json({
+        success: false,
+        error: 'applicationId and returnType are required'
+      });
+    }
+
+    if (!['draft', 'final'].includes(returnType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'returnType must be either "draft" or "final"'
+      });
+    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileExtension = req.file.originalname.split('.').pop() || 'bin';
+    const fileName = `admin-returns/${applicationId}/${returnType}-${timestamp}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+    
+    console.log(`📁 Admin uploading ${returnType} return for application ${applicationId}`);
+    console.log(`📁 Generated filename: ${fileName}`);
+    
+    // Encrypt the file using DEK approach
+    console.log('🔐 Encrypting file with DEK approach...');
+    const encryptedFileData = await encryptFileWithDEK(req.file.buffer);
+    console.log('✅ File encrypted successfully with DEK');
+    console.log('🔍 Encrypted data structure:', {
+      hasEncryptedData: !!encryptedFileData.encryptedData,
+      hasEncryptedKey: !!encryptedFileData.encryptedKey,
+      hasIv: !!encryptedFileData.iv,
+      algorithm: encryptedFileData.algorithm
+    });
+    
+    // Convert encrypted data to a single buffer for storage
+    const encryptedBuffer = Buffer.concat([
+      Buffer.from(JSON.stringify({
+        encryptedData: encryptedFileData.encryptedData ? encryptedFileData.encryptedData.toString('base64') : '',
+        encryptedKey: encryptedFileData.encryptedKey ? encryptedFileData.encryptedKey.toString('base64') : '',
+        iv: encryptedFileData.iv ? encryptedFileData.iv.toString('base64') : '',
+        algorithm: encryptedFileData.algorithm || 'aes-256-cbc'
+      }))
+    ]);
+    
+    // Create file reference in bucket
+    const fileRef = bucket.file(fileName);
+    
+    // Upload options
+    const uploadOptions = {
+      metadata: {
+        contentType: req.file.mimetype,
+        metadata: {
+          originalName: req.file.originalname,
+          applicationId: applicationId,
+          returnType: returnType,
+          uploadedBy: req.admin.email || 'admin',
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+      resumable: true,
+      validation: 'crc32c',
+    };
+
+    // Create upload stream
+    const stream = fileRef.createWriteStream(uploadOptions);
+    
+    return new Promise((resolve, reject) => {
+      stream.on('error', (error) => {
+        console.error('Upload stream error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Upload failed',
+          details: error.message
+        });
+        reject(error);
+      });
+      
+      stream.on('finish', async () => {
+        try {
+          console.log(`✅ Admin ${returnType} return uploaded successfully to GCS: ${fileName}`);
+          
+          // Generate signed URL for the uploaded file
+          const [signedUrl] = await fileRef.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 60 * 60 * 1000, // 1 hour from now
+          });
+          
+          console.log(`✅ Generated signed URL for admin return: ${fileName}`);
+          
+          // Update the tax form document in database
+          try {
+            const taxFormRef = db.collection('taxForms').doc(applicationId);
+            const taxFormDoc = await taxFormRef.get();
+            
+            if (taxFormDoc.exists) {
+              const updateData = {};
+              updateData[`${returnType}Return`] = {
+                fileName: fileName,
+                originalName: req.file.originalname,
+                gcsPath: fileName,
+                publicUrl: signedUrl,
+                size: req.file.size,
+                contentType: req.file.mimetype,
+                uploadedAt: new Date().toISOString(),
+                uploadedBy: req.admin.email || 'admin'
+              };
+              
+              await taxFormRef.update(updateData);
+              console.log(`✅ Updated tax form with ${returnType} return reference`);
+            }
+          } catch (dbError) {
+            console.warn(`⚠️ Could not update database: ${dbError.message}`);
+            // Don't fail the upload if database update fails
+          }
+          
+          res.json({
+            success: true,
+            message: `${returnType} return uploaded successfully`,
+            fileName: fileName,
+            gcsPath: fileName,
+            publicUrl: signedUrl,
+            size: req.file.size,
+            contentType: req.file.mimetype,
+            uploadedAt: new Date().toISOString()
+          });
+          resolve();
+        } catch (error) {
+          console.error('Error completing admin upload:', error);
+          res.status(500).json({
+            success: false,
+            error: 'File uploaded but failed to complete processing',
+            details: error.message
+          });
+          reject(error);
+        }
+      });
+      
+      // Write the encrypted buffer to the stream
+      stream.end(encryptedBuffer);
+    });
+  } catch (error) {
+    console.error('Error in admin file upload:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Upload failed',
+      details: error.message
+    });
+  }
+});
+
+// Get admin uploaded returns for an application
+app.get('/admin/returns/:applicationId', authenticateAdmin, async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    
+    if (!applicationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application ID is required'
+      });
+    }
+
+    // Get tax form document
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    const taxFormDoc = await taxFormRef.get();
+    
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+    const returns = {};
+
+    // Check for draft return
+    if (taxFormData.draftReturn) {
+      // Generate fresh signed URL for draft return
+      try {
+        const fileRef = bucket.file(taxFormData.draftReturn.gcsPath);
+        const [signedUrl] = await fileRef.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 60 * 60 * 1000, // 1 hour from now
+        });
+        returns.draftReturn = {
+          ...taxFormData.draftReturn,
+          publicUrl: signedUrl
+        };
+      } catch (error) {
+        console.warn('Could not generate signed URL for draft return:', error);
+        returns.draftReturn = taxFormData.draftReturn;
+      }
+    }
+
+    // Check for final return
+    if (taxFormData.finalReturn) {
+      // Generate fresh signed URL for final return
+      try {
+        const fileRef = bucket.file(taxFormData.finalReturn.gcsPath);
+        const [signedUrl] = await fileRef.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 60 * 60 * 1000, // 1 hour from now
+        });
+        returns.finalReturn = {
+          ...taxFormData.finalReturn,
+          publicUrl: signedUrl
+        };
+      } catch (error) {
+        console.warn('Could not generate signed URL for final return:', error);
+        returns.finalReturn = taxFormData.finalReturn;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: returns
+    });
+  } catch (error) {
+    console.error('Error getting admin returns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get returns',
+      details: error.message
+    });
+  }
+});
+
+// Download admin uploaded return (encrypted file)
+app.get('/admin/returns/:applicationId/:returnType', authenticateAdmin, async (req, res) => {
+  try {
+    const { applicationId, returnType } = req.params;
+    
+    if (!applicationId || !returnType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application ID and return type are required'
+      });
+    }
+
+    if (!['draft', 'final'].includes(returnType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Return type must be either "draft" or "final"'
+      });
+    }
+
+    // Get tax form document
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    const taxFormDoc = await taxFormRef.get();
+    
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+    const returnData = taxFormData[`${returnType}Return`];
+    
+    if (!returnData) {
+      return res.status(404).json({
+        success: false,
+        error: `${returnType} return not found`
+      });
+    }
+
+    // Generate signed URL for download
+    const fileRef = bucket.file(returnData.gcsPath);
+    const [signedUrl] = await fileRef.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour from now
+    });
+
+    res.json({
+      success: true,
+      downloadUrl: signedUrl,
+      fileName: returnData.originalName,
+      contentType: returnData.contentType,
+      size: returnData.size
+    });
+  } catch (error) {
+    console.error('Error downloading admin return:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to download return',
+      details: error.message
+    });
+  }
+});
+
+// View admin uploaded return (decrypted file)
+app.get('/admin/returns/:applicationId/:returnType/view', authenticateAdmin, async (req, res) => {
+  try {
+    const { applicationId, returnType } = req.params;
+    
+    if (!applicationId || !returnType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application ID and return type are required'
+      });
+    }
+
+    if (!['draft', 'final'].includes(returnType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Return type must be either "draft" or "final"'
+      });
+    }
+
+    console.log(`🔓 Admin viewing ${returnType} return for application ${applicationId}`);
+
+    // Get tax form document
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    const taxFormDoc = await taxFormRef.get();
+    
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+    const returnData = taxFormData[`${returnType}Return`];
+    
+    console.log(`🔍 View endpoint - Tax form data for ${returnType}Return:`, {
+      hasReturnData: !!returnData,
+      originalName: returnData?.originalName,
+      gcsPath: returnData?.gcsPath,
+      uploadedAt: returnData?.uploadedAt
+    });
+    
+    if (!returnData) {
+      return res.status(404).json({
+        success: false,
+        error: `${returnType} return not found`
+      });
+    }
+
+    console.log(`📁 Downloading encrypted file from GCS: ${returnData.gcsPath}`);
+
+    // Download the encrypted file from GCS
+    const fileRef = bucket.file(returnData.gcsPath);
+    const [encryptedBuffer] = await fileRef.download();
+    
+    console.log(`✅ Downloaded encrypted file, size: ${encryptedBuffer.length} bytes`);
+
+    // Parse the encrypted data structure
+    const encryptedDataString = encryptedBuffer.toString();
+    const encryptedFileData = JSON.parse(encryptedDataString);
+    
+    console.log(`🔍 Parsed encrypted data structure:`, {
+      hasEncryptedData: !!encryptedFileData.encryptedData,
+      hasEncryptedKey: !!encryptedFileData.encryptedKey,
+      hasIv: !!encryptedFileData.iv,
+      algorithm: encryptedFileData.algorithm
+    });
+
+    // Convert base64 strings back to buffers
+    const encryptedData = {
+      encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+      encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+      iv: Buffer.from(encryptedFileData.iv, 'base64'),
+      algorithm: encryptedFileData.algorithm
+    };
+
+    console.log(`🔓 Decrypting file with DEK approach...`);
+
+    // Decrypt the file using DEK approach
+    const decryptedBuffer = await decryptFileWithDEK(encryptedData);
+    
+    console.log(`✅ File decrypted successfully, size: ${decryptedBuffer.length} bytes`);
+
+    // Set appropriate headers for viewing
+    res.set({
+      'Content-Type': returnData.contentType || 'application/pdf',
+      'Content-Disposition': `inline; filename="${returnData.originalName}"`,
+      'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
+      'Content-Length': decryptedBuffer.length
+    });
+
+    // Send the decrypted file
+    res.send(decryptedBuffer);
+
+  } catch (error) {
+    console.error('Error viewing admin return:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to view return',
+      details: error.message
+    });
+  }
+});
+
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Admin Panel Backend API running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 Network access: http://192.168.1.34:${PORT}`);
   console.log(`📱 Admin Panel Frontend should connect to: http://localhost:${PORT}`);
+  
+  // Test KMS connection on startup
+  console.log('\n🔐 Testing KMS connection...');
+  const kmsTestResult = await testKMSConnection();
+  if (kmsTestResult) {
+    console.log('✅ KMS is ready for encryption!');
+  } else {
+    console.log('❌ KMS connection failed - encryption will not work');
+  }
+  console.log('');
 });
