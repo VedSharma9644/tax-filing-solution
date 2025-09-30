@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, TouchableOpacity } from 'react-native';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { useTaxWizard } from './hooks/useTaxWizard';
@@ -12,6 +12,7 @@ import Step5ReviewDocuments from './components/Step5ReviewDocuments';
 import DataLoadingScreen from './components/DataLoadingScreen';
 import { useAuth } from '../../contexts/AuthContext';
 import TaxFormService from '../../services/taxFormService';
+import { Ionicons } from '@expo/vector-icons';
 
 const TaxWizard: React.FC = () => {
   const { user, token } = useAuth();
@@ -39,6 +40,7 @@ const TaxWizard: React.FC = () => {
     handleImageError,
     initializeImageStates,
     clearSavedData,
+    navigation,
   } = useTaxWizard();
 
   // Show loading screen while data is being loaded
@@ -215,8 +217,8 @@ const TaxWizard: React.FC = () => {
   const getStepTitle = () => {
     const stepTitles = [
       'Tax Related Documents',
-      'Additional Income Sources',
-      'Deduction Related Documents',
+      'Additional Income',
+      'Deduction Documents',
       'Personal Information',
       'Review Documents',
     ];
@@ -224,21 +226,28 @@ const TaxWizard: React.FC = () => {
   };
 
   return (
-    <SafeAreaWrapper>
+    <SafeAreaWrapper edges={['top', 'bottom', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.stepTitle}>{getStepTitle()}</Text>
-          <Text style={styles.stepCounter}>Step {step} of {totalSteps}</Text>
+          <View style={styles.headerRow}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.stepTitle} numberOfLines={1}>{getStepTitle()}</Text>
+            <View style={styles.headerSpacer} />
+          </View>
         </View>
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <Progress value={progress} />
-          <Text style={styles.progressText}>{Math.round(progress)}% Complete</Text>
         </View>
 
         {/* Step Content */}
@@ -284,24 +293,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    padding: 20,
-    paddingTop: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 0,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: -8,
   },
   stepTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
+    flex: 1,
+    textAlign: 'center',
+    flexWrap: 'nowrap',
+    maxWidth: '100%',
+  },
+  headerSpacer: {
+    width: 32, // Reduced width to give more space to title
   },
   stepCounter: {
     fontSize: 16,
     color: '#666',
   },
   progressContainer: {
-    padding: 20,
-    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   progressText: {
     fontSize: 14,

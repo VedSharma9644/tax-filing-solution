@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Dimensions, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
 import { formatFileSize, getStatusColor } from '../utils/documentUtils';
@@ -27,15 +27,28 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     document.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
 
   const previewUrl = document.uri || document.previewUrl || document.publicUrl;
+  
+  // Debug logging
+  console.log(`🖼️ DocumentPreview - Name: ${document.name}, IsImage: ${isImage}, URL: ${previewUrl}`);
 
 
-  const handleImageError = () => {
+  const handleImageError = (error: any) => {
+    console.log(`❌ Image load error for ${document.name}:`, error.nativeEvent?.error || error);
     setImageError(true);
   };
 
   const openPreview = () => {
     if (isImage && previewUrl) {
       setPreviewVisible(true);
+    }
+  };
+
+  const handleViewDocument = () => {
+    if (previewUrl) {
+      // For decrypted documents, open in browser
+      Linking.openURL(previewUrl).catch(err => {
+        console.error('Failed to open document:', err);
+      });
     }
   };
 
@@ -138,26 +151,49 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         )}
 
         {/* Document Preview */}
-        {isImage && previewUrl && !imageError && (
-          <TouchableOpacity style={styles.previewContainer} onPress={openPreview}>
-            <Image
-              source={{ uri: previewUrl }}
-              style={styles.previewImage}
-              onError={handleImageError}
-            />
-            <View style={styles.previewOverlay}>
-              <Ionicons name="eye-outline" size={24} color="#fff" />
-              <Text style={styles.previewText}>Tap to view</Text>
-            </View>
-          </TouchableOpacity>
+        {isImage && previewUrl && (
+          <View style={styles.previewContainer}>
+            {/* Show actual image if it's a data URL (cached) */}
+            {previewUrl.startsWith('data:') ? (
+              <TouchableOpacity onPress={openPreview}>
+                <Image
+                  source={{ uri: previewUrl }}
+                  style={styles.previewImage}
+                  onError={handleImageError}
+                />
+                <View style={styles.previewOverlay}>
+                  <Ionicons name="eye-outline" size={24} color="#fff" />
+                  <Text style={styles.previewText}>Tap to view</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              /* Show icon and view button for decryption URLs */
+              <>
+                <View style={styles.documentIconContainer}>
+                  <Ionicons name="image-outline" size={48} color="#666" />
+                  <Text style={styles.documentIconText}>Image Document</Text>
+                </View>
+                <TouchableOpacity style={styles.viewButton} onPress={handleViewDocument}>
+                  <Ionicons name="eye-outline" size={20} color="#007bff" />
+                  <Text style={styles.viewButtonText}>View Document</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         )}
 
 
         {/* Non-image document icon */}
-        {!isImage && (
-          <View style={styles.documentIconContainer}>
-            <Ionicons name="document-outline" size={48} color="#666" />
-            <Text style={styles.documentIconText}>Document</Text>
+        {!isImage && previewUrl && (
+          <View style={styles.previewContainer}>
+            <View style={styles.documentIconContainer}>
+              <Ionicons name="document-outline" size={48} color="#666" />
+              <Text style={styles.documentIconText}>Document</Text>
+            </View>
+            <TouchableOpacity style={styles.viewButton} onPress={handleViewDocument}>
+              <Ionicons name="eye-outline" size={20} color="#007bff" />
+              <Text style={styles.viewButtonText}>View Document</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -312,6 +348,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 8,
+  },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007bff',
+    marginTop: 12,
+  },
+  viewButtonText: {
+    color: '#007bff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   errorContainer: {
     flexDirection: 'row',

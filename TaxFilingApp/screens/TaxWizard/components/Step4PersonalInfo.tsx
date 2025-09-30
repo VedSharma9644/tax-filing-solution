@@ -94,7 +94,6 @@ const Step4PersonalInfo: React.FC<Step4PersonalInfoProps> = ({
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Personal Information</Text>
         <Text style={styles.description}>
           Provide your Social Security Number and upload personal identification documents.
         </Text>

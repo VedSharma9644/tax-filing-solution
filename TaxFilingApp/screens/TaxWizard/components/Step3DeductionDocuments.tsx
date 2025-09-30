@@ -107,21 +107,20 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Deduction Related Documents</Text>
         <Text style={styles.description}>
           Upload documents related to deductions and tax credits to maximize your refund.
         </Text>
       </View>
 
       {/* Tax Credits (Dependent Children) Section */}
-      <Card style={styles.sectionCard}>
+      <Card style={styles.dependentSectionCard}>
         <CardHeader>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIcon, { backgroundColor: '#fd7e14' }]}>
+          <View style={styles.dependentSectionHeader}>
+            <View style={[styles.dependentSectionIcon, { backgroundColor: '#fd7e14' }]}>
               <FontAwesome name="child" size={20} color="#fff" />
             </View>
-            <View style={styles.sectionInfo}>
-              <CardTitle style={styles.sectionTitle}>Tax Credits (Dependent Children)</CardTitle>
+            <View style={styles.dependentSectionInfo}>
+              <CardTitle style={styles.dependentSectionTitle}>Tax Credits (Dependent Children)</CardTitle>
               <CardDescription>Enter information about your dependents for tax credits</CardDescription>
             </View>
           </View>
@@ -147,7 +146,7 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
               <Text style={styles.dependentsTitle}>Dependent Information ({dependents.length})</Text>
               {dependents.map((dependent, index) => (
                 <Card key={dependent.id} style={styles.dependentCard}>
-                  <CardContent>
+                  <CardContent style={styles.dependentContent}>
                     <View style={styles.dependentHeader}>
                       <Text style={styles.dependentNumber}>Dependent {index + 1}</Text>
                       <TouchableOpacity
@@ -472,14 +471,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   // New styles for dependent form
-  sectionCard: {
+  dependentSectionCard: {
     marginBottom: 24,
   },
-  sectionHeader: {
+  dependentSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  sectionIcon: {
+  dependentSectionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -487,10 +486,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  sectionInfo: {
+  dependentSectionInfo: {
     flex: 1,
   },
-  sectionTitle: {
+  dependentSectionTitle: {
     fontSize: 18,
     marginBottom: 4,
   },
@@ -522,8 +521,18 @@ const styles = StyleSheet.create({
   },
   dependentCard: {
     marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#fd7e14',
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dependentContent: {
+    padding: 16,
   },
   dependentHeader: {
     flexDirection: 'row',
@@ -534,7 +543,7 @@ const styles = StyleSheet.create({
   dependentNumber: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fd7e14',
+    color: '#3b82f6',
   },
   removeButton: {
     padding: 8,

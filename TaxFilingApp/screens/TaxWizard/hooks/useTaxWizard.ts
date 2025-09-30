@@ -466,5 +466,8 @@ export const useTaxWizard = () => {
     isDataLoaded,
     clearSavedData,
     checkForSavedData,
+    
+    // Navigation
+    navigation,
   };
 };

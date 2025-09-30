@@ -147,7 +147,6 @@ const Step5ReviewDocuments: React.FC<Step5ReviewDocumentsProps> = ({
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Review Documents</Text>
         <Text style={styles.description}>
           Review all uploaded documents. You can replace or delete any document before submitting.
         </Text>

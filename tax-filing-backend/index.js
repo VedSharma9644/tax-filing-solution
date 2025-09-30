@@ -1833,7 +1833,7 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
   }
 });
 
-// View encrypted document (decrypt and serve)
+// View encrypted document (decrypt and serve) - No auth required for images
 app.get('/upload/view/:gcsPath', async (req, res) => {
   try {
     const { gcsPath } = req.params;
@@ -1846,6 +1846,29 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
     }
 
     console.log(`🔓 Mobile app viewing encrypted file: ${gcsPath}`);
+    
+    // Extract user ID from the GCS path for validation
+    // Path format: category/userId/filename
+    const pathParts = gcsPath.split('/');
+    if (pathParts.length < 3) {
+      console.log(`❌ Invalid file path format`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid file path format'
+      });
+    }
+    
+    const userId = pathParts[1];
+    console.log(`👤 Extracted User ID: ${userId}`);
+    
+    // Basic validation - ensure it's a valid user ID format
+    if (!userId || userId.length < 10) {
+      console.log(`❌ Invalid user ID in path`);
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID in file path'
+      });
+    }
 
     // Download the encrypted file from GCS
     const fileRef = bucket.file(gcsPath);
@@ -1904,7 +1927,141 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
   }
 });
 
+// Get user documents from GCS
+app.get('/documents', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    console.log(`📄 Fetching documents for user: ${userId}`);
+    
+    // List all files in the user's directory
+    const [files] = await bucket.getFiles({
+      prefix: `w2Forms/${userId}/`,
+      delimiter: '/'
+    });
+    
+    // Also check other categories
+    const categories = ['w2Forms', 'medical', 'education', 'dependentChildren', 'homeownerDeduction', 'personalId', 'previousYearTax'];
+    const allFiles = [];
+    
+    for (const category of categories) {
+      try {
+        const [categoryFiles] = await bucket.getFiles({
+          prefix: `${category}/${userId}/`,
+          delimiter: '/'
+        });
+        allFiles.push(...categoryFiles);
+      } catch (error) {
+        console.warn(`Warning: Could not list files for category ${category}:`, error.message);
+      }
+    }
+    
+    console.log(`📊 Found ${allFiles.length} files for user ${userId}`);
+    
+    // Process files and get metadata
+    const documents = [];
+    
+    for (const file of allFiles) {
+      try {
+        const [metadata] = await file.getMetadata();
+        const [exists] = await file.exists();
+        
+        if (exists) {
+          // Generate decryption URL for viewing (instead of direct GCS URL)
+          const decryptionUrl = `${req.protocol}://${req.get('host')}/upload/view/${encodeURIComponent(file.name)}`;
+          console.log(`🔗 Generated decryption URL: ${decryptionUrl}`);
+          
+          // Extract category from file path
+          const pathParts = file.name.split('/');
+          const category = pathParts[0] || 'general';
+          
+          documents.push({
+            id: file.name,
+            name: metadata.metadata?.originalName || file.name.split('/').pop() || 'Unknown Document',
+            type: metadata.contentType || 'application/octet-stream',
+            size: parseInt(metadata.size) || 0,
+            gcsPath: file.name,
+            publicUrl: decryptionUrl,
+            category: category,
+            uploadedAt: metadata.timeCreated || new Date().toISOString(),
+            status: 'completed'
+          });
+        }
+      } catch (error) {
+        console.warn(`Warning: Could not process file ${file.name}:`, error.message);
+      }
+    }
+    
+    // Sort by upload date (newest first)
+    documents.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    
+    console.log(`✅ Successfully processed ${documents.length} documents`);
+    
+    res.json({
+      success: true,
+      data: documents,
+      count: documents.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching user documents:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch documents',
+      details: error.message
+    });
+  }
+});
+
 // Delete document from GCS
+app.delete('/documents/:documentId', authenticateToken, async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const userId = req.user.userId;
+    
+    if (!documentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Document ID is required'
+      });
+    }
+    
+    // Verify the document belongs to the user
+    if (!documentId.includes(`/${userId}/`)) {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only delete your own documents'
+      });
+    }
+    
+    const fileRef = bucket.file(documentId);
+    const [exists] = await fileRef.exists();
+    
+    if (!exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found'
+      });
+    }
+    
+    await fileRef.delete();
+    
+    console.log(`✅ Document deleted: ${documentId}`);
+    
+    res.json({
+      success: true,
+      message: 'Document deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Delete document error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete document',
+      details: error.message
+    });
+  }
+});
+
+// Legacy delete endpoint for backward compatibility
 app.delete('/upload/delete', async (req, res) => {
   try {
     const { gcsPath } = req.body;

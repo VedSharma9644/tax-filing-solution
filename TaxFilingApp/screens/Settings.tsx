@@ -62,7 +62,7 @@ const Settings = () => {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => logout()
+          onPress: () => logout(navigation)
         }
       ]
     );
@@ -293,14 +293,15 @@ const Settings = () => {
                 <Text style={styles.privacyButtonText}>Download My Data</Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </TouchableOpacity>
+              <TouchableOpacity style={styles.privacyButton} onPress={() => navigation.navigate('CacheManagement')}>
+                <Ionicons name="folder-outline" size={20} color="#666" />
+                <Text style={styles.privacyButtonText}>Manage Image Cache</Text>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.privacyButton}>
                 <Ionicons name="help-circle-outline" size={20} color="#666" />
                 <Text style={styles.privacyButtonText}>Privacy Policy</Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteAccountButton}>
-                <Ionicons name="trash-outline" size={20} color="#fff" />
-                <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
               </TouchableOpacity>
             </CardContent>
           </Card>
@@ -409,16 +410,6 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   privacyButtonText: { fontSize: 16, color: '#333', fontWeight: '500', flex: 1, marginLeft: 12 },
-  deleteAccountButton: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    backgroundColor: '#dc3545',
-    paddingVertical: 16,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  deleteAccountButtonText: { fontSize: 16, color: '#fff', fontWeight: 'bold', marginLeft: 8 },
   actionButtons: { marginTop: 24, gap: 12 },
   saveButton: { backgroundColor: '#007bff', paddingVertical: 16 },
   saveButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },

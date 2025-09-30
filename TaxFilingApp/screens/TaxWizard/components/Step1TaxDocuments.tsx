@@ -80,7 +80,6 @@ const Step1TaxDocuments: React.FC<Step1TaxDocumentsProps> = ({
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tax Related Documents</Text>
         <Text style={styles.description}>
           Upload your tax documents including previous year returns and W-2 forms.
         </Text>

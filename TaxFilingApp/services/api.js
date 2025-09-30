@@ -244,6 +244,66 @@ class ApiService {
     }
   }
 
+  // Get user documents from GCS
+  async getUserDocuments(token) {
+    try {
+      console.log('🌐 Making request to:', `${this.baseURL}/documents`);
+      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(`${this.baseURL}/documents`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      const data = await response.json();
+      console.log('📊 Response data:', data);
+      
+      if (!response.ok) {
+        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get user documents error:', error);
+      throw error;
+    }
+  }
+
+  // Delete document from GCS
+  async deleteDocument(documentId, token) {
+    try {
+      console.log('🌐 Making request to:', `${this.baseURL}/documents/${documentId}`);
+      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(`${this.baseURL}/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      const data = await response.json();
+      console.log('📊 Response data:', data);
+      
+      if (!response.ok) {
+        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Delete document error:', error);
+      throw error;
+    }
+  }
+
   // Get tax form history
   async getTaxFormHistory(token) {
     try {

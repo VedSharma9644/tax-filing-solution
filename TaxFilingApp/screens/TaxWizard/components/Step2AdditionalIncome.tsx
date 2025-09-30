@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 
 interface AdditionalIncomeSource {
@@ -124,10 +124,8 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Card style={styles.card}>
         <CardHeader>
-          <CardTitle style={styles.title}>Additional Income Sources</CardTitle>
           <CardDescription style={styles.description}>
-            Do you have any other sources of income besides your W-2 wages? This includes investments, 
-            rental income, freelance work, and other earnings.
+          Any other income sources besides W-2 wages, such as investments, rental, or freelance work?
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -181,7 +179,7 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
                         style={styles.removeButton}
                         onPress={() => removeIncomeSource(source.id)}
                       >
-                        <Ionicons name="close-circle" size={24} color="#ef4444" />
+                        <Ionicons name="trash-outline" size={20} color="#dc3545" />
                       </TouchableOpacity>
                     </View>
                     
@@ -235,6 +233,7 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
                           selectedValue={selectedSourceType}
                           onValueChange={handleSourceTypeSelect}
                           style={styles.picker}
+                          itemStyle={styles.pickerItem}
                         >
                           <Picker.Item label="Choose a common income type" value="" />
                           {commonIncomeSources.map((source) => (
@@ -290,17 +289,34 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
 
               {/* Total Summary */}
               {(formData.additionalIncomeSources || []).length > 0 && (
-                <Card style={styles.summaryCard}>
-                  <CardContent>
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Total Additional Income:</Text>
-                      <Text style={styles.summaryAmount}>
-                        {formatCurrency(getTotalAdditionalIncome().toString())}
-                      </Text>
+                <Card style={styles.sectionCard}>
+                  <CardHeader>
+                    <View style={styles.sectionHeader}>
+                      <View style={[styles.sectionIcon, { backgroundColor: '#28a745' }]}>
+                        <FontAwesome name="dollar" size={20} color="#fff" />
+                      </View>
+                      <View style={styles.sectionInfo}>
+                        <CardTitle style={styles.sectionCardTitle}>Additional Income Sources</CardTitle>
+                        <CardDescription>
+                          {(formData.additionalIncomeSources || []).length} income source{(formData.additionalIncomeSources || []).length !== 1 ? 's' : ''} • 
+                          Total: {formatCurrency(getTotalAdditionalIncome().toString())}
+                        </CardDescription>
+                      </View>
                     </View>
-                    <Text style={styles.summaryDescription}>
-                      {(formData.additionalIncomeSources || []).length} income source{(formData.additionalIncomeSources || []).length !== 1 ? 's' : ''} added
-                    </Text>
+                  </CardHeader>
+                  <CardContent>
+                    {(formData.additionalIncomeSources || []).map((source, index) => (
+                      <View key={source.id} style={styles.incomeSourceItem}>
+                        <View style={styles.incomeSourceHeader}>
+                          <Text style={styles.incomeSourceNumber}>#{index + 1}</Text>
+                          <Text style={styles.incomeSourceAmount}>{formatCurrency((parseFloat(source.amount) || 0).toString())}</Text>
+                        </View>
+                        <Text style={styles.incomeSourceName}>{source.source}</Text>
+                        {source.description && (
+                          <Text style={styles.incomeSourceDescription}>{source.description}</Text>
+                        )}
+                      </View>
+                    ))}
                   </CardContent>
                 </Card>
               )}
@@ -331,21 +347,24 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1e293b',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   description: {
     fontSize: 16,
     color: '#64748b',
     lineHeight: 24,
+    marginBottom: 0,
+    paddingBottom: 0,
   },
   questionContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
+    marginTop: 8,
   },
   questionText: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -353,13 +372,15 @@ const styles = StyleSheet.create({
   },
   yesNoButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#e2e8f0',
     backgroundColor: 'white',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
   },
   yesNoButtonSelected: {
     borderColor: '#3b82f6',
@@ -387,6 +408,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sourceContent: {
     padding: 16,
@@ -429,19 +456,27 @@ const styles = StyleSheet.create({
   },
   addSourceCard: {
     marginTop: 16,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   addSourceTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#0369a1',
+    color: '#3b82f6',
   },
   addSourceForm: {
     gap: 16,
   },
   pickerContainer: {
+    minHeight: 48,
+    paddingTop: 0,
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
@@ -449,7 +484,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   picker: {
-    height: 44,
+    height: 50,
+    paddingHorizontal: 12,
+  },
+  pickerItem: {
+    paddingTop: 0,
+    fontSize: 16,
+    height: 48,
+    lineHeight: 48,
   },
   addButton: {
     backgroundColor: '#3b82f6',
@@ -469,31 +511,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  summaryCard: {
+  sectionCard: {
     marginTop: 16,
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
+    marginBottom: 24,
   },
-  summaryRow: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  sectionInfo: {
+    flex: 1,
+  },
+  sectionCardTitle: {
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  incomeSourceItem: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  incomeSourceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  summaryLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#166534',
-  },
-  summaryAmount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#166534',
-  },
-  summaryDescription: {
+  incomeSourceNumber: {
     fontSize: 14,
-    color: '#16a34a',
+    fontWeight: 'bold',
+    color: '#28a745',
+  },
+  incomeSourceAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#28a745',
+  },
+  incomeSourceName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  incomeSourceDescription: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   },
 });
 

@@ -25,6 +25,9 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredAuth = async () => {
     try {
+      // Always start with no user to force login screen
+      // Comment out auto-login for now
+      /*
       const { accessToken, refreshToken } = await secureStorage.getAuthTokens();
       const storedUser = await secureStorage.getUserData();
       
@@ -32,10 +35,13 @@ export const AuthProvider = ({ children }) => {
         setToken(accessToken);
         setUser(storedUser);
       }
+      */
     } catch (error) {
       console.error('Error loading stored auth:', error);
       // Fallback to regular storage
       try {
+        // Also comment out fallback auto-login
+        /*
         const storedToken = await AsyncStorage.getItem('accessToken');
         const storedUser = await AsyncStorage.getItem('user');
         
@@ -43,6 +49,7 @@ export const AuthProvider = ({ children }) => {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
         }
+        */
       } catch (fallbackError) {
         console.error('Fallback auth loading failed:', fallbackError);
       }
@@ -90,18 +97,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (navigation = null) => {
     try {
       await secureStorage.clear();
       setUser(null);
       setToken(null);
+      
+      // Navigate to login screen if navigation is provided
+      if (navigation) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Signup' }],
+        });
+      }
     } catch (error) {
       console.error('Error during logout:', error);
       // Fallback to regular storage cleanup
       try {
         await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+        // Still navigate even if cleanup fails
+        if (navigation) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Signup' }],
+          });
+        }
       } catch (fallbackError) {
         console.error('Fallback logout cleanup failed:', fallbackError);
+        // Navigate even if all cleanup fails
+        if (navigation) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Signup' }],
+          });
+        }
       }
     }
   };
