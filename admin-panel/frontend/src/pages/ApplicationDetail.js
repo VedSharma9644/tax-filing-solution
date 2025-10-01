@@ -522,7 +522,7 @@ const ApplicationDetail = () => {
         <h3>Admin Actions</h3>
         <div className="admin-form">
           <div className="form-group">
-            <label htmlFor="expectedReturn">Expected Tax Return ($):</label>
+            <label htmlFor="expectedReturn"></label>
             <input
               type="number"
               id="expectedReturn"
@@ -685,6 +685,16 @@ const ApplicationDetail = () => {
               disabled={updating}
             >
               Mark Under Review
+            </button>
+            <button 
+              className="action-button processing-button"
+              onClick={() => {
+                setSelectedStatus('processing');
+                setShowStatusModal(true);
+              }}
+              disabled={updating}
+            >
+              Processing
             </button>
           </div>
         </div>

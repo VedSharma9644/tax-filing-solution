@@ -105,6 +105,17 @@ const DocumentReviewScreen = () => {
     fetchDocuments();
   };
 
+  const handleOpenDocument = (url: string) => {
+    if (url) {
+      Linking.openURL(url).catch(err => {
+        console.error('Failed to open document:', err);
+        Alert.alert('Error', 'Could not open document');
+      });
+    } else {
+      Alert.alert('Error', 'Document URL not available');
+    }
+  };
+
   const handleDeleteDocument = async (documentId: string) => {
     Alert.alert(
       'Delete Document',
@@ -264,7 +275,7 @@ const DocumentReviewScreen = () => {
                       <View style={styles.documentsList}>
                         {docs.map((doc) => {
                           const isImage = doc.type?.startsWith('image/') || 
-                            doc.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                            !!(doc.name?.match(/\.(jpg|jpeg|png|gif|webp)$/i));
                           
                           // Use cached image if available, otherwise use decryption URL
                           const imageUrl = cachedImages[doc.id] || doc.publicUrl;
@@ -284,7 +295,9 @@ const DocumentReviewScreen = () => {
                                 isImage: isImage,
                                 uri: imageUrl,
                                 previewUrl: imageUrl,
-                                progress: 100
+                                progress: 100,
+                                category: doc.category || 'general',
+                                timestamp: new Date(doc.uploadedAt || Date.now())
                               }}
                               onDelete={() => handleDeleteDocument(doc.id)}
                               onReplace={() => handleOpenDocument(doc.publicUrl)}

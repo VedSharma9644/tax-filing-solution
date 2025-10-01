@@ -2061,6 +2061,114 @@ app.delete('/documents/:documentId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user's admin documents and notes for their applications
+app.get('/user/admin-documents', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    console.log(`📄 Fetching admin documents for user: ${userId}`);
+    
+    // Get all tax forms for this user
+    const taxFormsSnapshot = await db.collection('taxForms')
+      .where('userId', '==', userId)
+      .get();
+
+    const adminDocuments = [];
+    
+    for (const doc of taxFormsSnapshot.docs) {
+      const taxFormData = doc.data();
+      const applicationId = doc.id;
+      
+      // Check for admin notes
+      if (taxFormData.adminNotes && taxFormData.adminNotes.trim()) {
+        adminDocuments.push({
+          id: `${applicationId}-notes`,
+          applicationId: applicationId,
+          type: 'admin_notes',
+          name: 'Admin Notes',
+          content: taxFormData.adminNotes,
+          createdAt: taxFormData.adminNotesUpdatedAt || taxFormData.updatedAt,
+          status: taxFormData.status || 'pending'
+        });
+      }
+      
+      // Check for draft return
+      if (taxFormData.draftReturn) {
+        try {
+          const fileRef = bucket.file(taxFormData.draftReturn.gcsPath);
+          const [exists] = await fileRef.exists();
+          
+          if (exists) {
+            // Generate decryption URL for viewing
+            const decryptionUrl = `${req.protocol}://${req.get('host')}/upload/view/${encodeURIComponent(taxFormData.draftReturn.gcsPath)}`;
+            
+            adminDocuments.push({
+              id: `${applicationId}-draft`,
+              applicationId: applicationId,
+              type: 'draft_return',
+              name: `Draft Return - ${taxFormData.draftReturn.originalName}`,
+              gcsPath: taxFormData.draftReturn.gcsPath,
+              publicUrl: decryptionUrl,
+              size: taxFormData.draftReturn.size,
+              contentType: taxFormData.draftReturn.contentType,
+              createdAt: taxFormData.draftReturn.uploadedAt,
+              status: taxFormData.status || 'pending'
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not process draft return for application ${applicationId}:`, error);
+        }
+      }
+      
+      // Check for final return
+      if (taxFormData.finalReturn) {
+        try {
+          const fileRef = bucket.file(taxFormData.finalReturn.gcsPath);
+          const [exists] = await fileRef.exists();
+          
+          if (exists) {
+            // Generate decryption URL for viewing
+            const decryptionUrl = `${req.protocol}://${req.get('host')}/upload/view/${encodeURIComponent(taxFormData.finalReturn.gcsPath)}`;
+            
+            adminDocuments.push({
+              id: `${applicationId}-final`,
+              applicationId: applicationId,
+              type: 'final_return',
+              name: `Final Return - ${taxFormData.finalReturn.originalName}`,
+              gcsPath: taxFormData.finalReturn.gcsPath,
+              publicUrl: decryptionUrl,
+              size: taxFormData.finalReturn.size,
+              contentType: taxFormData.finalReturn.contentType,
+              createdAt: taxFormData.finalReturn.uploadedAt,
+              status: taxFormData.status || 'pending'
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not process final return for application ${applicationId}:`, error);
+        }
+      }
+    }
+    
+    // Sort by creation date (newest first)
+    adminDocuments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    console.log(`✅ Found ${adminDocuments.length} admin documents for user ${userId}`);
+    
+    res.json({
+      success: true,
+      data: adminDocuments,
+      count: adminDocuments.length
+    });
+  } catch (error) {
+    console.error('❌ Error fetching admin documents:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch admin documents',
+      details: error.message
+    });
+  }
+});
+
 // Legacy delete endpoint for backward compatibility
 app.delete('/upload/delete', async (req, res) => {
   try {

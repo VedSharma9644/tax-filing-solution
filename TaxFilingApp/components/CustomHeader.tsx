@@ -77,7 +77,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
 
 const styles = StyleSheet.create({
   header: {
-    paddingTop: 50,
+    paddingTop: 20,
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: '#fff',

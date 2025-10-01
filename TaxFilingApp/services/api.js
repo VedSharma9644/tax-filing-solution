@@ -304,6 +304,36 @@ class ApiService {
     }
   }
 
+  // Get admin documents and notes for user
+  async getAdminDocuments(token) {
+    try {
+      console.log('🌐 Making request to:', `${this.baseURL}/user/admin-documents`);
+      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(`${this.baseURL}/user/admin-documents`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      const data = await response.json();
+      console.log('📊 Response data:', data);
+      
+      if (!response.ok) {
+        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Get admin documents error:', error);
+      throw error;
+    }
+  }
+
   // Get tax form history
   async getTaxFormHistory(token) {
     try {
@@ -357,6 +387,36 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Get tax form details error:', error);
+      throw error;
+    }
+  }
+
+  // Get user uploaded documents
+  async getUserDocuments(token) {
+    try {
+      console.log('📄 Fetching user documents...');
+      
+      const response = await fetch(`${this.baseURL}/documents`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('📡 Response status:', response.status);
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      console.log('✅ User documents request successful');
+      return data;
+    } catch (error) {
+      console.error('❌ Get user documents error:', error);
       throw error;
     }
   }

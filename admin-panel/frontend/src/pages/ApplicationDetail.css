@@ -535,6 +535,18 @@
   background: #e67e22;
 }
 
+.processing-button {
+  background: #3498db;
+  color: white;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.processing-button:hover {
+  background: #2980b9;
+}
+
 .action-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;

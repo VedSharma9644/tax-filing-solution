@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Modal, Dimensions, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Modal, Dimensions, KeyboardAvoidingView, Platform, ActivityIndicator, Linking } from 'react-native';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Textarea } from './ui/textarea';
@@ -9,8 +9,74 @@ import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
+import * as DocumentPicker from 'expo-document-picker';
+import { uploadDocumentToGCS } from '../services/gcsService';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Helper functions for status display
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+    case 'completed':
+      return '#28a745';
+    case 'pending':
+    case 'in_progress':
+      return '#ffc107';
+    case 'submitted':
+      return '#17a2b8';
+    case 'rejected':
+    case 'error':
+      return '#dc3545';
+    case 'draft':
+      return '#6c757d';
+    default:
+      return '#6c757d';
+  }
+};
+
+// Helper function to clean up document names
+const cleanDocumentName = (originalName, docType) => {
+  if (!originalName) return 'Tax Document.pdf';
+  
+  // If it's a problematic name pattern, create a clean one
+  if (originalName.includes('document:') || originalName.includes('draft return')) {
+    const currentYear = new Date().getFullYear();
+    if (docType === 'draft_return') {
+      return `Tax Return Draft ${currentYear}.pdf`;
+    } else if (docType === 'final_return') {
+      return `Tax Return Final ${currentYear}.pdf`;
+    } else {
+      return `Tax Document ${currentYear}.pdf`;
+    }
+  }
+  
+  // If it's already a clean name, return as is
+  return originalName;
+};
+
+const getStatusDisplayText = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+      return '✅ Approved';
+    case 'completed':
+      return '✅ Completed';
+    case 'pending':
+      return '⏳ Pending Review';
+    case 'in_progress':
+      return '🔄 In Progress';
+    case 'submitted':
+      return '📤 Submitted';
+    case 'rejected':
+      return '❌ Rejected';
+    case 'error':
+      return '❌ Error';
+    case 'draft':
+      return '📝 Draft';
+    default:
+      return status || 'Unknown';
+  }
+};
 
 const DocumentReview = () => {
   const navigation = useNavigation<any>();
@@ -20,10 +86,59 @@ const DocumentReview = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [taxForms, setTaxForms] = useState([]);
+  const [adminDocuments, setAdminDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState('');
+  const [uploadDescription, setUploadDescription] = useState('');
+  const [additionalDocuments, setAdditionalDocuments] = useState([]);
+
+  // Fetch admin documents
+  const fetchAdminDocuments = async () => {
+    if (!token) return;
+
+    try {
+      console.log('📄 Fetching admin documents...');
+      const response = await ApiService.getAdminDocuments(token);
+      
+      if (response && response.success) {
+        console.log('✅ Admin documents fetched:', response.data?.length || 0);
+        setAdminDocuments(response.data || []);
+      } else {
+        console.log('📄 No admin documents available');
+        setAdminDocuments([]);
+      }
+    } catch (err) {
+      console.log('📄 Admin documents not available:', err.message);
+      setAdminDocuments([]);
+    }
+  };
+
+  // Fetch additional user uploaded documents
+  const fetchAdditionalDocuments = async () => {
+    if (!token) return;
+
+    try {
+      console.log('📄 Fetching additional user documents...');
+      const response = await ApiService.getUserDocuments(token);
+      
+      if (response && response.success) {
+        console.log('✅ Additional documents fetched:', response.data?.length || 0);
+        setAdditionalDocuments(response.data || []);
+      } else {
+        console.log('📄 No additional documents available');
+        setAdditionalDocuments([]);
+      }
+    } catch (err) {
+      console.log('📄 Additional documents not available:', err.message);
+      setAdditionalDocuments([]);
+    }
+  };
 
   // Fetch tax forms data
   useEffect(() => {
@@ -50,6 +165,8 @@ const DocumentReview = () => {
     };
 
     fetchTaxForms();
+    fetchAdminDocuments();
+    fetchAdditionalDocuments();
   }, [token]);
 
   // Get the most recent approved tax form
@@ -75,12 +192,62 @@ const DocumentReview = () => {
 
   // Get admin document (if any)
   const getAdminDocument = () => {
-    const approvedForm = getApprovedTaxForm();
-    if (!approvedForm) return null;
+    console.log('🔍 Getting admin document...');
+    console.log('📄 Admin documents available:', adminDocuments?.length || 0);
+    console.log('📄 Admin documents data:', JSON.stringify(adminDocuments, null, 2));
+    
+    // First try to get from admin documents API
+    if (adminDocuments && adminDocuments.length > 0) {
+      // Find the most recent draft or final return
+      const adminDoc = adminDocuments.find(doc => 
+        doc.type === 'draft_return' || doc.type === 'final_return'
+      ) || adminDocuments[0];
 
-    return {
+      console.log('📄 Selected admin document:', adminDoc);
+
+      if (adminDoc) {
+        // Find admin notes separately
+        const adminNotesDoc = adminDocuments.find(doc => doc.type === 'admin_notes');
+        const adminNotes = adminNotesDoc ? adminNotesDoc.content : '';
+        
+        console.log('📄 Admin notes found:', adminNotesDoc ? 'Yes' : 'No');
+        console.log('📄 Admin notes content:', adminNotes);
+
+        const document = {
+          id: adminDoc.id,
+          name: cleanDocumentName(adminDoc.name, adminDoc.type),
+          uploadedBy: 'Admin',
+          uploadedAt: adminDoc.createdAt ? new Date(adminDoc.createdAt).toLocaleDateString() : 'Unknown',
+          status: adminDoc.status || 'pending',
+          size: adminDoc.size ? `${(adminDoc.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown',
+          adminNotes: adminNotes,
+          publicUrl: adminDoc.publicUrl,
+          gcsPath: adminDoc.gcsPath,
+          type: adminDoc.type,
+          applicationId: adminDoc.applicationId
+        };
+        
+        console.log('✅ Using real admin document:', document);
+        console.log('📊 Status details:', {
+          originalStatus: adminDoc.status,
+          displayText: getStatusDisplayText(adminDoc.status),
+          color: getStatusColor(adminDoc.status)
+        });
+        return document;
+      }
+    }
+
+    // Fallback to tax form data (legacy)
+    console.log('📄 No admin documents found, falling back to tax form data');
+    const approvedForm = getApprovedTaxForm();
+    if (!approvedForm) {
+      console.log('📄 No approved tax form found');
+      return null;
+    }
+
+    const fallbackDocument = {
       id: approvedForm.id,
-      name: `Tax_Review_${approvedForm.taxYear || new Date().getFullYear()}.pdf`,
+      name: `Tax Return Review ${approvedForm.taxYear || new Date().getFullYear()}.pdf`,
       uploadedBy: 'Admin',
       uploadedAt: approvedForm.updatedAt?.toDate ? approvedForm.updatedAt.toDate().toLocaleDateString() : 'Unknown',
       status: approvedForm.status,
@@ -88,10 +255,19 @@ const DocumentReview = () => {
       adminNotes: approvedForm.adminNotes || '',
       expectedReturn: approvedForm.expectedReturn || 0
     };
+    
+    console.log('📄 Using fallback document:', fallbackDocument);
+    return fallbackDocument;
   };
 
   const allDocuments = getAllDocuments();
   const adminDocument = getAdminDocument();
+  
+  // Check if application is under review (button should be disabled)
+  const isUnderReview = () => {
+    const approvedForm = getApprovedTaxForm();
+    return approvedForm && approvedForm.status === 'under_review';
+  };
 
   const handleApprove = () => {
     setShowApprovalModal(true);
@@ -150,24 +326,134 @@ const DocumentReview = () => {
     setShowDocumentModal(true);
   };
 
-  const openDocumentInBrowser = (gcsPath) => {
-    if (!gcsPath) {
-      Alert.alert('Error', 'Document path not available');
+  const openDocumentInBrowser = (document) => {
+    if (!document) {
+      Alert.alert('Error', 'Document not available');
       return;
     }
 
-    // For now, show an alert. In production, this would open the document
-    Alert.alert(
-      'View Document',
-      'This would open the document in a PDF viewer. The document is stored securely and can be viewed by authorized users only.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open', onPress: () => {
-          // In production, this would open the document using a PDF viewer
-          console.log('Opening document:', gcsPath);
-        }}
-      ]
-    );
+    // Try to use publicUrl first, then gcsPath
+    const url = document.publicUrl || document.gcsPath;
+    
+    if (!url) {
+      Alert.alert('Error', 'Document URL not available');
+      return;
+    }
+
+    console.log('🔗 Opening document URL:', url);
+    
+    // Open the document URL
+    Linking.openURL(url).catch(err => {
+      console.error('Failed to open document:', err);
+      Alert.alert('Error', 'Could not open document. Please try again.');
+    });
+  };
+
+  // Document upload functionality
+  const handleUploadDocument = () => {
+    setShowUploadModal(true);
+  };
+
+  const pickDocument = async () => {
+    if (!uploadCategory) {
+      Alert.alert('Select Category', 'Please select a document category first.');
+      return;
+    }
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*', 'text/plain'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        await uploadFile({
+          name: file.name || 'Document',
+          uri: file.uri,
+          size: file.size || 0,
+          type: file.mimeType || 'application/octet-stream',
+        });
+      }
+    } catch (error) {
+      console.error('Document picker error:', error);
+      Alert.alert('Error', 'Failed to pick document. Please try again.');
+    }
+  };
+
+  const uploadFile = async (file) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setShowUploadModal(false);
+
+    try {
+      console.log('📤 Starting document upload:', file.name);
+      
+      const result = await uploadDocumentToGCS(
+        file,
+        user.id,
+        uploadCategory,
+        (progress) => {
+          setUploadProgress(progress);
+        }
+      );
+
+      if (result.success) {
+        console.log('✅ Document uploaded successfully');
+        Alert.alert(
+          'Success',
+          'Document uploaded successfully! The admin will review it.',
+          [
+            {
+              text: 'OK',
+              onPress: async () => {
+                // Refresh the document list
+                fetchAdminDocuments();
+                fetchAdditionalDocuments();
+                // Refresh tax forms data
+                try {
+                  const response = await ApiService.getTaxFormHistory(token);
+                  if (response.success) {
+                    setTaxForms(response.data || []);
+                  }
+                } catch (error) {
+                  console.error('Error refreshing tax forms:', error);
+                }
+                // Reset upload state
+                setUploadCategory('');
+                setUploadDescription('');
+                setUploadProgress(0);
+              }
+            }
+          ]
+        );
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert(
+        'Upload Failed',
+        error.message || 'Failed to upload document. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const cancelUpload = () => {
+    setShowUploadModal(false);
+    setUploadCategory('');
+    setUploadDescription('');
+    setUploadProgress(0);
   };
 
   return (
@@ -212,7 +498,7 @@ const DocumentReview = () => {
           ) : !adminDocument ? (
             <Card style={styles.card}>
               <CardContent>
-                <Text style={styles.noDataText}>No approved tax form found. Please wait for admin approval.</Text>
+                <Text style={styles.noDataText}>⏳ No approved tax form found. Please wait for admin approval.</Text>
               </CardContent>
             </Card>
           ) : (
@@ -220,47 +506,41 @@ const DocumentReview = () => {
               <CardHeader>
                 <CardTitle style={styles.cardTitle}>
                   <FontAwesome name="file-pdf-o" size={24} color="#dc3545" />
-                  <Text style={styles.cardTitleText}>Admin Review Document</Text>
+                  <Text style={styles.cardTitleText}> Review Filed Tax Document</Text>
                 </CardTitle>
                 <CardDescription>
-                  Review your tax filing document prepared by our team
+                  📋 Review your tax filing document prepared by our team
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <View style={styles.documentInfo}>
+                  
                   <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Document:</Text>
-                    <Text style={styles.infoValue} numberOfLines={2}>{adminDocument.name}</Text>
+                    <Text style={styles.infoLabel}>📅 Date:</Text>
+                    <Text style={styles.dataValue}>{adminDocument.uploadedAt}</Text>
                   </View>
                   <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Uploaded by:</Text>
-                    <Text style={styles.infoValue}>{adminDocument.uploadedBy}</Text>
+                    <Text style={styles.infoLabel}>📊 Status:</Text>
+                    <Text style={[
+                      styles.dataValue,
+                      { color: getStatusColor(adminDocument.status) }
+                    ]}>
+                      {getStatusDisplayText(adminDocument.status)}
+                    </Text>
                   </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Date:</Text>
-                    <Text style={styles.infoValue}>{adminDocument.uploadedAt}</Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Status:</Text>
-                    <Text style={styles.infoValue}>{adminDocument.status}</Text>
-                  </View>
-                  {adminDocument.expectedReturn > 0 && (
+                  {'expectedReturn' in adminDocument && adminDocument.expectedReturn > 0 && (
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Expected Return:</Text>
-                      <Text style={styles.infoValue}>${adminDocument.expectedReturn.toFixed(0)}</Text>
-                    </View>
-                  )}
-                  {adminDocument.adminNotes && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Admin Notes:</Text>
-                      <Text style={styles.infoValue} numberOfLines={3}>{adminDocument.adminNotes}</Text>
+                      <Text style={styles.infoLabel}>💰 Expected Return:</Text>
+                      <Text style={[styles.dataValue, { color: '#28a745', fontWeight: '600' }]}>
+                        ${adminDocument.expectedReturn.toFixed(0)}
+                      </Text>
                     </View>
                   )}
                 </View>
 
                 <Button 
                   style={styles.viewButton} 
-                  onPress={() => handleViewDocument(adminDocument)}
+                  onPress={() => openDocumentInBrowser(adminDocument)}
                 >
                   <Feather name="eye" size={20} color="#fff" />
                   <Text style={styles.viewButtonText}>View Document</Text>
@@ -269,37 +549,138 @@ const DocumentReview = () => {
             </Card>
           )}
 
-          {/* Personal Documents Section */}
+          {/* Admin Notes Section */}
+          {(() => {
+            const hasAdminNotes = adminDocuments && adminDocuments.some(doc => doc.type === 'admin_notes');
+            console.log('🔍 Admin notes section check:', {
+              adminDocuments: adminDocuments?.length || 0,
+              hasAdminNotes,
+              adminNotesDocs: adminDocuments?.filter(doc => doc.type === 'admin_notes') || []
+            });
+            return hasAdminNotes;
+          })() && (
+            <Card style={styles.card}>
+              <CardHeader>
+                <CardTitle style={styles.cardTitle}>
+                  <Ionicons name="chatbubble-outline" size={24} color="#28a745" />
+                  <Text style={styles.cardTitleText}>Admin Notes</Text>
+                </CardTitle>
+                <CardDescription>
+                  💬 Important notes and instructions from the admin team
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {adminDocuments
+                  .filter(doc => {
+                    const isAdminNotes = doc.type === 'admin_notes';
+                    console.log('🔍 Filtering admin notes:', { docType: doc.type, isAdminNotes, content: doc.content });
+                    return isAdminNotes;
+                  })
+                  .map((note, index) => {
+                    console.log('🔍 Rendering admin note:', { index, note });
+                    return (
+                    <View key={note.id || index} style={styles.adminNoteItem}>
+                      <View style={styles.adminNoteHeader}>
+                        <Text style={styles.adminNoteText}>{note.content}</Text>
+                        <View style={styles.adminNoteMeta}>
+                          <Text style={styles.adminNoteDate}>
+                            {note.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'Unknown date'}
+                          </Text>
+                          {note.status && (
+                            <Text style={[
+                              styles.dataValue,
+                              { color: getStatusColor(note.status), fontSize: 12 }
+                            ]}>
+                              {getStatusDisplayText(note.status)}
+                            </Text>
+                          )}
+                        </View>
+                        {note.applicationId && (
+                          <Text style={[styles.dataValue, { fontSize: 11, color: '#999' }]}>
+                            🆔 Application: {note.applicationId}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    );
+                  })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Upload New Document Section */}
+          <Card style={styles.card}>
+            <CardHeader>
+              <CardTitle style={styles.cardTitle}>
+                <Ionicons name="cloud-upload-outline" size={24} color="#007bff" />
+                <Text style={styles.cardTitleText}>Upload Additional Documents</Text>
+              </CardTitle>
+              <CardDescription>
+                📤 Upload any additional documents requested by the admin
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Text style={styles.sectionText}>
+                If the admin has requested additional documents or you need to provide updated information, you can upload them here.
+              </Text>
+              
+              <Button 
+                style={styles.uploadButton} 
+                onPress={handleUploadDocument}
+                disabled={isUploading}
+              >
+                <Ionicons name="cloud-upload" size={20} color="#fff" />
+                <Text style={styles.uploadButtonText}>
+                  {isUploading ? 'Uploading...' : 'Upload Document'}
+                </Text>
+              </Button>
+
+              {isUploading && (
+                <View style={styles.uploadProgressContainer}>
+                  <Text style={styles.uploadProgressText}>
+                    Uploading... {uploadProgress}%
+                  </Text>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
+                  </View>
+                </View>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Additional Uploaded Documents Section */}
           <Card style={styles.card}>
             <CardHeader>
               <CardTitle style={styles.cardTitle}>
                 <FontAwesome name="user" size={24} color="#007bff" />
-                <Text style={styles.cardTitleText}>Your Uploaded Documents</Text>
+                <Text style={styles.cardTitleText}>Your Additional Documents</Text>
               </CardTitle>
-              <CardDescription>
-                Documents you uploaded for tax filing
-              </CardDescription>
+                <CardDescription>
+                  📁 Additional documents you uploaded for admin review
+                </CardDescription>
             </CardHeader>
             <CardContent>
-              {allDocuments.length === 0 ? (
-                <Text style={styles.noDataText}>No documents uploaded yet</Text>
+              {additionalDocuments.length === 0 ? (
+                <Text style={styles.noDataText}>📭 No additional documents uploaded yet</Text>
               ) : (
-                allDocuments.map(doc => (
+                additionalDocuments.map(doc => (
                   <View key={doc.id} style={styles.documentItem}>
                     <View style={styles.documentItemHeader}>
                       <FontAwesome name="file-text-o" size={20} color="#007bff" />
                       <View style={styles.documentItemInfo}>
-                        <Text style={styles.documentItemTitle} numberOfLines={1}>{doc.category}</Text>
-                        <Text style={styles.documentItemName} numberOfLines={1}>{doc.name}</Text>
-                        <Text style={styles.documentItemMeta}>
-                          {doc.size} • {doc.uploadedAt}
+                        <Text style={[styles.dataValue, { fontSize: 14, fontWeight: '600' }]} numberOfLines={1}>
+                          📁 {doc.category.charAt(0).toUpperCase() + doc.category.slice(1)}
+                        </Text>
+                        <Text style={[styles.dataValue, { fontSize: 14 }]} numberOfLines={1}>{doc.name}</Text>
+                        <Text style={[styles.dataValue, { fontSize: 12, color: '#666' }]}>
+                          📏 {doc.size ? `${(doc.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown'} • 📅 {new Date(doc.uploadedAt).toLocaleDateString()}
                         </Text>
                       </View>
                     </View>
                     <Button 
                       variant="ghost" 
                       style={styles.viewDocumentButton}
-                      onPress={() => handleViewDocument(doc)}
+                      onPress={() => openDocumentInBrowser(doc)}
                     >
                       <Feather name="eye" size={16} color="#007bff" />
                     </Button>
@@ -337,12 +718,16 @@ const DocumentReview = () => {
               {/* Action Buttons */}
               <View style={styles.actionButtons}>
                 <Button 
-                  style={styles.approveButton} 
-                  onPress={handleApprove}
+                  style={isUnderReview() ? 
+                    {...styles.approveButton, ...styles.disabledButton} : 
+                    styles.approveButton
+                  } 
+                  onPress={isUnderReview() ? null : handleApprove}
+                  disabled={isUnderReview()}
                 >
                   <Ionicons name="checkmark" size={20} color="#fff" />
                   <Text style={styles.actionButtonText}>
-                    Approve & Continue
+                    {isUnderReview() ? 'Under Review' : 'Approve & Continue'}
                   </Text>
                 </Button>
 
@@ -484,18 +869,14 @@ const DocumentReview = () => {
                   <FontAwesome name="file-text-o" size={32} color="#007bff" />
                   <Text style={styles.modalTitle}>Document Preview</Text>
                   <Text style={styles.modalSubtitle}>
-                    {selectedDocument?.name || 'Document'}
+                    Document Preview
                   </Text>
                 </View>
 
                 <View style={styles.documentPreviewSection}>
                   <Text style={styles.documentPreviewTitle}>Document Details</Text>
                   <View style={styles.documentPreviewInfo}>
-                    <Text style={styles.documentPreviewLabel}>Name:</Text>
-                    <Text style={styles.documentPreviewValue}>{selectedDocument?.name}</Text>
-                  </View>
-                  <View style={styles.documentPreviewInfo}>
-                    <Text style={styles.documentPreviewLabel}>Category:</Text>
+                    <Text style={styles.documentPreviewLabel}>Category:</Text>` 3`
                     <Text style={styles.documentPreviewValue}>{selectedDocument?.category}</Text>
                   </View>
                   <View style={styles.documentPreviewInfo}>
@@ -531,6 +912,97 @@ const DocumentReview = () => {
               </View>
             </View>
           </Modal>
+
+          {/* Upload Document Modal */}
+          <Modal
+            visible={showUploadModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={cancelUpload}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <ScrollView 
+                  style={styles.modalScrollView}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {/* Modal Header */}
+                  <View style={styles.modalHeader}>
+                    <Ionicons name="cloud-upload" size={32} color="#007bff" />
+                    <Text style={styles.modalTitle}>Upload Document</Text>
+                    <Text style={styles.modalSubtitle}>
+                      Select document category and upload file
+                    </Text>
+                  </View>
+
+                  {/* Document Category Selection */}
+                  <View style={styles.uploadSection}>
+                    <Text style={styles.uploadSectionTitle}>Document Category</Text>
+                    <View style={styles.categoryGrid}>
+                      {[
+                        { id: 'w2Forms', name: 'W-2 Forms', icon: 'file-text-o' },
+                        { id: 'medical', name: 'Medical Documents', icon: 'file-text-o' },
+                        { id: 'education', name: 'Education Documents', icon: 'book' },
+                        { id: 'homeownerDeduction', name: 'Homeowner Documents', icon: 'home' },
+                        { id: 'personalId', name: 'Personal ID', icon: 'id-card-o' },
+                        { id: 'other', name: 'Other Documents', icon: 'file-o' }
+                      ].map((category) => (
+                        <Button
+                          key={category.id}
+                          variant={uploadCategory === category.id ? "default" : "outline"}
+                          style={uploadCategory === category.id ? 
+                            {...styles.categoryButton, ...styles.selectedCategoryButton} : 
+                            styles.categoryButton
+                          }
+                          onPress={() => setUploadCategory(category.id)}
+                        >
+                          <FontAwesome name={category.icon as any} size={16} color={uploadCategory === category.id ? "#fff" : "#007bff"} />
+                          <Text style={[
+                            styles.categoryButtonText,
+                            uploadCategory === category.id && styles.selectedCategoryButtonText
+                          ]}>
+                            {category.name}
+                          </Text>
+                        </Button>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Description Section */}
+                  <View style={styles.uploadSection}>
+                    <Text style={styles.uploadSectionTitle}>Description (Optional)</Text>
+                    <Textarea
+                      placeholder="Add a description for this document..."
+                      value={uploadDescription}
+                      onChangeText={setUploadDescription}
+                      style={styles.uploadDescriptionInput}
+                    />
+                  </View>
+                </ScrollView>
+
+                {/* Modal Actions */}
+                <View style={styles.modalActions}>
+                  <Button 
+                    style={styles.cancelButton} 
+                    onPress={cancelUpload}
+                  >
+                    <Ionicons name="close" size={20} color="#fff" />
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </Button>
+                  
+                  <Button 
+                    style={styles.uploadModalButton} 
+                    onPress={pickDocument}
+                    disabled={!uploadCategory}
+                  >
+                    <Ionicons name="cloud-upload" size={20} color="#fff" />
+                    <Text style={styles.modalButtonText}>Select & Upload</Text>
+                  </Button>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaWrapper>
@@ -547,7 +1019,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
@@ -940,6 +1412,160 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     backgroundColor: '#007bff',
+  },
+  // Admin notes styles
+  adminNoteItem: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#28a745',
+  },
+  adminNoteHeader: {
+    flex: 1,
+  },
+  adminNoteText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+    marginBottom: 8,
+  },
+  adminNoteMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  adminNoteDate: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  adminNoteStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: 'System',
+  },
+  adminNoteAppId: {
+    fontSize: 11,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  // Status display styles
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'System',
+  },
+  // Consistent data value styling
+  dataValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'System',
+    color: '#333',
+  },
+  // Upload styles
+  uploadButton: {
+    backgroundColor: '#007bff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  uploadProgressContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  uploadProgressText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e9ecef',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#007bff',
+    borderRadius: 2,
+  },
+  uploadSection: {
+    marginBottom: 24,
+  },
+  uploadSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007bff',
+    backgroundColor: 'transparent',
+    minWidth: '45%',
+    justifyContent: 'center',
+  },
+  selectedCategoryButton: {
+    backgroundColor: '#007bff',
+    borderColor: '#007bff',
+  },
+  categoryButtonText: {
+    marginLeft: 8,
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#007bff',
+  },
+  selectedCategoryButtonText: {
+    color: '#fff',
+  },
+  uploadDescriptionInput: {
+    minHeight: 80,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+  },
+  uploadModalButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: '#007bff',
+  },
+  // Disabled button style
+  disabledButton: {
+    backgroundColor: '#6c757d',
+    opacity: 0.6,
   },
 });
 

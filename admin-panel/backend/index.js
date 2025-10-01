@@ -611,11 +611,11 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, async (req, res) => {
     }
     
     // Validate status
-    const validStatuses = ['submitted', 'under_review', 'approved', 'rejected', 'completed'];
+    const validStatuses = ['submitted', 'under_review', 'processing', 'approved', 'rejected', 'completed'];
     if (status && !validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid status. Must be one of: submitted, under_review, approved, rejected, completed'
+        error: 'Invalid status. Must be one of: submitted, under_review, processing, approved, rejected, completed'
       });
     }
     
