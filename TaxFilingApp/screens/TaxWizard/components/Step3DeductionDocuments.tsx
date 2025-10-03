@@ -6,6 +6,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
 import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
+import { TaxWizardStyles, ContainerStyles, ButtonStyles, InputStyles } from '../../../utils/taxWizardStyles';
 
 interface Dependent {
   id: string;
@@ -114,7 +115,7 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
 
       {/* Tax Credits (Dependent Children) Section */}
       <Card style={styles.dependentSectionCard}>
-        <CardHeader>
+        <CardHeader style={styles.cardHeader}>
           <View style={styles.dependentSectionHeader}>
             <View style={[styles.dependentSectionIcon, { backgroundColor: '#fd7e14' }]}>
               <FontAwesome name="child" size={20} color="#fff" />
@@ -125,7 +126,7 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
             </View>
           </View>
         </CardHeader>
-        <CardContent>
+        <CardContent style={styles.cardContent}>
           {/* Number of Dependents Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Number of Dependents *</Text>
@@ -241,7 +242,7 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
       {documentCategories.map((category) => (
         <View key={category.id} style={styles.categorySection}>
           <Card style={styles.categoryCard}>
-            <CardHeader>
+            <CardHeader style={styles.cardHeader}>
               <View style={styles.categoryHeader}>
                 <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
                   <FontAwesome name={category.icon as any} size={20} color="#fff" />
@@ -252,7 +253,7 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
                 </View>
               </View>
             </CardHeader>
-            <CardContent>
+            <CardContent style={styles.cardContent}>
               <View style={styles.categoryActions}>
                 <Button
                   variant="outline"
@@ -298,29 +299,17 @@ const Step3DeductionDocuments: React.FC<Step3DeductionDocumentsProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
-  },
+  container: TaxWizardStyles.scrollContainer,
+  header: TaxWizardStyles.header,
+  title: TaxWizardStyles.headerTitle,
+  description: TaxWizardStyles.headerSubtitle,
   categorySection: {
     marginBottom: 24,
   },
-  categoryCard: {
-    marginBottom: 16,
+  categoryCard: TaxWizardStyles.taxFormComponentCommand,
+  cardHeader: TaxWizardStyles.cardHeader,
+  cardContent: {
+    paddingTop: 0, // Remove top padding from card content
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -346,10 +335,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 8,
   },
   actionButtonText: {
     marginLeft: 8,
@@ -358,12 +344,7 @@ const styles = StyleSheet.create({
   documentsList: {
     marginTop: 16,
   },
-  documentsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
+  documentsTitle: TaxWizardStyles.cardTitle,
   documentCard: {
     marginBottom: 12,
   },
@@ -397,25 +378,10 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
   },
-  progressContainer: {
-    marginTop: 12,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e9ecef',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007bff',
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  progressContainer: TaxWizardStyles.progressContainer,
+  progressBar: TaxWizardStyles.progressBar,
+  progressFill: TaxWizardStyles.progressFill,
+  progressText: TaxWizardStyles.progressText,
   imageContainer: {
     marginTop: 12,
     position: 'relative',
@@ -471,9 +437,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   // New styles for dependent form
-  dependentSectionCard: {
-    marginBottom: 24,
-  },
+  dependentSectionCard: TaxWizardStyles.taxFormComponentCommand,
   dependentSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -493,43 +457,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 4,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
+  inputContainer: TaxWizardStyles.inputContainer,
+  inputLabel: TaxWizardStyles.inputLabel,
+  textInput: TaxWizardStyles.input,
   dependentsList: {
     marginTop: 16,
   },
-  dependentsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
+  dependentsTitle: TaxWizardStyles.cardTitle,
   dependentCard: {
+    ...TaxWizardStyles.taxFormComponentCommand,
+    marginHorizontal: -8, // Extend beyond container padding
     marginBottom: 16,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   dependentContent: {
     padding: 16,
@@ -558,32 +496,15 @@ const styles = StyleSheet.create({
   fieldContainer: {
     flex: 1,
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 6,
-    color: '#333',
-  },
-  fieldInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 14,
-    backgroundColor: '#fff',
-  },
+  fieldLabel: TaxWizardStyles.inputLabel,
+  fieldInput: TaxWizardStyles.input,
   documentUploadSection: {
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
-  documentUploadTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
+  documentUploadTitle: TaxWizardStyles.cardTitle,
 });
 
 export default Step3DeductionDocuments;

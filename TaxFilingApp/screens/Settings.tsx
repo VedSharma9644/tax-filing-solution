@@ -10,6 +10,7 @@ import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import ProfileForm from '../components/ProfileForm';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../contexts/AuthContext';
+import { BackgroundColors } from '../utils/colors';
 
 const Settings = () => {
   const [notifications, setNotifications] = useState({
@@ -328,7 +329,7 @@ const Settings = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, backgroundColor: BackgroundColors.secondary },
   scrollContent: { padding: 16 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
   card: { 
     marginBottom: 16, 
     borderRadius: 12, 
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
   inputWithIcon: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: '#fff', 
+    backgroundColor: BackgroundColors.primary, 
     borderColor: '#ccc', 
     borderWidth: 1, 
     borderRadius: 6, 

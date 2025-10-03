@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Ionicons } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import ImageCacheService from '../services/imageCacheService';
+import { BackgroundColors } from '../utils/colors';
 
 interface CacheStats {
   entryCount: number;
@@ -184,12 +185,12 @@ const CacheManagementScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
   },
   header: {
     padding: 20,
     paddingBottom: 10,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },

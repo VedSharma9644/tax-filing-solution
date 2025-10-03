@@ -6,6 +6,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
 import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
+import { TaxWizardStyles, ContainerStyles, ButtonStyles, InputStyles } from '../../../utils/taxWizardStyles';
 
 interface Step4PersonalInfoProps {
   formData: {
@@ -101,7 +102,7 @@ const Step4PersonalInfo: React.FC<Step4PersonalInfoProps> = ({
 
       {/* Social Security Number Section */}
       <Card style={styles.sectionCard}>
-        <CardHeader>
+        <CardHeader style={styles.cardHeader}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: '#007bff' }]}>
               <FontAwesome name="id-card" size={20} color="#fff" />
@@ -131,7 +132,7 @@ const Step4PersonalInfo: React.FC<Step4PersonalInfoProps> = ({
 
       {/* Personal Documents Section */}
       <Card style={styles.sectionCard}>
-        <CardHeader>
+        <CardHeader style={styles.cardHeader}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: '#28a745' }]}>
               <FontAwesome name="file-text-o" size={20} color="#fff" />
@@ -186,27 +187,12 @@ const Step4PersonalInfo: React.FC<Step4PersonalInfoProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
-  },
-  sectionCard: {
-    marginBottom: 24,
-  },
+  container: TaxWizardStyles.scrollContainer,
+  header: TaxWizardStyles.header,
+  title: TaxWizardStyles.headerTitle,
+  description: TaxWizardStyles.headerSubtitle,
+  sectionCard: TaxWizardStyles.taxFormComponentCommand,
+  cardHeader: TaxWizardStyles.cardHeader,
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,40 +212,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 4,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  inputError: {
-    borderColor: '#dc3545',
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 14,
-    marginTop: 4,
-  },
+  inputContainer: TaxWizardStyles.inputContainer,
+  inputLabel: TaxWizardStyles.inputLabel,
+  textInput: TaxWizardStyles.input,
+  inputError: TaxWizardStyles.inputError,
+  errorText: TaxWizardStyles.errorText,
   categoryActions: {
     flexDirection: 'row',
     gap: 12,
   },
   actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 8,
   },
   actionButtonText: {
     marginLeft: 8,
@@ -268,12 +231,7 @@ const styles = StyleSheet.create({
   documentsList: {
     marginTop: 16,
   },
-  documentsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
+  documentsTitle: TaxWizardStyles.cardTitle,
   documentCard: {
     marginBottom: 12,
   },
@@ -307,25 +265,10 @@ const styles = StyleSheet.create({
   deleteButton: {
     padding: 8,
   },
-  progressContainer: {
-    marginTop: 12,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e9ecef',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007bff',
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  progressContainer: TaxWizardStyles.progressContainer,
+  progressBar: TaxWizardStyles.progressBar,
+  progressFill: TaxWizardStyles.progressFill,
+  progressText: TaxWizardStyles.progressText,
   imageContainer: {
     marginTop: 12,
     position: 'relative',

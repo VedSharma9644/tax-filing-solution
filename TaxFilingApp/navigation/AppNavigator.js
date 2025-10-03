@@ -9,7 +9,7 @@ import CreateProfileScreen from '../screens/ProfileSetup';
 import HomeScreen from '../screens/Dashboard';
 import TaxFormScreen from '../screens/TaxWizard';
 import DocumentUploadScreen from '../screens/DocumentUpload';
-import DocumentReviewScreen from '../screens/DocumentReview';
+import DocumentReviewScreen from '../screens/AdminDocumentReview';
 import DocumentReviewScreenNew from '../screens/DocumentReviewScreen';
 import PaymentScreen from '../screens/Payment';
 import SettingsScreen from '../screens/Settings';

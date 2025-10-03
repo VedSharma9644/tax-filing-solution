@@ -399,10 +399,18 @@ const styles = StyleSheet.create({
   },
   documentCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 12,
+    padding: 12, // Reduced from 20
+    marginHorizontal: 0, // Removed negative margin
+    marginBottom: 20, // Increased from 16
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#007bff',
+    borderStyle: 'dashed',
   },
   documentHeader: {
     flexDirection: 'row',
@@ -429,16 +437,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
-    color: '#333',
+    color: '#000000', // Explicitly black for better contrast
   },
   documentSize: {
     fontSize: 14,
-    color: '#666',
+    color: '#333333', // Darker gray for better contrast
     marginBottom: 2,
   },
   documentType: {
     fontSize: 12,
-    color: '#999',
+    color: '#666666', // Darker gray for better contrast
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -582,11 +590,11 @@ const styles = StyleSheet.create({
   compactName: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
+    color: '#000000', // Explicitly black for better contrast
   },
   compactSize: {
     fontSize: 12,
-    color: '#666',
+    color: '#333333', // Darker gray for better contrast
     marginTop: 2,
   },
   compactStatusAndActions: {

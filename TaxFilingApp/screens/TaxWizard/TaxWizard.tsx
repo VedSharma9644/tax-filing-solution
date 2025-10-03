@@ -13,6 +13,8 @@ import DataLoadingScreen from './components/DataLoadingScreen';
 import { useAuth } from '../../contexts/AuthContext';
 import TaxFormService from '../../services/taxFormService';
 import { Ionicons } from '@expo/vector-icons';
+import { BackgroundColors } from '../../utils/colors';
+import { TaxWizardStyles } from '../../utils/taxWizardStyles';
 
 const TaxWizard: React.FC = () => {
   const { user, token } = useAuth();
@@ -238,7 +240,7 @@ const TaxWizard: React.FC = () => {
               style={styles.backButton} 
               onPress={() => navigation.goBack()}
             >
-              <Ionicons name="arrow-back" size={24} color="#333" />
+              <Ionicons name="arrow-back" size={24} color="#ffffff" />
             </TouchableOpacity>
             <Text style={styles.stepTitle} numberOfLines={1}>{getStepTitle()}</Text>
             <View style={styles.headerSpacer} />
@@ -256,21 +258,21 @@ const TaxWizard: React.FC = () => {
         </View>
 
         {/* Navigation */}
-        <View style={styles.navigation}>
+        <View style={TaxWizardStyles.navigationContainer}>
           <Button
             variant="outline"
             onPress={previousStep}
-            style={styles.navButton}
+            style={TaxWizardStyles.previousButton}
           >
-            <Text style={styles.navButtonText}>Previous</Text>
+            <Text style={TaxWizardStyles.previousButtonText}>Previous</Text>
           </Button>
           
           <Button
             onPress={step === totalSteps ? handleSubmit : nextStep}
-            style={styles.navButton}
+            style={TaxWizardStyles.nextButton}
             disabled={isSubmitting || isUploading}
           >
-            <Text style={styles.navButtonText}>
+            <Text style={TaxWizardStyles.nextButtonText}>
               {isSubmitting 
                 ? 'Submitting...' 
                 : isUploading 
@@ -288,15 +290,8 @@ const TaxWizard: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 0,
-  },
+  container: TaxWizardStyles.container,
+  header: TaxWizardStyles.header,
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,11 +300,12 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     marginLeft: -8,
+    color: '#fff',
   },
   stepTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
     marginBottom: 4,
     flex: 1,
     textAlign: 'center',
@@ -327,35 +323,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   progressText: {
     fontSize: 14,
-    color: '#666',
+    color: '#fff',
     textAlign: 'center',
     marginTop: 8,
   },
   content: {
     flex: 1,
-  },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#fff',
-  },
-  navButton: {
-    flex: 1,
-    marginHorizontal: 8,
-  },
-  navButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   placeholderContainer: {
     flex: 1,

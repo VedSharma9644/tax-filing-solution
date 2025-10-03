@@ -7,6 +7,7 @@ import { Checkbox } from './ui/checkbox';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { BackgroundColors } from '../utils/colors';
 
 const Payment = () => {
   const navigation = useNavigation<any>();
@@ -284,7 +285,7 @@ const Payment = () => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     paddingHorizontal: 16,
   },
   header: {

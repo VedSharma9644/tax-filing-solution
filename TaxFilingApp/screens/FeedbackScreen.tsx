@@ -7,6 +7,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import FeedbackService from '../services/feedbackService';
 import { useAuth } from '../contexts/AuthContext';
+import { BackgroundColors, BrandColors } from '../utils/colors';
 
 const FeedbackScreen = () => {
   const navigation = useNavigation<any>();
@@ -245,7 +246,7 @@ const FeedbackScreen = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -324,7 +325,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 120,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   characterCount: {
     fontSize: 12,
@@ -333,7 +334,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   submitButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
     paddingVertical: 16,
     borderRadius: 8,
   },

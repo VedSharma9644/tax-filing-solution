@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import AppointmentService from '../services/appointmentService';
+import { BackgroundColors, BrandColors } from '../utils/colors';
 
 const AppointmentScreen = () => {
   const navigation = useNavigation<any>();
@@ -357,7 +358,7 @@ const AppointmentScreen = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -418,11 +419,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#007bff',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     gap: 12,
   },
   typeButtonActive: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
   },
   typeText: {
     fontSize: 16,
@@ -449,11 +450,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     marginRight: 8,
   },
   dateButtonActive: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
     borderColor: '#007bff',
   },
   dateText: {
@@ -475,10 +476,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   timeButtonActive: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
     borderColor: '#007bff',
   },
   timeText: {
@@ -496,10 +497,10 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 100,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   submitButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
     paddingVertical: 16,
     borderRadius: 8,
   },

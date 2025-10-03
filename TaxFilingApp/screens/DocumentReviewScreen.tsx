@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
 import DocumentPreview from './TaxWizard/components/DocumentPreview';
 import ImageCacheService from '../services/imageCacheService';
+import { BackgroundColors } from '../utils/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -224,18 +225,18 @@ const DocumentReviewScreen = () => {
             style={styles.backButton} 
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color="#ffffff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Document Review</Text>
           <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-            <Ionicons name="refresh" size={24} color="#007bff" />
+            <Ionicons name="refresh" size={24} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {documents.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="document-outline" size={64} color="#ccc" />
+              <Ionicons name="document-outline" size={64} color="#ffffff" />
               <Text style={styles.emptyTitle}>No Documents Found</Text>
               <Text style={styles.emptyMessage}>
                 You haven't uploaded any documents yet. Start by uploading your tax documents.
@@ -265,7 +266,7 @@ const DocumentReviewScreen = () => {
                           <CardTitle style={styles.categoryTitle}>
                             {getCategoryName(category)}
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription style={styles.categoryDescription}>
                             {docs.length} document{docs.length !== 1 ? 's' : ''}
                           </CardDescription>
                         </View>
@@ -322,24 +323,24 @@ const DocumentReviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.primary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#ffffff',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     padding: 20,
   },
   errorTitle: {
@@ -351,7 +352,7 @@ const styles = StyleSheet.create({
   },
   errorMessage: {
     fontSize: 16,
-    color: '#666',
+    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -370,7 +371,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
@@ -381,7 +382,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
     flex: 1,
     textAlign: 'center',
   },
@@ -404,13 +405,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyMessage: {
     fontSize: 16,
-    color: '#666',
+    color: '#ffffff',
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 20,
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     fontSize: 16,
-    color: '#666',
+    color: '#ffffff',
     marginBottom: 16,
   },
   categorySection: {
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -462,6 +463,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
+    color: '#000000', // Black for white card background
+  },
+  categoryDescription: {
+    color: '#666666', // Dark gray for white card background
   },
   documentsList: {
     marginTop: 16,

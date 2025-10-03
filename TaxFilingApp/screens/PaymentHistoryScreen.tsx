@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { BackgroundColors, BrandColors } from '../utils/colors';
 
 const PaymentHistoryScreen = () => {
   const navigation = useNavigation<any>();
@@ -253,7 +254,7 @@ const PaymentHistoryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -319,10 +320,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#ddd',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   filterButtonActive: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
     borderColor: '#007bff',
   },
   filterText: {
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',

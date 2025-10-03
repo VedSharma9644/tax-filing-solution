@@ -4,6 +4,8 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { BackgroundColors } from '../../../utils/colors';
+import { TaxWizardStyles, ContainerStyles, ButtonStyles, InputStyles } from '../../../utils/taxWizardStyles';
 
 interface AdditionalIncomeSource {
   id: string;
@@ -122,13 +124,14 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Card style={styles.card}>
-        <CardHeader>
-          <CardDescription style={styles.description}>
+      <View style={styles.header}>
+        <Text style={styles.description}>
           Any other income sources besides W-2 wages, such as investments, rental, or freelance work?
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        </Text>
+      </View>
+
+      <Card style={styles.card}>
+        <CardContent style={styles.cardContent}>
           {/* Has Additional Income Question */}
           <View style={styles.questionContainer}>
             <Text style={styles.questionText}>Do you have any additional income sources?</Text>
@@ -221,7 +224,7 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
 
               {/* Add New Source Form */}
               <Card style={styles.addSourceCard}>
-                <CardHeader>
+                <CardHeader style={styles.cardHeader}>
                   <CardTitle style={styles.addSourceTitle}>Add New Income Source</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -290,7 +293,7 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
               {/* Total Summary */}
               {(formData.additionalIncomeSources || []).length > 0 && (
                 <Card style={styles.sectionCard}>
-                  <CardHeader>
+                  <CardHeader style={styles.cardHeader}>
                     <View style={styles.sectionHeader}>
                       <View style={[styles.sectionIcon, { backgroundColor: '#28a745' }]}>
                         <FontAwesome name="dollar" size={20} color="#fff" />
@@ -329,33 +332,15 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
+  container: TaxWizardStyles.scrollContainer,
+  header: TaxWizardStyles.header,
+  card: TaxWizardStyles.taxFormComponentCommand,
+  cardHeader: TaxWizardStyles.cardHeader,
+  cardContent: {
+    paddingTop: 0, // Remove top padding from card content
   },
-  card: {
-    margin: 16,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 0,
-  },
-  description: {
-    fontSize: 16,
-    color: '#64748b',
-    lineHeight: 24,
-    marginBottom: 0,
-    paddingBottom: 0,
-  },
+  title: TaxWizardStyles.headerTitle,
+  description: TaxWizardStyles.headerSubtitle,
   questionContainer: {
     marginBottom: 16,
     marginTop: 8,
@@ -370,53 +355,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  yesNoButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    backgroundColor: 'white',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 40,
-  },
+  yesNoButton: TaxWizardStyles.secondaryButton,
   yesNoButtonSelected: {
     borderColor: '#3b82f6',
     backgroundColor: '#eff6ff',
   },
-  yesNoButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#64748b',
-  },
+  yesNoButtonText: TaxWizardStyles.secondaryButtonText,
   yesNoButtonTextSelected: {
     color: '#3b82f6',
   },
   sourcesContainer: {
     marginTop: 8,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 16,
-  },
+  sectionTitle: TaxWizardStyles.cardTitle,
   sourceCard: {
+    ...TaxWizardStyles.taxFormComponentCommand,
+    marginHorizontal: -8, // Extend beyond container padding
     marginBottom: 16,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   sourceContent: {
-    padding: 16,
+    padding: 8,
   },
   sourceHeader: {
     flexDirection: 'row',
@@ -432,39 +390,18 @@ const styles = StyleSheet.create({
   removeButton: {
     padding: 4,
   },
-  sourceField: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: 'white',
-  },
+  sourceField: TaxWizardStyles.inputContainer,
+  fieldLabel: TaxWizardStyles.inputLabel,
+  textInput: TaxWizardStyles.input,
   textArea: {
     height: 60,
     textAlignVertical: 'top',
+    
   },
   addSourceCard: {
-    marginTop: 16,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...TaxWizardStyles.taxFormComponentCommand,
+    marginHorizontal: -8, // Extend beyond container padding
+    marginBottom: 16,
   },
   addSourceTitle: {
     fontSize: 18,
@@ -493,24 +430,11 @@ const styles = StyleSheet.create({
     height: 48,
     lineHeight: 48,
   },
-  addButton: {
-    backgroundColor: '#3b82f6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
+  addButton: TaxWizardStyles.primaryButton,
   buttonIcon: {
     marginRight: 8,
   },
-  addButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  addButtonText: TaxWizardStyles.primaryButtonText,
   sectionCard: {
     marginTop: 16,
     marginBottom: 24,

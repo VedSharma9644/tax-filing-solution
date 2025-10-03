@@ -6,6 +6,8 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
 import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
+import { BackgroundColors } from '../../../utils/colors';
+import { TaxWizardStyles, ContainerStyles, ButtonStyles, UploadStyles } from '../../../utils/taxWizardStyles';
 
 interface Step1TaxDocumentsProps {
   formData: {
@@ -88,7 +90,7 @@ const Step1TaxDocuments: React.FC<Step1TaxDocumentsProps> = ({
       {documentCategories.map((category) => (
         <View key={category.id} style={styles.categorySection}>
           <Card style={styles.categoryCard}>
-            <CardHeader>
+            <CardHeader style={styles.cardHeader}>
               <View style={styles.categoryHeader}>
                 <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
                   <FontAwesome name={category.icon as any} size={20} color="#fff" />
@@ -146,30 +148,15 @@ const Step1TaxDocuments: React.FC<Step1TaxDocumentsProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
-  },
+  container: TaxWizardStyles.scrollContainer,
+  header: TaxWizardStyles.header,
+  title: TaxWizardStyles.headerTitle,
+  description: TaxWizardStyles.headerSubtitle,
   categorySection: {
     marginBottom: 24,
   },
-  categoryCard: {
-    marginBottom: 16,
-  },
+  categoryCard: TaxWizardStyles.taxFormComponentCommand,
+  cardHeader: TaxWizardStyles.cardHeader,
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,10 +181,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 8,
   },
   actionButtonText: {
     marginLeft: 8,
@@ -206,12 +190,7 @@ const styles = StyleSheet.create({
   documentsList: {
     marginTop: 16,
   },
-  documentsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: '#333',
-  },
+  documentsTitle: TaxWizardStyles.cardTitle,
   uploadingOverlay: {
     position: 'absolute',
     top: 0,

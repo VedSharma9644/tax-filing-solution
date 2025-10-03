@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from '../components/CustomHeader';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { BackgroundColors } from '../utils/colors';
 
 const FAQHelpCenter = () => {
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
@@ -174,13 +175,13 @@ const FAQHelpCenter = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, backgroundColor: BackgroundColors.secondary },
   scrollContent: { padding: 16 },
   content: { gap: 16 },
   card: { 
     marginBottom: 16, 
     borderRadius: 12, 
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
     width: '48%', 
     alignItems: 'center', 
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e9ecef'
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
     borderRadius: 8
   },
   questionText: { 
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
   },
   faqAnswer: { 
     padding: 16, 
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderTopWidth: 1,
     borderTopColor: '#e9ecef'
   },

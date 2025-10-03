@@ -6,6 +6,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { UploadedDocument } from '../types';
 import { pickDocument } from '../utils/documentUtils';
 import DocumentPreview from './DocumentPreview';
+import { TaxWizardStyles, ContainerStyles, ButtonStyles, InputStyles } from '../../../utils/taxWizardStyles';
 
 interface Step5ReviewDocumentsProps {
   formData: {
@@ -155,7 +156,7 @@ const Step5ReviewDocuments: React.FC<Step5ReviewDocumentsProps> = ({
 
       {/* Personal Information Summary */}
       <Card style={styles.sectionCard}>
-        <CardHeader>
+        <CardHeader style={styles.cardHeader}>
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIcon, { backgroundColor: '#007bff' }]}>
               <FontAwesome name="user" size={20} color="#fff" />
@@ -171,7 +172,7 @@ const Step5ReviewDocuments: React.FC<Step5ReviewDocumentsProps> = ({
       {/* Additional Income Summary */}
       {formData.hasAdditionalIncome && (
         <Card style={styles.sectionCard}>
-          <CardHeader>
+          <CardHeader style={styles.cardHeader}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: '#28a745' }]}>
                 <FontAwesome name="dollar" size={20} color="#fff" />
@@ -206,7 +207,7 @@ const Step5ReviewDocuments: React.FC<Step5ReviewDocumentsProps> = ({
       {documentCategories.map((category) => (
         <View key={category.id} style={styles.categorySection}>
           <Card style={styles.categoryCard}>
-            <CardHeader>
+            <CardHeader style={styles.cardHeader}>
               <View style={styles.categoryHeader}>
                 <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
                   <FontAwesome name={category.icon as any} size={20} color="#fff" />
@@ -262,27 +263,12 @@ const Step5ReviewDocuments: React.FC<Step5ReviewDocumentsProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
-  },
-  sectionCard: {
-    marginBottom: 24,
-  },
+  container: TaxWizardStyles.scrollContainer,
+  header: TaxWizardStyles.header,
+  title: TaxWizardStyles.headerTitle,
+  description: TaxWizardStyles.headerSubtitle,
+  sectionCard: TaxWizardStyles.taxFormComponentCommand,
+  cardHeader: TaxWizardStyles.cardHeader,
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,9 +291,7 @@ const styles = StyleSheet.create({
   categorySection: {
     marginBottom: 24,
   },
-  categoryCard: {
-    marginBottom: 16,
-  },
+  categoryCard: TaxWizardStyles.taxFormComponentCommand,
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -367,25 +351,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
   },
-  progressContainer: {
-    marginTop: 12,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e9ecef',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007bff',
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  progressContainer: TaxWizardStyles.progressContainer,
+  progressBar: TaxWizardStyles.progressBar,
+  progressFill: TaxWizardStyles.progressFill,
+  progressText: TaxWizardStyles.progressText,
   imageContainer: {
     marginTop: 12,
     position: 'relative',

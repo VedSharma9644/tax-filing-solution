@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import SupportService from '../services/supportService';
+import { BackgroundColors, BrandColors } from '../utils/colors';
 
 const SupportRequestScreen = () => {
   const navigation = useNavigation<any>();
@@ -259,7 +260,7 @@ const SupportRequestScreen = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -322,11 +323,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#007bff',
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     gap: 6,
   },
   categoryButtonActive: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
   },
   categoryText: {
     fontSize: 14,
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   messageInput: {
     borderWidth: 1,
@@ -354,7 +355,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 120,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
   },
   characterCount: {
     fontSize: 12,
@@ -363,7 +364,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   submitButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: BrandColors.primary,
     paddingVertical: 16,
     borderRadius: 8,
   },

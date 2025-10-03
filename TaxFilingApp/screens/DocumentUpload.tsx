@@ -9,6 +9,7 @@ import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 // ImagePicker import removed (camera functionality removed)
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { BackgroundColors } from '../utils/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -395,9 +396,9 @@ const DocumentUpload = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
+  container: {
     flexGrow: 1, 
-    backgroundColor: '#fff', 
+    backgroundColor: BackgroundColors.primary, 
     paddingHorizontal: Math.min(16, screenWidth * 0.04),
     paddingBottom: 20,
   },

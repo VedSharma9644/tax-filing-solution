@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import CustomHeader from '../components/CustomHeader';
+import { BackgroundColors } from '../utils/colors';
 
 const NotificationsScreen = () => {
   const navigation = useNavigation<any>();
@@ -82,11 +83,12 @@ const NotificationsScreen = () => {
   return (
     <SafeAreaWrapper>
       <View style={styles.container}>
-        <CustomHeader 
-          title="Notifications" 
-          showAvatar={false}
-          scrollY={scrollY}
-        />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#ffffff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+        </View>
         <Animated.ScrollView 
           style={styles.notificationsList} 
           showsVerticalScrollIndicator={false}
@@ -123,7 +125,7 @@ const NotificationsScreen = () => {
           {/* Empty State (if no notifications) */}
           {notifications.length === 0 && (
             <View style={styles.emptyState}>
-              <Ionicons name="notifications-off" size={64} color="#ccc" />
+              <Ionicons name="notifications-off" size={64} color="#ffffff" />
               <Text style={styles.emptyStateTitle}>No notifications</Text>
               <Text style={styles.emptyStateMessage}>You're all caught up!</Text>
             </View>
@@ -137,17 +139,16 @@ const NotificationsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.primary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   backButton: {
     padding: 8,
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
   },
   markAllButton: {
     padding: 8,
@@ -173,7 +174,7 @@ const styles = StyleSheet.create({
   notificationCard: {
     marginBottom: 12,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
   },
   unreadCard: {
     backgroundColor: '#f8f9ff',
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#000000',
     flex: 1,
   },
   unreadDot: {
@@ -211,13 +212,13 @@ const styles = StyleSheet.create({
   },
   notificationMessage: {
     fontSize: 14,
-    color: '#666',
+    color: '#333333',
     lineHeight: 20,
     marginBottom: 8,
   },
   notificationTime: {
     fontSize: 12,
-    color: '#999',
+    color: '#666666',
   },
   emptyState: {
     flex: 1,
@@ -228,13 +229,13 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#666',
+    color: '#ffffff',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateMessage: {
     fontSize: 14,
-    color: '#999',
+    color: '#cccccc',
     textAlign: 'center',
   },
 });

@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 // import GoogleLoginButtonDev from '../components/GoogleLoginButtonDev';
 // import GoogleLoginButtonSimple from '../components/GoogleLoginButtonSimple';
 import Constants from 'expo-constants';
+import { BackgroundColors } from '../utils/colors';
 
 const AuthScreen = () => {
   const [email, setEmail] = useState('');
@@ -279,7 +280,7 @@ const AuthScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#fff' },
+  container: { flexGrow: 1, backgroundColor: BackgroundColors.primary },
   heroSection: { height: 200, justifyContent: 'flex-end' },
   heroImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: 200 },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)' },

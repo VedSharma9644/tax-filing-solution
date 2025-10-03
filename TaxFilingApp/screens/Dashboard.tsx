@@ -10,6 +10,7 @@ import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
 import ImageCacheService from '../services/imageCacheService';
+import { BackgroundColors } from '../utils/colors';
 
 const Dashboard = () => {
   const navigation = useNavigation<any>();
@@ -19,6 +20,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [imagePreloadProgress, setImagePreloadProgress] = useState(null);
   const [isPreloadingImages, setIsPreloadingImages] = useState(false);
+  const [userDocuments, setUserDocuments] = useState([]);
 
   // Get user's display name
   const getUserDisplayName = () => {
@@ -109,6 +111,7 @@ const Dashboard = () => {
     };
 
     fetchTaxForms();
+    fetchUserDocuments();
   }, [token]);
 
   // Start background image pre-loading when user is authenticated
@@ -123,16 +126,68 @@ const Dashboard = () => {
     }
   }, [user, token]);
 
-  const notifications = [
-    { id: 1, message: "W-2 uploaded successfully", time: "2 hours ago", type: "success" },
-    { id: 2, message: "Tax deadline reminder: 45 days left", time: "1 day ago", type: "warning" },
-  ];
 
   // Calculate expected refund from latest tax form
   const getExpectedRefund = () => {
     if (taxForms.length === 0) return 0;
     const latestForm = taxForms[0]; // Assuming forms are sorted by date
     return latestForm.expectedReturn || 0;
+  };
+
+  // Fetch user documents to determine step completion
+  const fetchUserDocuments = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await ApiService.getUserDocuments(token);
+      if (response.success) {
+        setUserDocuments(response.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching user documents:', error);
+    }
+  };
+
+  // Determine step completion based on uploaded documents
+  const getStepCompletion = () => {
+    const documents = userDocuments || [];
+    
+    // Step 1 & 2: Income Documents (W-2 Forms, Previous Year Tax)
+    const hasIncomeDocs = documents.some(doc => 
+      doc.category === 'w2Forms' || doc.category === 'previousYearTax'
+    );
+    
+    // Step 3: Deduction Documents (Medical, Education, Homeowner, Dependent Children)
+    const hasDeductionDocs = documents.some(doc => 
+      doc.category === 'medical' || 
+      doc.category === 'education' || 
+      doc.category === 'homeownerDeduction' || 
+      doc.category === 'dependentChildren'
+    );
+    
+    // Step 4: Personal Information (Personal ID)
+    const hasPersonalInfo = documents.some(doc => 
+      doc.category === 'personalId'
+    );
+
+    return {
+      incomeDocuments: hasIncomeDocs,
+      deductionDocuments: hasDeductionDocs,
+      personalInformation: hasPersonalInfo
+    };
+  };
+
+  // Calculate overall progress
+  const getOverallProgress = () => {
+    const completion = getStepCompletion();
+    let completedSteps = 0;
+    let totalSteps = 3;
+    
+    if (completion.incomeDocuments) completedSteps++;
+    if (completion.deductionDocuments) completedSteps++;
+    if (completion.personalInformation) completedSteps++;
+    
+    return Math.round((completedSteps / totalSteps) * 100);
   };
 
   // Get current year tax form data (only show current year, not previous years)
@@ -177,7 +232,6 @@ const Dashboard = () => {
             <View style={styles.heroIcons}>
               <TouchableOpacity style={styles.heroIconButton} onPress={() => navigation.navigate('Notifications')}>
                 <Ionicons name="notifications-outline" size={20} color="#fff" />
-                {notifications.length > 0 && <View style={styles.notificationDot} />}
               </TouchableOpacity>
               <TouchableOpacity style={styles.heroIconButton} onPress={() => navigation.navigate('Settings')}>
                 <Ionicons name="settings-outline" size={20} color="#fff" />
@@ -187,49 +241,30 @@ const Dashboard = () => {
           
           {/* Summary Cards */}
           <View style={styles.heroStatsRow}>
-            <Card style={styles.heroStatCard}>
-              <CardContent>
-                <View style={styles.heroStatContent}>
-                  <View>
-                    <Text style={styles.heroStatLabel}>Tax Year {new Date().getFullYear()}</Text>
-                    <Text style={styles.heroStatValue}>
-                      {loading ? '...' : `${getCurrentYearTaxForm().progress}% Complete`}
-                    </Text>
-                  </View>
+            <View style={styles.heroStatCard}>
+              <View style={styles.gradientOverlay} />
+              <View style={styles.heroStatContent}>
+                <View>
+                  <Text style={styles.heroStatLabel}>Tax Year {new Date().getFullYear()}</Text>
+                  <Text style={styles.heroStatValue}>
+                    {loading ? '...' : `${getCurrentYearTaxForm().progress}% Complete`}
+                  </Text>
                 </View>
-              </CardContent>
-            </Card>
-            <Card style={styles.heroStatCard}>
-              <CardContent>
-                <View style={styles.heroStatContent}>
-                  <View>
-                    <Text style={styles.heroStatLabel}>Expected Refund</Text>
-                    <Text style={styles.heroStatValue}>
-                      {loading ? '...' : `$${getExpectedRefund().toFixed(0)}`}
-                    </Text>
-                  </View>
+              </View>
+            </View>
+            <View style={styles.heroStatCard}>
+              <View style={styles.gradientOverlay} />
+              <View style={styles.heroStatContent}>
+                <View>
+                  <Text style={styles.heroStatLabel}>Expected Refund</Text>
+                  <Text style={styles.heroStatValue}>
+                    {loading ? '...' : `$${getExpectedRefund().toFixed(0)}`}
+                  </Text>
                 </View>
-              </CardContent>
-            </Card>
+              </View>
+            </View>
           </View>
         </View>
-
-        {/* Background Pre-loading Indicator */}
-        {isPreloadingImages && (
-          <Card style={styles.preloadCard}>
-            <CardContent>
-              <View style={styles.preloadContainer}>
-                <ActivityIndicator size="small" color="#007bff" />
-                <Text style={styles.preloadText}>
-                  {imagePreloadProgress 
-                    ? `Pre-loading images... ${imagePreloadProgress.completed}/${imagePreloadProgress.total}`
-                    : 'Pre-loading images...'
-                  }
-                </Text>
-              </View>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Quick Actions */}
         <View style={styles.actionsContainer}>
@@ -251,59 +286,78 @@ const Dashboard = () => {
               <Text style={styles.adminReviewButtonText}>Review Admin Document</Text>
             </Button>
           </View>
-          
-
         </View>
-        {/* Current Tax Year */}
-        <Text style={styles.sectionTitle}>Tax Year {new Date().getFullYear()}</Text>
-        {loading ? (
-          <Card style={styles.card}>
-            <CardContent>
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#007bff" />
-                <Text style={styles.loadingText}>Loading tax form...</Text>
-              </View>
-            </CardContent>
-          </Card>
-        ) : error ? (
-          <Card style={styles.card}>
-            <CardContent>
-              <Text style={styles.errorText}>{error}</Text>
-            </CardContent>
-          </Card>
-        ) : (() => {
-          const currentYear = getCurrentYearTaxForm();
-          return (
-            <Card style={styles.card}>
-              <CardContent>
-                <View style={styles.taxYearRow}>
-                  <Text style={styles.taxYearLabel}>Tax Year {currentYear.year}</Text>
-                  <Badge>
-                    {currentYear.status === 'completed' ? 'Completed' : 
-                     currentYear.status === 'no_data' ? 'Not Started' : 'In Progress'}
-                  </Badge>
+
+        {/* Tax Return Progress Section */}
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Ionicons name="document-text" size={24} color="#000000" />
+            <Text style={styles.progressTitle}>Tax Return Progress</Text>
+          </View>
+          <Text style={styles.progressSubtitle}>Complete your {new Date().getFullYear()} tax return</Text>
+          
+          {/* Overall Progress */}
+          <View style={styles.overallProgressContainer}>
+            <View style={styles.progressLabelRow}>
+              <Text style={styles.progressLabel}>Overall Progress</Text>
+              <Text style={styles.progressPercentage}>{getOverallProgress()}%</Text>
+            </View>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: `${getOverallProgress()}%` }]} />
+            </View>
+          </View>
+
+          {/* Step Progress List */}
+          <View style={styles.stepsList}>
+            {(() => {
+              const completion = getStepCompletion();
+              const steps = [
+                {
+                  title: "Income Documents",
+                  completed: completion.incomeDocuments,
+                  icon: completion.incomeDocuments ? "checkmark" : "time"
+                },
+                {
+                  title: "Deduction Documents", 
+                  completed: completion.deductionDocuments,
+                  icon: completion.deductionDocuments ? "checkmark" : "time"
+                },
+                {
+                  title: "Personal Information",
+                  completed: completion.personalInformation,
+                  icon: completion.personalInformation ? "checkmark" : "time"
+                }
+              ];
+
+              return steps.map((step, index) => (
+                <View key={index} style={styles.stepItem}>
+                  <View style={[
+                    styles.stepIcon, 
+                    { backgroundColor: step.completed ? '#28a745' : step.icon === 'time' ? '#ffc107' : '#6c757d' }
+                  ]}>
+                    <Ionicons 
+                      name={step.completed ? "checkmark" : "time"} 
+                      size={16} 
+                      color="#ffffff" 
+                    />
+                  </View>
+                  <Text style={styles.stepTitle}>{step.title}</Text>
+                  <View style={[
+                    styles.stepStatus,
+                    { backgroundColor: step.completed ? '#d4edda' : step.icon === 'time' ? '#fff3cd' : '#f8f9fa' }
+                  ]}>
+                    <Text style={[
+                      styles.stepStatusText,
+                      { color: step.completed ? '#155724' : step.icon === 'time' ? '#856404' : '#6c757d' }
+                    ]}>
+                      {step.completed ? 'Complete' : step.icon === 'time' ? 'In Progress' : 'Pending'}
+                    </Text>
+                  </View>
                 </View>
-                <Progress value={currentYear.progress} />
-                <Text style={styles.taxYearRefund}>
-                  {currentYear.refund > 0 ? `Expected Refund: $${currentYear.refund.toFixed(0)}` : 'No refund estimate yet'}
-                </Text>
-              </CardContent>
-            </Card>
-          );
-        })()}
-        {/* Notifications */}
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        {notifications.map(note => (
-          <Card key={note.id} style={styles.card}>
-            <CardContent>
-              <View style={styles.notificationRow}>
-                <Feather name={note.type === 'success' ? 'check-circle' : 'alert-triangle'} size={20} color={note.type === 'success' ? '#28a745' : '#ffc107'} style={{ marginRight: 8 }} />
-                <Text style={styles.notificationText}>{note.message}</Text>
-                <Text style={styles.notificationTime}>{note.time}</Text>
-              </View>
-            </CardContent>
-          </Card>
-        ))}
+              ));
+            })()}
+          </View>
+        </View>
 
         {/* How It Works Section */}
         <View style={styles.howItWorksSection}>
@@ -341,32 +395,40 @@ const Dashboard = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#fff', paddingHorizontal: 16, paddingBottom: 20 },
-  heroHeader: { backgroundColor: '#007bff', padding: 16, paddingTop: 20, marginHorizontal: -16 },
+  container: { flexGrow: 1, backgroundColor: BackgroundColors.primary, paddingHorizontal: 16, paddingBottom: 20 },
+  heroHeader: { backgroundColor: BackgroundColors.primary, padding: 16, paddingTop: 20, marginHorizontal: -16 },
   heroContent: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   heroTextContainer: { flex: 1, marginRight: 8 },
   heroTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', flexWrap: 'wrap' },
-  heroSubtitle: { color: '#e3f2fd', fontSize: 16, marginTop: 4 },
+  heroSubtitle: { color: '#fff', fontSize: 16, marginTop: 4 },
   heroIcons: { flexDirection: 'row', gap: 6, flexShrink: 0 },
   heroIconButton: { 
     width: 36, 
     height: 36, 
     alignItems: 'center', 
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)'
+    borderColor: 'rgba(0,0,0,0.1)'
   },
-  notificationDot: { position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: '#ffc107' },
   heroStatsRow: { flexDirection: 'row', gap: 8 },
-  heroStatCard: { flex: 1, borderRadius: 12, backgroundColor: 'rgba(255,255,255)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+  heroStatCard: { flex: 1, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', position: 'relative', overflow: 'hidden' },
+  gradientOverlay: { 
+    position: 'absolute', 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', 
+    borderRadius: 12 
+  },
   heroStatContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroStatLabel: { color: '#666', fontSize: 14 },
-  heroStatValue: { fontSize: 18, fontWeight: 'bold', color: '#000' },
+  heroStatLabel: { color: '#ffffff', fontSize: 14 },
+  heroStatValue: { fontSize: 18, fontWeight: 'bold', color: '#ffffff' },
   actionsContainer: { paddingTop: 12, paddingBottom: 12 },
   actionsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#007bff', borderRadius: 8, padding: 12, minHeight: 44, minWidth: 100 },
+  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#16A34A', borderRadius: 8, padding: 12, minHeight: 44, minWidth: 100 },
   actionButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },
   adminReviewRow: { marginTop: 8 },
   adminReviewButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6c757d', borderRadius: 8, padding: 12 },
@@ -374,12 +436,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 12, marginBottom: 6 },
   sectionSubtitle: { color: '#888', fontSize: 14, marginBottom: 12 },
   card: { marginBottom: 8, borderRadius: 12 },
-  taxYearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  taxYearLabel: { fontWeight: 'bold', fontSize: 15 },
-  taxYearRefund: { color: '#28a745', fontWeight: 'bold', marginTop: 8 },
-  notificationRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  notificationText: { flex: 1, fontSize: 14 },
-  notificationTime: { color: '#888', fontSize: 12, marginLeft: 8 },
   howItWorksSection: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#eee' },
   processImageCard: { marginBottom: 16, borderRadius: 12 },
   processImage: { width: '100%', height: 160, borderRadius: 8 },
@@ -400,9 +456,23 @@ const styles = StyleSheet.create({
   loadingText: { marginLeft: 8, color: '#666', fontSize: 14 },
   errorText: { color: '#e74c3c', textAlign: 'center', padding: 16 },
   noDataText: { color: '#666', textAlign: 'center', padding: 16, fontStyle: 'italic' },
-  preloadCard: { marginBottom: 8, borderRadius: 12, backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: '#e9ecef' },
-  preloadContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12 },
-  preloadText: { marginLeft: 8, color: '#666', fontSize: 14 },
+  // Progress Section Styles
+  progressSection: { marginBottom: 24, backgroundColor: '#ffffff', borderRadius: 12, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  progressHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  progressTitle: { fontSize: 20, fontWeight: 'bold', color: '#000000', marginLeft: 12 },
+  progressSubtitle: { fontSize: 14, color: '#666666', marginBottom: 16 },
+  overallProgressContainer: { marginBottom: 20 },
+  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  progressLabel: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  progressPercentage: { fontSize: 16, fontWeight: 'bold', color: '#000000' },
+  progressBarContainer: { height: 8, backgroundColor: '#e9ecef', borderRadius: 4, overflow: 'hidden' },
+  progressBar: { height: '100%', backgroundColor: '#28a745', borderRadius: 4 },
+  stepsList: { gap: 12 },
+  stepItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+  stepIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  stepTitle: { flex: 1, fontSize: 16, fontWeight: '500', color: '#000000' },
+  stepStatus: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  stepStatusText: { fontSize: 12, fontWeight: '600' },
 });
 
 export default Dashboard;

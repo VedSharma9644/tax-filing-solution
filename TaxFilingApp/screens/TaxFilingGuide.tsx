@@ -5,6 +5,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from '../components/CustomHeader';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { BackgroundColors } from '../utils/colors';
 
 const TaxFilingGuide = () => {
   const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
@@ -264,13 +265,13 @@ const TaxFilingGuide = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  container: { flex: 1, backgroundColor: BackgroundColors.secondary },
   scrollContent: { padding: 16 },
   content: { gap: 16 },
   card: { 
     marginBottom: 16, 
     borderRadius: 12, 
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderWidth: 1,
     borderColor: '#e9ecef',
     shadowColor: '#000',
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BackgroundColors.secondary,
     borderRadius: 8
   },
   stepNumber: { 
@@ -331,7 +332,7 @@ const styles = StyleSheet.create({
   },
   stepDetails: { 
     padding: 16, 
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     borderTopWidth: 1,
     borderTopColor: '#e9ecef'
   },

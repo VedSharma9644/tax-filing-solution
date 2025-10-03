@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ApiService from '../services/api';
 import * as DocumentPicker from 'expo-document-picker';
 import { uploadDocumentToGCS } from '../services/gcsService';
+import { BackgroundColors, BrandColors } from '../utils/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -459,7 +460,7 @@ const DocumentReview = () => {
   return (
     <SafeAreaWrapper>
       <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+        style={styles.mainContainer} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView 
@@ -476,7 +477,7 @@ const DocumentReview = () => {
             >
               <Ionicons name="arrow-back" size={24} color="#007bff" />
             </Button>
-            <Text style={styles.headerTitle}>Document Review</Text>
+            <Text style={styles.headerTitle}>Admin Document Review</Text>
           </View>
 
           {/* Document Info Card */}
@@ -508,9 +509,7 @@ const DocumentReview = () => {
                   <FontAwesome name="file-pdf-o" size={24} color="#dc3545" />
                   <Text style={styles.cardTitleText}> Review Filed Tax Document</Text>
                 </CardTitle>
-                <CardDescription>
-                  📋 Review your tax filing document prepared by our team
-                </CardDescription>
+                
               </CardHeader>
               <CardContent>
                 <View style={styles.documentInfo}>
@@ -565,9 +564,6 @@ const DocumentReview = () => {
                   <Ionicons name="chatbubble-outline" size={24} color="#28a745" />
                   <Text style={styles.cardTitleText}>Admin Notes</Text>
                 </CardTitle>
-                <CardDescription>
-                  💬 Important notes and instructions from the admin team
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 {adminDocuments
@@ -615,14 +611,9 @@ const DocumentReview = () => {
                 <Ionicons name="cloud-upload-outline" size={24} color="#007bff" />
                 <Text style={styles.cardTitleText}>Upload Additional Documents</Text>
               </CardTitle>
-              <CardDescription>
-                📤 Upload any additional documents requested by the admin
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Text style={styles.sectionText}>
-                If the admin has requested additional documents or you need to provide updated information, you can upload them here.
-              </Text>
+              
               
               <Button 
                 style={styles.uploadButton} 
@@ -653,11 +644,8 @@ const DocumentReview = () => {
             <CardHeader>
               <CardTitle style={styles.cardTitle}>
                 <FontAwesome name="user" size={24} color="#007bff" />
-                <Text style={styles.cardTitleText}>Your Additional Documents</Text>
+                <Text style={styles.cardTitleText}>Your Documents</Text>
               </CardTitle>
-                <CardDescription>
-                  📁 Additional documents you uploaded for admin review
-                </CardDescription>
             </CardHeader>
             <CardContent>
               {additionalDocuments.length === 0 ? (
@@ -701,7 +689,7 @@ const DocumentReview = () => {
             </CardHeader>
             <CardContent>
               <Text style={styles.sectionText}>
-                Please review the document carefully. You can either approve it or send notes to the admin for any changes needed.
+                Please review the document carefully. You can either approve it or send notes to the CA Team for any changes needed.
               </Text>
 
               {/* Notes Section */}
@@ -1010,9 +998,13 @@ const DocumentReview = () => {
 };
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: BackgroundColors.primary,
+  },
   container: {
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: BackgroundColors.primary,
     paddingHorizontal: Math.min(16, screenWidth * 0.04),
     paddingBottom: 20,
   },
@@ -1029,12 +1021,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Math.min(20, screenWidth * 0.05),
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
     flex: 1,
   },
   card: {
     marginVertical: 8,
     borderRadius: 12,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardTitle: {
     flexDirection: 'row',
@@ -1057,7 +1055,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontWeight: '500',
-    color: '#666',
+    color: '#ffffff',
     fontSize: Math.min(14, screenWidth * 0.035),
   },
   infoValue: {
@@ -1069,7 +1067,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   viewButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#0F172A',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1083,7 +1081,7 @@ const styles = StyleSheet.create({
   },
   sectionText: {
     fontSize: Math.min(14, screenWidth * 0.035),
-    color: '#666',
+    color: '#000000',
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -1094,7 +1092,7 @@ const styles = StyleSheet.create({
     fontSize: Math.min(14, screenWidth * 0.035),
     fontWeight: '600',
     marginBottom: 8,
-    color: '#333',
+    color: '#000000',
   },
   notesInput: {
     minHeight: 100,
@@ -1235,12 +1233,18 @@ const styles = StyleSheet.create({
   documentsSectionTitle: {
     fontSize: Math.min(18, screenWidth * 0.045),
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
     marginBottom: 12,
   },
   documentCard: {
     marginBottom: 8,
     borderRadius: 8,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   documentCardHeader: {
     flexDirection: 'row',
@@ -1354,7 +1358,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 8,
-    color: '#666',
+    color: '#ffffff',
     fontSize: 14,
   },
   errorText: {
@@ -1363,7 +1367,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   noDataText: {
-    color: '#666',
+    color: '#ffffff',
     textAlign: 'center',
     padding: 20,
     fontStyle: 'italic',
@@ -1471,7 +1475,7 @@ const styles = StyleSheet.create({
   },
   // Upload styles
   uploadButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#0F172A',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1513,7 +1517,7 @@ const styles = StyleSheet.create({
   uploadSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#ffffff',
     marginBottom: 12,
   },
   categoryGrid: {

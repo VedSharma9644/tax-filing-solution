@@ -7,6 +7,7 @@ import { Progress } from './ui/progress';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { BackgroundColors } from '../utils/colors';
 
 const ProfileSetup = () => {
   const [step, setStep] = useState(1);
@@ -190,7 +191,7 @@ const ProfileSetup = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#fff', padding: 16 },
+  container: { flexGrow: 1, backgroundColor: BackgroundColors.primary, padding: 16 },
   progressBarContainer: { marginBottom: 24 },
   stepContainer: { alignItems: 'center', marginBottom: 24 },
   iconCircle: { backgroundColor: '#007bff', borderRadius: 32, padding: 16, marginBottom: 12 },
