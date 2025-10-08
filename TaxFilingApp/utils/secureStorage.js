@@ -124,10 +124,23 @@ export const secureStorage = {
 
   // Store authentication tokens
   async setAuthTokens(accessToken, refreshToken) {
-    await Promise.all([
-      this.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken),
-      this.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken),
-    ]);
+    const promises = [];
+    
+    // Only store access token if it's not null/undefined
+    if (accessToken) {
+      promises.push(this.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken));
+    } else {
+      promises.push(this.removeItem(STORAGE_KEYS.ACCESS_TOKEN));
+    }
+    
+    // Only store refresh token if it's not null/undefined
+    if (refreshToken) {
+      promises.push(this.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken));
+    } else {
+      promises.push(this.removeItem(STORAGE_KEYS.REFRESH_TOKEN));
+    }
+    
+    await Promise.all(promises);
   },
 
   // Get authentication tokens

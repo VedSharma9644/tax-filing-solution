@@ -1,13 +1,38 @@
-// API configuration for mobile app - Expo Go compatible
-// For Expo Go, we need to use the computer's IP address, not localhost
-export const API_BASE_URL = 'http://192.168.1.34:5000';
+import { Platform } from 'react-native';
 
-// Fallback for localhost (if needed)
-// export const API_BASE_URL = 'http://localhost:5000';
+// Dynamic API URL detection for development and production
+const getApiBaseUrl = () => {
+  if (__DEV__) {
+    // Development URLs
+    if (Platform.OS === 'android') {
+      // Check if running in Android Studio emulator
+      // Emulator uses 10.0.2.2 to access host machine's localhost
+      return 'http://10.0.2.2:5000';  // Android Studio emulator
+    }
+    
+    // For Expo Go, physical devices, and other platforms
+    // Use the new backend in the correct Firebase project
+    return 'https://tax-filing-backend-693306869303.us-central1.run.app';
+  }
+  
+  // Production URL - New backend in correct Firebase project
+  return 'https://tax-filing-backend-693306869303.us-central1.run.app';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
+// Log the detected API URL for debugging
+if (__DEV__) {
+  console.log(`🌐 API Base URL detected: ${API_BASE_URL}`);
+  console.log(`📱 Platform: ${Platform.OS}, Dev Mode: ${__DEV__}`);
+}
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    if (__DEV__) {
+      console.log(`🔗 ApiService initialized with base URL: ${this.baseURL}`);
+    }
   }
 
   // Generic API request method for ProfileService compatibility
@@ -28,43 +53,52 @@ class ApiService {
         delete config.body;
       }
 
-      console.log(`🌐 Making request to: ${url}`);
-      console.log(`📡 Method: ${config.method || 'GET'}`);
+      if (__DEV__) {
+        console.log(`🌐 Making request to: ${url}`);
+        console.log(`📡 Method: ${config.method || 'GET'}`);
+      }
 
       const response = await fetch(url, config);
       
-      console.log(`📡 Response status: ${response.status}`);
+      if (__DEV__) {
+        console.log(`📡 Response status: ${response.status}`);
+      }
       
       const data = await response.json();
       
       if (!response.ok) {
-        console.error(`❌ API Error: ${data.error || response.status}`);
+        if (__DEV__) {
+          console.error(`❌ API Error: ${data.error || response.status}`);
+        }
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
-      console.log(`✅ Request successful`);
+      if (__DEV__) {
+        console.log(`✅ Request successful`);
+      }
       return data;
     } catch (error) {
-      console.error('❌ API Request error:', error);
+      if (__DEV__) {
+        console.error('❌ API Request error:', error);
+      }
       throw error;
     }
   }
 
-  // Send OTP to email
-  async sendEmailOTP(email) {
+
+
+  // Firebase Phone Auth Login
+  async firebasePhoneLogin(idToken) {
     try {
-      console.log(`📧 Sending OTP to: ${email}`);
-      console.log(`🌐 API URL: ${this.baseURL}/auth/send-otp/email`);
+      console.log('📱 Sending Firebase ID token to backend');
       
-      const response = await fetch(`${this.baseURL}/auth/send-otp/email`, {
+      const response = await fetch(`${this.baseURL}/auth/firebase-phone-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ email }),
-        // Expo Go specific configuration
-        timeout: 10000, // 10 second timeout
+        body: JSON.stringify({ idToken }),
       });
 
       console.log(`📡 Response status: ${response.status}`);
@@ -76,55 +110,26 @@ class ApiService {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
-      console.log(`✅ OTP sent successfully`);
+      console.log(`✅ Firebase Phone Auth successful`);
       return data;
     } catch (error) {
-      console.error('❌ Send email OTP error:', error);
+      console.error('❌ Firebase Phone Auth error:', error);
       throw error;
     }
   }
 
-  // Send OTP to phone
-  async sendPhoneOTP(phone) {
+  // Google OAuth Login
+  async googleLogin(authCode, accessToken) {
     try {
-      const response = await fetch(`${this.baseURL}/auth/send-otp/phone`, {
+      const response = await fetch(`${this.baseURL}/auth/google-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
-        body: JSON.stringify({ phone }),
-        timeout: 10000,
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('Send phone OTP error:', error);
-      throw error;
-    }
-  }
-
-  // Verify OTP
-  async verifyOTP(email, phone, otp) {
-    try {
-      const response = await fetch(`${this.baseURL}/auth/verify-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: email || null, 
-          phone: phone || null, 
-          otp 
+        body: JSON.stringify({
+          authCode,
+          accessToken
         }),
-        timeout: 10000,
       });
 
       const data = await response.json();
@@ -135,7 +140,7 @@ class ApiService {
       
       return data;
     } catch (error) {
-      console.error('Verify OTP error:', error);
+      console.error('Google login error:', error);
       throw error;
     }
   }

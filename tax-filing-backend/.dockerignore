@@ -1,0 +1,31 @@
+# Exclude everything by default
+*
+
+# Include only what we need
+!package.json
+!package-lock.json
+!index.js
+!src/
+!app/
+!Dockerfile
+!.dockerignore
+
+# Explicitly exclude node_modules (multiple patterns)
+node_modules/
+**/node_modules/**
+node_modules
+**/node_modules
+
+# Exclude other large directories
+.git/
+**/.git/**
+.vscode/
+**/.vscode/**
+.idea/
+**/.idea/**
+*.log
+*.tmp
+*.temp
+coverage/
+dist/
+build/

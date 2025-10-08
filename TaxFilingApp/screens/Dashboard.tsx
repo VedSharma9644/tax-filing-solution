@@ -8,19 +8,23 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import ApiService from '../services/api';
 import ImageCacheService from '../services/imageCacheService';
 import { BackgroundColors } from '../utils/colors';
+import NotificationTestPanel from '../components/NotificationTestPanel';
 
 const Dashboard = () => {
   const navigation = useNavigation<any>();
   const { user, token } = useAuth();
+  const { unreadCount, startAdminPolling, stopAdminPolling } = useNotifications();
   const [taxForms, setTaxForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [imagePreloadProgress, setImagePreloadProgress] = useState(null);
   const [isPreloadingImages, setIsPreloadingImages] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
+  const [showTestPanel, setShowTestPanel] = useState(false);
 
   // Get user's display name
   const getUserDisplayName = () => {
@@ -112,7 +116,19 @@ const Dashboard = () => {
 
     fetchTaxForms();
     fetchUserDocuments();
+    
+    // Start admin notification polling when user is authenticated
+    if (token) {
+      startAdminPolling(token);
+    }
   }, [token]);
+
+  // Cleanup admin polling when component unmounts
+  useEffect(() => {
+    return () => {
+      stopAdminPolling();
+    };
+  }, []);
 
   // Start background image pre-loading when user is authenticated
   useEffect(() => {
@@ -230,8 +246,16 @@ const Dashboard = () => {
               <Text style={styles.heroSubtitle}>Let's get your taxes done</Text>
             </View>
             <View style={styles.heroIcons}>
-              <TouchableOpacity style={styles.heroIconButton} onPress={() => navigation.navigate('Notifications')}>
+              <TouchableOpacity style={styles.heroIconButton} onPress={() => setShowTestPanel(true)}>
+                <Ionicons name="bug-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.heroIconButton} 
+                onPress={() => navigation.navigate('Notifications')}
+                onLongPress={() => setShowTestPanel(true)}
+              >
                 <Ionicons name="notifications-outline" size={20} color="#fff" />
+                {unreadCount > 0 && <View style={styles.notificationDot} />}
               </TouchableOpacity>
               <TouchableOpacity style={styles.heroIconButton} onPress={() => navigation.navigate('Settings')}>
                 <Ionicons name="settings-outline" size={20} color="#fff" />
@@ -390,6 +414,12 @@ const Dashboard = () => {
 
         </View>
       </ScrollView>
+      
+      {/* Notification Test Panel */}
+      <NotificationTestPanel 
+        visible={showTestPanel} 
+        onClose={() => setShowTestPanel(false)} 
+      />
     </SafeAreaWrapper>
   );
 };
@@ -410,7 +440,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)'
+    borderColor: 'rgba(0,0,0,0.1)',
+    position: 'relative'
+  },
+  notificationDot: { 
+    position: 'absolute', 
+    top: 6, 
+    right: 6, 
+    width: 10, 
+    height: 10, 
+    borderRadius: 5, 
+    backgroundColor: '#ffc107' 
   },
   heroStatsRow: { flexDirection: 'row', gap: 8 },
   heroStatCard: { flex: 1, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', position: 'relative', overflow: 'hidden' },

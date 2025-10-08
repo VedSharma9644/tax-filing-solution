@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ApiService from '../services/api';
 import { secureStorage } from '../utils/secureStorage';
+import auth from '@react-native-firebase/auth';
+import ApiService from '../services/api';
 
 const AuthContext = createContext();
 
@@ -58,27 +59,143 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const sendEmailOTP = async (email) => {
-    try {
-      const response = await ApiService.sendEmailOTP(email);
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  };
 
   const sendPhoneOTP = async (phone) => {
     try {
-      const response = await ApiService.sendPhoneOTP(phone);
-      return response;
+      // Validate phone number format
+      if (!phone.startsWith('+')) {
+        throw new Error('Phone number must include country code (e.g., +1234567890)');
+      }
+
+      console.log('Sending SMS via Firebase to:', phone);
+      
+      // Use React Native Firebase Phone Authentication for mobile
+      const confirmation = await auth().signInWithPhoneNumber(phone);
+      
+      console.log('Firebase confirmation received:', confirmation);
+      console.log('Confirmation type:', typeof confirmation);
+      console.log('Confirmation methods:', Object.getOwnPropertyNames(confirmation));
+      
+      return {
+        success: true,
+        message: `SMS sent to ${phone}! Check your phone for the verification code.`,
+        confirmation: confirmation
+      };
     } catch (error) {
-      throw error;
+      console.error('Firebase Phone Auth Error:', error);
+      
+      // Handle specific Firebase Auth errors
+      if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many requests. Please wait before trying again.');
+      } else if (error.code === 'auth/invalid-phone-number') {
+        throw new Error('Invalid phone number format. Please check and try again.');
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network error. Please check your internet connection.');
+      } else if (error.message?.includes('network') || error.message?.includes('timeout')) {
+        throw new Error('Network error. Please check your internet connection and try again.');
+      } else {
+        throw error;
+      }
     }
   };
 
-  const verifyOTP = async (email, phone, otp) => {
+  const verifyPhoneOTP = async (confirmation, otpCode) => {
     try {
-      const response = await ApiService.verifyOTP(email, phone, otp);
+      console.log('Verifying OTP with confirmation:', confirmation);
+      console.log('OTP Code:', otpCode);
+      
+      // Use React Native Firebase confirmation.confirm() method directly
+      const result = await confirmation.confirm(otpCode);
+      
+      if (result.user) {
+        const userData = {
+          uid: result.user.uid,
+          phone: result.user.phoneNumber,
+          displayName: result.user.displayName,
+          emailVerified: result.user.emailVerified
+        };
+
+        console.log('Firebase Phone Auth Success!');
+        console.log('User UID:', result.user.uid);
+        console.log('Phone Number:', result.user.phoneNumber);
+
+        // Get Firebase ID token (Firebase doesn't provide accessToken directly)
+        const idToken = await result.user.getIdToken();
+        console.log('Firebase ID Token obtained:', idToken ? 'Yes' : 'No');
+
+        // Call backend to create/update user and get backend JWT
+        try {
+          console.log('Calling backend for Firebase Phone Auth...');
+          const backendResponse = await ApiService.firebasePhoneLogin(idToken);
+          
+          if (backendResponse.success) {
+            console.log('Backend authentication successful');
+            
+            // Store backend JWT token and user data
+            await secureStorage.setAuthTokens(backendResponse.accessToken, null);
+            await secureStorage.setUserData(backendResponse.user);
+            
+            setUser(backendResponse.user);
+            setToken(backendResponse.accessToken);
+            
+            return {
+              success: true,
+              message: 'Phone authentication successful!',
+              user: backendResponse.user
+            };
+          } else {
+            throw new Error(backendResponse.error || 'Backend authentication failed');
+          }
+        } catch (backendError) {
+          console.error('Backend authentication error:', backendError);
+          console.error('Backend error details:', {
+            message: backendError.message,
+            status: backendError.status,
+            response: backendError.response
+          });
+          
+          // Fallback: store Firebase data only (limited functionality)
+          await secureStorage.setAuthTokens(idToken, null);
+          await secureStorage.setUserData(userData);
+          
+          setUser(userData);
+          setToken(idToken);
+          
+          return {
+            success: true,
+            message: `Phone authentication successful! (Backend error: ${backendError.message})`,
+            user: userData
+          };
+        }
+      } else {
+        // Handle case where result.user is falsy
+        console.error('Firebase Phone Auth failed: No user in result');
+        throw new Error('Authentication failed: No user data received from Firebase');
+      }
+    } catch (error) {
+      console.error('Phone OTP Verification Error:', error);
+      
+      // Handle specific Firebase Auth errors
+      if (error.code === 'auth/invalid-verification-code') {
+        throw new Error('Invalid verification code. Please check and try again.');
+      } else if (error.code === 'auth/code-expired') {
+        throw new Error('Verification code has expired. Please request a new one.');
+      } else if (error.code === 'auth/invalid-verification-id') {
+        throw new Error('Invalid verification session. Please start over.');
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network error. Please check your internet connection.');
+      } else if (error.message?.includes('network') || error.message?.includes('timeout')) {
+        throw new Error('Network error. Please check your internet connection and try again.');
+      } else {
+        throw new Error(error.message || 'Failed to verify OTP. Please try again.');
+      }
+    }
+  };
+
+
+  const googleLogin = async (authCode, accessToken) => {
+    try {
+      const response = await ApiService.googleLogin(authCode, accessToken);
       
       if (response.success) {
         const { user: userData, tokens } = response;
@@ -143,9 +260,9 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loading,
-    sendEmailOTP,
     sendPhoneOTP,
-    verifyOTP,
+    verifyPhoneOTP,
+    googleLogin,
     logout,
     isAuthenticated,
   };

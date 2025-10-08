@@ -7,58 +7,12 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import CustomHeader from '../components/CustomHeader';
 import { BackgroundColors } from '../utils/colors';
+import { useNotifications } from '../contexts/NotificationContext';
 
 const NotificationsScreen = () => {
   const navigation = useNavigation<any>();
   const scrollY = useRef(new Animated.Value(0)).current;
-
-  const notifications = [
-    {
-      id: 1,
-      type: 'success',
-      title: 'W-2 uploaded successfully',
-      message: 'Your W-2 form has been processed and is ready for review.',
-      time: '2 hours ago',
-      read: false,
-      icon: 'check-circle'
-    },
-    {
-      id: 2,
-      type: 'warning',
-      title: 'Tax deadline reminder',
-      message: 'Only 45 days left to file your taxes. Don\'t miss the deadline!',
-      time: '1 day ago',
-      read: false,
-      icon: 'alert-triangle'
-    },
-    {
-      id: 3,
-      type: 'info',
-      title: 'Refund processed',
-      message: 'Your tax refund of $1,250 has been approved and will be deposited within 5-7 business days.',
-      time: '3 days ago',
-      read: true,
-      icon: 'dollar-sign'
-    },
-    {
-      id: 4,
-      type: 'success',
-      title: 'Document verification complete',
-      message: 'All your uploaded documents have been verified and are ready for processing.',
-      time: '1 week ago',
-      read: true,
-      icon: 'shield-checkmark'
-    },
-    {
-      id: 5,
-      type: 'info',
-      title: 'Welcome to TaxEase!',
-      message: 'Thank you for choosing TaxEase for your tax filing needs. We\'re here to help you every step of the way.',
-      time: '2 weeks ago',
-      read: true,
-      icon: 'information-circle'
-    }
-  ];
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
 
   const getIconColor = (type: string) => {
     switch (type) {
@@ -80,6 +34,23 @@ const NotificationsScreen = () => {
     }
   };
 
+  const formatTime = (timestamp: string) => {
+    const now = new Date();
+    const notificationTime = new Date(timestamp);
+    const diffInMinutes = Math.floor((now.getTime() - notificationTime.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    
+    return notificationTime.toLocaleDateString();
+  };
+
   return (
     <SafeAreaWrapper>
       <View style={styles.container}>
@@ -99,12 +70,16 @@ const NotificationsScreen = () => {
           scrollEventThrottle={16}
         >
           {notifications.map((notification) => (
-            <Card key={notification.id} style={[styles.notificationCard, !notification.read && styles.unreadCard]}>
+            <TouchableOpacity 
+              key={notification.id} 
+              onPress={() => markAsRead(notification.id)}
+              style={[styles.notificationCard, !notification.read && styles.unreadCard]}
+            >
               <CardContent>
                 <View style={styles.notificationContent}>
                   <View style={styles.notificationIcon}>
                     <Feather 
-                      name={notification.icon as any} 
+                      name={getIconName(notification.type)} 
                       size={24} 
                       color={getIconColor(notification.type)} 
                     />
@@ -114,12 +89,12 @@ const NotificationsScreen = () => {
                       <Text style={styles.notificationTitle}>{notification.title}</Text>
                       {!notification.read && <View style={styles.unreadDot} />}
                     </View>
-                    <Text style={styles.notificationMessage}>{notification.message}</Text>
-                    <Text style={styles.notificationTime}>{notification.time}</Text>
+                    <Text style={styles.notificationMessage}>{notification.body}</Text>
+                    <Text style={styles.notificationTime}>{formatTime(notification.timestamp)}</Text>
                   </View>
                 </View>
               </CardContent>
-            </Card>
+            </TouchableOpacity>
           ))}
           
           {/* Empty State (if no notifications) */}
@@ -175,6 +150,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   unreadCard: {
     backgroundColor: '#f8f9ff',

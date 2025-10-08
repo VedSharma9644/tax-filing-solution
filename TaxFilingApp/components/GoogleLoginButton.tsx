@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking } from 'react-
 import * as AuthSession from 'expo-auth-session';
 import * as Crypto from 'expo-crypto';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
+import { GOOGLE_AUTH_CONFIG } from '../config/googleAuth';
 
 interface GoogleLoginButtonProps {
   onLoginSuccess: (userInfo: any) => void;
@@ -13,25 +15,24 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
   onLoginSuccess, 
   onLoginError 
 }) => {
+  const { googleLogin } = useAuth();
+
   const handleGoogleLogin = async () => {
     try {
-      // Use a simpler OAuth flow that works better with Expo Go
-      const redirectUri = 'https://auth.expo.io/@vedsharma9644/TaxFilingApp';
-      
-      console.log('Using redirect URI:', redirectUri);
+      console.log('Using redirect URI:', GOOGLE_AUTH_CONFIG.redirectUri);
 
       const request = new AuthSession.AuthRequest({
-        clientId: '462462706245-p5slnpl2q03gsgpiu6thumfnp1buvo7a.apps.googleusercontent.com',
-        scopes: ['openid', 'profile', 'email'],
-        redirectUri,
-        responseType: AuthSession.ResponseType.Token,
+        clientId: GOOGLE_AUTH_CONFIG.clientId,
+        scopes: GOOGLE_AUTH_CONFIG.scopes,
+        redirectUri: GOOGLE_AUTH_CONFIG.redirectUri,
+        responseType: AuthSession.ResponseType.Code,
         extraParams: {},
         additionalParameters: {},
         prompt: AuthSession.Prompt.SelectAccount,
       });
 
       const result = await request.promptAsync({
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        authorizationEndpoint: GOOGLE_AUTH_CONFIG.authorizationEndpoint,
       });
 
       console.log('OAuth result:', result);
@@ -39,28 +40,30 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
       if (result.type === 'success') {
         console.log('OAuth success, params:', result.params);
         
-        // Get access token directly from result
-        const accessToken = result.params.access_token;
+        // Get authorization code from result
+        const authCode = result.params.code;
         
-        if (accessToken) {
-          console.log('Access token received, fetching user info...');
+        if (authCode) {
+          console.log('Authorization code received, exchanging for tokens...');
           
-          // Get user info
-          const userInfoResponse = await fetch(
-            `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
-          );
-          
-          if (userInfoResponse.ok) {
-            const userInfo = await userInfoResponse.json();
-            console.log('User info received:', userInfo);
-            onLoginSuccess(userInfo);
-          } else {
-            console.log('Failed to fetch user info:', userInfoResponse.status);
-            onLoginError(new Error('Failed to fetch user info'));
+          try {
+            // Exchange authorization code for tokens via our backend
+            const response = await googleLogin(authCode, null);
+            
+            if (response.success) {
+              console.log('Google login successful:', response);
+              onLoginSuccess(response.user);
+            } else {
+              console.log('Backend authentication failed:', response.error);
+              onLoginError(new Error(response.error || 'Authentication failed'));
+            }
+          } catch (error) {
+            console.log('Backend authentication error:', error);
+            onLoginError(error);
           }
         } else {
-          console.log('No access token in result params');
-          onLoginError(new Error('No access token received'));
+          console.log('No authorization code in result params');
+          onLoginError(new Error('No authorization code received'));
         }
       } else if (result.type === 'cancel') {
         console.log('User cancelled Google Login');

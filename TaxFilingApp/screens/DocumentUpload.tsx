@@ -10,6 +10,8 @@ import * as DocumentPicker from 'expo-document-picker';
 // ImagePicker import removed (camera functionality removed)
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { BackgroundColors } from '../utils/colors';
+import { uploadDocumentToGCS } from '../services/gcsService';
+import { useAuth } from '../contexts/AuthContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -32,6 +34,7 @@ const DocumentUpload = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
 
   // Document categories
   const documentCategories = [
@@ -47,6 +50,11 @@ const DocumentUpload = () => {
   const pickDocument = async () => {
     if (!selectedCategory) {
       Alert.alert('Select Category', 'Please select a document category first.');
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert('Error', 'User not authenticated. Please log in again.');
       return;
     }
 
@@ -73,7 +81,7 @@ const DocumentUpload = () => {
 
   // Camera functionality removed
 
-  // Upload file with progress simulation
+  // Upload file to GCS via backend
   const uploadFile = async (file: { name: string; uri: string; size: number; type: string }) => {
     const newFile: UploadedFile = {
       id: Date.now().toString(),
@@ -90,32 +98,62 @@ const DocumentUpload = () => {
     setUploadedFiles(prev => [...prev, newFile]);
     setIsUploading(true);
 
-    // Simulate upload progress
-    const uploadInterval = setInterval(() => {
-      setUploadedFiles(prev => 
-        prev.map(f => 
-          f.id === newFile.id 
-            ? { ...f, progress: Math.min(f.progress + 10, 100) }
-            : f
-        )
+    try {
+      // Upload to GCS via backend
+      const result = await uploadDocumentToGCS(
+        {
+          name: newFile.name,
+          type: newFile.type,
+          size: newFile.size,
+          uri: newFile.uri,
+        },
+        user.id,
+        selectedCategory,
+        (progress) => {
+          setUploadedFiles(prev => 
+            prev.map(f => 
+              f.id === newFile.id 
+                ? { ...f, progress }
+                : f
+            )
+          );
+        }
       );
-    }, 200);
 
-    // Simulate upload completion after 2 seconds
-    setTimeout(() => {
-      clearInterval(uploadInterval);
+      // Update file with success status
       setUploadedFiles(prev => 
         prev.map(f => 
           f.id === newFile.id 
-            ? { ...f, status: 'completed', progress: 100 }
+            ? { 
+                ...f, 
+                status: 'completed', 
+                progress: 100,
+                gcsPath: result.gcsPath,
+                publicUrl: result.publicUrl
+              }
             : f
         )
       );
+      
       setIsUploading(false);
       setDocumentName('');
       setSelectedCategory('');
       Alert.alert('Success', 'Document uploaded successfully!');
-    }, 2000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      
+      // Update file with error status
+      setUploadedFiles(prev => 
+        prev.map(f => 
+          f.id === newFile.id 
+            ? { ...f, status: 'error', progress: 0 }
+            : f
+        )
+      );
+      
+      setIsUploading(false);
+      Alert.alert('Upload Failed', error.message || 'Failed to upload document. Please try again.');
+    }
   };
 
   // Delete uploaded file

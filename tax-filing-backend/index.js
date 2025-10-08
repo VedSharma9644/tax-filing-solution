@@ -9,48 +9,90 @@ const multer = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const { KeyManagementServiceClient } = require('@google-cloud/kms');
 const crypto = require('crypto');
-const serviceAccount = require('./firebase-service-account.json');
-const gcsServiceAccount = require('../TaxFilingApp/gcs-service-account.json');
+// Environment-aware service account loading
+let serviceAccount, gcsServiceAccount;
+
+if (process.env.NODE_ENV === 'production') {
+  // In production, use Application Default Credentials
+  serviceAccount = null; // Will use ADC
+  gcsServiceAccount = null; // Will use ADC
+} else {
+  // In development, use local service account files
+  serviceAccount = require('./firebase-service-account.json');
+  gcsServiceAccount = require('../TaxFilingApp/gcs-service-account.json');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for Cloud Run (fixes rate limiting error)
+app.set('trust proxy', 1);
+
 // Initialize Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  projectId: 'tax-filing-app-3649f'
-});
+if (process.env.NODE_ENV === 'production') {
+  // In production, use Application Default Credentials
+  admin.initializeApp({
+    projectId: process.env.FIREBASE_PROJECT_ID || 'tax-filing-app-3649f'
+  });
+} else {
+  // In development, use service account file
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: 'tax-filing-app-3649f'
+  });
+}
 
 // Get Firestore instance
 const db = admin.firestore();
 
 // Initialize Google Cloud Storage
-const storage = new Storage({
-  projectId: 'tax-filing-app-472019',
-  credentials: gcsServiceAccount,
-});
+let storage, bucket;
 
-const BUCKET_NAME = 'tax-filing-documents-tax-filing-app-472019';
-const bucket = storage.bucket(BUCKET_NAME);
+if (process.env.NODE_ENV === 'production') {
+  // In production, use Application Default Credentials
+  storage = new Storage({
+    projectId: process.env.GCS_PROJECT_ID || 'tax-filing-app-472019'
+  });
+} else {
+  // In development, use service account file
+  storage = new Storage({
+    projectId: 'tax-filing-app-472019',
+    credentials: gcsServiceAccount,
+  });
+}
+
+const BUCKET_NAME = process.env.GCS_BUCKET_NAME || 'tax-filing-documents-tax-filing-app-472019';
+bucket = storage.bucket(BUCKET_NAME);
 
 // Initialize KMS for mobile app encryption
 console.log('🔧 Initializing KMS Client for mobile app encryption...');
-console.log('  - Service Account Project:', gcsServiceAccount.project_id);
-console.log('  - Service Account Email:', gcsServiceAccount.client_email);
-console.log('  - KMS Project ID:', 'tax-filing-app-472019');
 
-const kmsClient = new KeyManagementServiceClient({
-  credentials: gcsServiceAccount,
-  projectId: 'tax-filing-app-472019'
-});
+let kmsClient;
+if (process.env.NODE_ENV === 'production') {
+  // In production, use Application Default Credentials
+  kmsClient = new KeyManagementServiceClient({
+    projectId: process.env.GCS_PROJECT_ID || 'tax-filing-app-472019'
+  });
+  console.log('  - Using Application Default Credentials');
+} else {
+  // In development, use service account file
+  console.log('  - Service Account Project:', gcsServiceAccount.project_id);
+  console.log('  - Service Account Email:', gcsServiceAccount.client_email);
+  kmsClient = new KeyManagementServiceClient({
+    credentials: gcsServiceAccount,
+    projectId: 'tax-filing-app-472019'
+  });
+}
+
+console.log('  - KMS Project ID:', process.env.GCS_PROJECT_ID || 'tax-filing-app-472019');
 
 console.log('✅ KMS Client initialized for mobile app');
 
 // KMS Configuration
-const PROJECT_ID = 'tax-filing-app-472019';
-const KEY_RING_ID = 'tax-filing-keys';
-const KEY_ID = 'file-encryption-key';
-const LOCATION_ID = 'global';
+const PROJECT_ID = process.env.GCS_PROJECT_ID || 'tax-filing-app-472019';
+const KEY_RING_ID = process.env.KMS_KEY_RING || 'tax-filing-keys';
+const KEY_ID = process.env.KMS_KEY_NAME || 'file-encryption-key';
+const LOCATION_ID = process.env.KMS_LOCATION || 'global';
 
 // DEK (Data Encryption Key) approach for mobile app files
 const encryptFileWithDEK = async (fileBuffer) => {
@@ -189,7 +231,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration for Expo Go compatibility
+// CORS configuration for Expo Go and Android Studio emulator compatibility
 app.use(cors({
   origin: [
     'http://localhost:3000', 
@@ -202,7 +244,11 @@ app.use(cors({
     // Additional mobile origins
     'http://192.168.1.34:8081',
     'http://127.0.0.1:8081',
-    // Allow all origins in development (for Expo Go)
+    // Android Studio emulator origins
+    'http://10.0.2.2:5000',
+    'http://10.0.2.2:8081',
+    'http://10.0.2.2:3000',
+    // Allow all origins in development (for Expo Go and emulator)
     ...(process.env.NODE_ENV === 'development' ? ['*'] : [])
   ],
   credentials: true,
@@ -267,6 +313,7 @@ app.get('/', (req, res) => {
         sendOtpEmail: '/auth/send-otp/email',
         sendOtpPhone: '/auth/send-otp/phone',
         verifyOtp: '/auth/verify-otp',
+        googleLogin: '/auth/google-login',
         me: '/auth/me',
         refreshToken: '/auth/refresh-token'
       },
@@ -796,6 +843,285 @@ app.post('/auth/refresh-token', async (req, res) => {
     res.status(401).json({
       success: false,
       error: 'Invalid refresh token',
+      details: error.message
+    });
+  }
+});
+
+// Firebase Phone Auth Login
+app.post('/auth/firebase-phone-login', authLimiter, async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Firebase ID token is required'
+      });
+    }
+
+    // Verify Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    
+    // Extract phone number from token (try multiple possible fields)
+    const phoneNumber = decodedToken.phone_number || 
+                       decodedToken.phoneNumber || 
+                       decodedToken.firebase?.identities?.phone?.[0] || 
+                       '';
+
+    console.log('Firebase Phone Auth - UID:', uid);
+    console.log('Firebase Phone Auth - Phone:', phoneNumber);
+    console.log('Full decoded token structure:', JSON.stringify(decodedToken, null, 2));
+
+    // Check if user exists by UID
+    let userQuery = await db.collection('users').where('uid', '==', uid).limit(1).get();
+    let userDoc, userData;
+
+    if (userQuery.empty) {
+      // Create new user
+      console.log('Creating new Firebase Phone Auth user');
+      const newUserData = {
+        uid: uid,
+        phone: phoneNumber,
+        firstName: '',
+        lastName: '',
+        email: '',
+        googleId: null,
+        firebasePhoneAuth: true,
+        role: 'user',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      const userRef = await db.collection('users').add(newUserData);
+      userData = { id: userRef.id, ...newUserData };
+      console.log('New user created with ID:', userRef.id);
+    } else {
+      // Update existing user
+      console.log('Updating existing Firebase Phone Auth user');
+      userDoc = userQuery.docs[0];
+      userData = userDoc.data();
+      
+      await db.collection('users').doc(userDoc.id).update({
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        phone: phoneNumber || userData.phone
+      });
+      
+      userData.id = userDoc.id;
+    }
+
+    // Generate backend JWT token
+    const accessToken = jwt.sign(
+      { 
+        userId: userData.id, 
+        uid: uid,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email, 
+        phone: phoneNumber || userData.phone,
+        role: userData.role 
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    console.log('Firebase Phone Auth successful for user:', userData.id);
+
+    res.json({
+      success: true,
+      message: 'Firebase Phone authentication successful',
+      accessToken: accessToken,
+      user: {
+        id: userData.id,
+        uid: uid,
+        phone: phoneNumber || userData.phone,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        role: userData.role
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Firebase Phone Auth Error:', error);
+    res.status(400).json({
+      success: false,
+      error: 'Firebase authentication failed',
+      details: error.message
+    });
+  }
+});
+
+// Google OAuth Login
+app.post('/auth/google-login', authLimiter, async (req, res) => {
+  try {
+    const { authCode, idToken, accessToken } = req.body;
+
+    let decodedToken;
+
+    if (authCode) {
+      // Handle authorization code flow
+      try {
+        // Exchange authorization code for tokens
+        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: process.env.GOOGLE_WEB_CLIENT_ID || '693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com',
+            client_secret: process.env.GOOGLE_CLIENT_SECRET || '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',
+            code: authCode,
+            grant_type: 'authorization_code',
+            redirect_uri: 'com.vedsharma9644.TaxFilingApp://oauth'
+          })
+        });
+
+        const tokenData = await tokenResponse.json();
+        
+        if (!tokenData.id_token) {
+          return res.status(400).json({
+            success: false,
+            error: 'Failed to exchange authorization code for tokens'
+          });
+        }
+
+        // Verify the Google ID token
+        decodedToken = await admin.auth().verifyIdToken(tokenData.id_token);
+      } catch (error) {
+        console.error('❌ Error exchanging authorization code:', error);
+        return res.status(401).json({
+          success: false,
+          error: 'Failed to exchange authorization code',
+          details: error.message
+        });
+      }
+    } else if (idToken) {
+      // Handle direct ID token (legacy support)
+      try {
+        decodedToken = await admin.auth().verifyIdToken(idToken);
+      } catch (error) {
+        console.error('❌ Error verifying Google ID token:', error);
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid Google ID token',
+          details: error.message
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Either authorization code or ID token is required'
+      });
+    }
+
+    const { uid, email, name, picture, email_verified } = decodedToken;
+
+    if (!email_verified) {
+      return res.status(400).json({
+        success: false,
+        error: 'Google email is not verified'
+      });
+    }
+
+    // Check if user exists in our database
+    let user;
+    let userExists = false;
+
+    const userByEmail = await db.collection('users').where('email', '==', email).limit(1).get();
+    
+    if (!userByEmail.empty) {
+      user = userByEmail.docs[0];
+      userExists = true;
+    }
+
+    if (userExists) {
+      // Update existing user
+      const userData = user.data();
+      const updateData = {
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        googleId: uid,
+        profilePicture: picture || userData.profilePicture
+      };
+
+      // Update name if not set or if Google name is different
+      if (!userData.firstName || !userData.lastName) {
+        const nameParts = name ? name.split(' ') : ['', ''];
+        updateData.firstName = nameParts[0] || '';
+        updateData.lastName = nameParts.slice(1).join(' ') || '';
+      }
+
+      await db.collection('users').doc(user.id).update(updateData);
+      userData.id = user.id;
+      user = { id: user.id, ...userData, ...updateData };
+    } else {
+      // Create new user
+      const nameParts = name ? name.split(' ') : ['', ''];
+      const newUserData = {
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: email,
+        phone: '',
+        googleId: uid,
+        profilePicture: picture || '',
+        role: 'taxpayer',
+        status: 'active',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      const newUserRef = await db.collection('users').add(newUserData);
+      user = { id: newUserRef.id, ...newUserData };
+    }
+
+    // Generate JWT tokens
+    const accessTokenJWT = jwt.sign(
+      { 
+        userId: user.id, 
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email, 
+        phone: user.phone,
+        role: user.role 
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      JWT_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRES_IN }
+    );
+
+    res.json({
+      success: true,
+      message: userExists ? 'Google login successful' : 'User created and logged in successfully via Google',
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        profilePicture: user.profilePicture
+      },
+      tokens: {
+        accessToken: accessTokenJWT,
+        refreshToken
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error with Google login:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process Google login',
       details: error.message
     });
   }
@@ -2901,7 +3227,8 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 Test database: http://localhost:${PORT}/test-db`);
   console.log(`🔗 Network access: http://192.168.1.34:${PORT}`);
-  console.log(`📱 Mobile App should connect to: http://localhost:${PORT}`);
+  console.log(`📱 Expo Go / Physical Device: http://192.168.1.34:${PORT}`);
+  console.log(`📱 Android Studio Emulator: http://10.0.2.2:${PORT}`);
   
   // Initialize database on startup
   console.log('🔄 Starting database initialization...');
