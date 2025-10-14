@@ -224,8 +224,9 @@ const upload = multer({
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'tax-filing-app-secret-key-2024';
-const JWT_EXPIRES_IN = '24h';
-const JWT_REFRESH_EXPIRES_IN = '7d';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'tax-filing-app-refresh-secret-key-2024';
+const JWT_EXPIRES_IN = '1h'; // Access token expires in 1 hour
+const JWT_REFRESH_EXPIRES_IN = '30d'; // Refresh token expires in 30 days
 
 // Security middleware
 app.use(helmet({
@@ -787,17 +788,36 @@ app.post('/auth/verify-otp', authLimiter, async (req, res) => {
         lastName: user.lastName,
         email: user.email, 
         phone: user.phone,
-        role: user.role 
+        role: user.role,
+        type: 'access'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    // Generate refresh token with unique ID
+    const refreshTokenId = require('crypto').randomUUID();
     const refreshToken = jwt.sign(
-      { userId: user.id },
-      JWT_SECRET,
+      { 
+        userId: user.id,
+        type: 'refresh',
+        jti: refreshTokenId
+      },
+      JWT_REFRESH_SECRET,
       { expiresIn: JWT_REFRESH_EXPIRES_IN }
     );
+
+    // Store refresh token in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+    
+    await db.collection('refreshTokens').doc(refreshTokenId).set({
+      userId: user.id,
+      tokenHash: require('crypto').createHash('sha256').update(refreshToken).digest('hex'),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      isRevoked: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     // Mark OTP as verified and delete it
     await db.collection('otps').doc(identifier).delete();
@@ -809,13 +829,16 @@ app.post('/auth/verify-otp', authLimiter, async (req, res) => {
         id: user.id,
         email: user.email,
         phone: user.phone,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName} ${user.lastName}`.trim(),
         role: user.role,
-        status: user.status
+        status: user.status,
+        profileComplete: !!(user.firstName && user.lastName && user.email)
       },
-      tokens: {
-        accessToken,
-        refreshToken
-      }
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: 3600 // 1 hour in seconds
     });
   } catch (error) {
     console.error('❌ Error verifying OTP:', error);
@@ -864,6 +887,59 @@ app.get('/auth/me', authenticateToken, async (req, res) => {
   }
 });
 
+// Token Validation Endpoint
+app.post('/auth/validate-token', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Access token required',
+        code: 'TOKEN_MISSING'
+      });
+    }
+
+    // Verify the access token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Get user data
+    const userDoc = await db.collection('users').doc(decoded.userId).get();
+    
+    if (!userDoc.exists) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    const userData = userDoc.data();
+    
+    res.json({
+      success: true,
+      message: 'Token is valid',
+      user: {
+        id: userDoc.id,
+        email: userData.email,
+        phone: userData.phone,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        name: `${userData.firstName} ${userData.lastName}`.trim(),
+        profileComplete: !!(userData.firstName && userData.lastName && userData.email)
+      }
+    });
+  } catch (error) {
+    console.error('❌ Token validation error:', error);
+    res.status(401).json({
+      success: false,
+      error: 'Token expired or invalid',
+      code: 'TOKEN_INVALID'
+    });
+  }
+});
+
 // Refresh token
 app.post('/auth/refresh-token', async (req, res) => {
   try {
@@ -876,7 +952,32 @@ app.post('/auth/refresh-token', async (req, res) => {
       });
     }
 
-    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+    // Verify refresh token with separate secret
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    
+    // Check if refresh token exists in database and is not revoked
+    const refreshTokenDoc = await db.collection('refreshTokens').doc(decoded.jti).get();
+    
+    if (!refreshTokenDoc.exists || refreshTokenDoc.data().isRevoked) {
+      return res.status(401).json({
+        success: false,
+        error: 'Refresh token expired or invalid',
+        code: 'REFRESH_TOKEN_INVALID'
+      });
+    }
+
+    // Check if refresh token is expired
+    if (refreshTokenDoc.data().expiresAt.toDate() < new Date()) {
+      // Mark as revoked
+      await db.collection('refreshTokens').doc(decoded.jti).update({ isRevoked: true });
+      return res.status(401).json({
+        success: false,
+        error: 'Refresh token expired',
+        code: 'REFRESH_TOKEN_EXPIRED'
+      });
+    }
+
+    // Get user data
     const userDoc = await db.collection('users').doc(decoded.userId).get();
 
     if (!userDoc.exists) {
@@ -887,6 +988,8 @@ app.post('/auth/refresh-token', async (req, res) => {
     }
 
     const userData = userDoc.data();
+    
+    // Generate new access token
     const newAccessToken = jwt.sign(
       { 
         userId: userDoc.id, 
@@ -894,21 +997,62 @@ app.post('/auth/refresh-token', async (req, res) => {
         lastName: userData.lastName,
         email: userData.email, 
         phone: userData.phone,
-        role: userData.role 
+        role: userData.role,
+        type: 'access'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    // Generate new refresh token
+    const newRefreshTokenId = require('crypto').randomUUID();
+    const newRefreshToken = jwt.sign(
+      { 
+        userId: userDoc.id,
+        type: 'refresh',
+        jti: newRefreshTokenId
+      },
+      JWT_REFRESH_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRES_IN }
+    );
+
+    // Revoke old refresh token
+    await db.collection('refreshTokens').doc(decoded.jti).update({ isRevoked: true });
+
+    // Store new refresh token
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+    
+    await db.collection('refreshTokens').doc(newRefreshTokenId).set({
+      userId: userDoc.id,
+      tokenHash: require('crypto').createHash('sha256').update(newRefreshToken).digest('hex'),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      isRevoked: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     res.json({
       success: true,
-      accessToken: newAccessToken
+      message: 'Token refreshed successfully',
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: 3600, // 1 hour in seconds
+      user: {
+        id: userDoc.id,
+        email: userData.email,
+        phone: userData.phone,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        name: `${userData.firstName} ${userData.lastName}`.trim(),
+        profileComplete: !!(userData.firstName && userData.lastName && userData.email)
+      }
     });
   } catch (error) {
     console.error('❌ Error refreshing token:', error);
     res.status(401).json({
       success: false,
       error: 'Invalid refresh token',
+      code: 'REFRESH_TOKEN_INVALID',
       details: error.message
     });
   }
@@ -979,7 +1123,7 @@ app.post('/auth/firebase-phone-login', authLimiter, async (req, res) => {
       userData.id = userDoc.id;
     }
 
-    // Generate backend JWT token
+    // Generate backend JWT tokens
     const accessToken = jwt.sign(
       { 
         userId: userData.id, 
@@ -988,11 +1132,36 @@ app.post('/auth/firebase-phone-login', authLimiter, async (req, res) => {
         lastName: userData.lastName,
         email: userData.email, 
         phone: phoneNumber || userData.phone,
-        role: userData.role 
+        role: userData.role,
+        type: 'access'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
+
+    // Generate refresh token with unique ID
+    const refreshTokenId = require('crypto').randomUUID();
+    const refreshToken = jwt.sign(
+      { 
+        userId: userData.id,
+        type: 'refresh',
+        jti: refreshTokenId
+      },
+      JWT_REFRESH_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRES_IN }
+    );
+
+    // Store refresh token in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+    
+    await db.collection('refreshTokens').doc(refreshTokenId).set({
+      userId: userData.id,
+      tokenHash: require('crypto').createHash('sha256').update(refreshToken).digest('hex'),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      isRevoked: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     console.log('Firebase Phone Auth successful for user:', userData.id);
 
@@ -1000,6 +1169,8 @@ app.post('/auth/firebase-phone-login', authLimiter, async (req, res) => {
       success: true,
       message: 'Firebase Phone authentication successful',
       accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: 3600, // 1 hour in seconds
       user: {
         id: userData.id,
         uid: uid,
@@ -1007,7 +1178,9 @@ app.post('/auth/firebase-phone-login', authLimiter, async (req, res) => {
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
-        role: userData.role
+        role: userData.role,
+        name: `${userData.firstName} ${userData.lastName}`.trim(),
+        profileComplete: !!(userData.firstName && userData.lastName && userData.email)
       }
     });
 
@@ -1153,17 +1326,36 @@ app.post('/auth/google-login', authLimiter, async (req, res) => {
         lastName: user.lastName,
         email: user.email, 
         phone: user.phone,
-        role: user.role 
+        role: user.role,
+        type: 'access'
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    // Generate refresh token with unique ID
+    const refreshTokenId = require('crypto').randomUUID();
     const refreshToken = jwt.sign(
-      { userId: user.id },
-      JWT_SECRET,
+      { 
+        userId: user.id,
+        type: 'refresh',
+        jti: refreshTokenId
+      },
+      JWT_REFRESH_SECRET,
       { expiresIn: JWT_REFRESH_EXPIRES_IN }
     );
+
+    // Store refresh token in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+    
+    await db.collection('refreshTokens').doc(refreshTokenId).set({
+      userId: user.id,
+      tokenHash: require('crypto').createHash('sha256').update(refreshToken).digest('hex'),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      isRevoked: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     res.json({
       success: true,
@@ -1176,11 +1368,14 @@ app.post('/auth/google-login', authLimiter, async (req, res) => {
         phone: user.phone,
         role: user.role,
         status: user.status,
-        profilePicture: user.profilePicture
+        profilePicture: user.profilePicture,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        profileComplete: !!(user.firstName && user.lastName && user.email)
       },
       tokens: {
         accessToken: accessTokenJWT,
-        refreshToken
+        refreshToken: refreshToken,
+        expiresIn: 3600 // 1 hour in seconds
       }
     });
   } catch (error) {

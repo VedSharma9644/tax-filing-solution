@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import apiInterceptor from '../utils/apiInterceptor';
 
 // Dynamic API URL detection for development and production
 const getApiBaseUrl = () => {
@@ -17,6 +18,32 @@ class ApiService {
     this.baseURL = API_BASE_URL;
     if (__DEV__) {
       console.log(`🔗 ApiService initialized with base URL: ${this.baseURL}`);
+    }
+  }
+
+  // Enhanced fetch method with token refresh interceptor
+  async fetchWithInterceptor(url, options = {}) {
+    try {
+      // Intercept request to add token
+      const interceptedRequest = await apiInterceptor.interceptRequest({
+        url,
+        ...options
+      });
+
+      // Make the request
+      const response = await fetch(interceptedRequest.url, {
+        method: interceptedRequest.method || 'GET',
+        headers: interceptedRequest.headers,
+        body: interceptedRequest.body
+      });
+
+      // Intercept response to handle token refresh
+      const interceptedResponse = await apiInterceptor.interceptResponse(response, interceptedRequest);
+      
+      return interceptedResponse;
+    } catch (error) {
+      console.error('Fetch with interceptor error:', error);
+      throw error;
     }
   }
 
@@ -151,6 +178,30 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Get current user error:', error);
+      throw error;
+    }
+  }
+
+  // Validate if a stored token is still valid
+  async validateToken(token) {
+    try {
+      const response = await fetch(`${this.baseURL}/auth/validate-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Token validation error:', error);
       throw error;
     }
   }

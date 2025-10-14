@@ -26,31 +26,46 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredAuth = async () => {
     try {
-      // Always start with no user to force login screen
-      // Comment out auto-login for now
-      /*
       const { accessToken, refreshToken } = await secureStorage.getAuthTokens();
       const storedUser = await secureStorage.getUserData();
       
       if (accessToken && storedUser) {
-        setToken(accessToken);
-        setUser(storedUser);
+        // Validate token with backend before setting user
+        const isValid = await validateStoredToken(accessToken);
+        if (isValid) {
+          setToken(accessToken);
+          setUser(storedUser);
+        } else {
+          // Token is invalid, try to refresh
+          if (refreshToken) {
+            const refreshSuccess = await refreshAccessToken();
+            if (!refreshSuccess) {
+              // Refresh failed, clear stored data
+              await secureStorage.clear();
+            }
+          } else {
+            // No refresh token, clear stored data
+            await secureStorage.clear();
+          }
+        }
       }
-      */
     } catch (error) {
       console.error('Error loading stored auth:', error);
       // Fallback to regular storage
       try {
-        // Also comment out fallback auto-login
-        /*
         const storedToken = await AsyncStorage.getItem('accessToken');
         const storedUser = await AsyncStorage.getItem('user');
         
         if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const isValid = await validateStoredToken(storedToken);
+          if (isValid) {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+          } else {
+            // Clear invalid tokens
+            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+          }
         }
-        */
       } catch (fallbackError) {
         console.error('Fallback auth loading failed:', fallbackError);
       }
@@ -59,6 +74,48 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Validate stored token with backend
+  const validateStoredToken = async (token) => {
+    try {
+      const response = await ApiService.validateToken(token);
+      return response && response.success;
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      return false;
+    }
+  };
+
+  // Refresh access token using refresh token
+  const refreshAccessToken = async () => {
+    try {
+      const { refreshToken } = await secureStorage.getAuthTokens();
+      if (!refreshToken) {
+        console.log('No refresh token available');
+        return false;
+      }
+
+      const response = await ApiService.refreshToken(refreshToken);
+      if (response && response.success) {
+        // Store new tokens
+        await secureStorage.setAuthTokens(response.accessToken, response.refreshToken);
+        setToken(response.accessToken);
+        
+        // Update user data if provided
+        if (response.user) {
+          await secureStorage.setUserData(response.user);
+          setUser(response.user);
+        }
+        
+        return true;
+      } else {
+        console.log('Token refresh failed:', response?.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
+    }
+  };
 
   const sendPhoneOTP = async (phone) => {
     try {

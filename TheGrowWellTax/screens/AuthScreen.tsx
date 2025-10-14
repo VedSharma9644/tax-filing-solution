@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { Button } from './ui/button';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,9 @@ const AuthScreen = () => {
   const [retryCount, setRetryCount] = useState(0);
   const navigation = useNavigation<any>();
   const { sendPhoneOTP, verifyPhoneOTP } = useAuth();
+  
+  // Refs for keyboard handling
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Load persisted OTP data on component mount
   useEffect(() => {
@@ -49,6 +52,32 @@ const AuthScreen = () => {
 
     loadPersistedOtpData();
   }, []);
+
+  // Keyboard event listeners for enhanced handling
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      // Scroll to bottom when keyboard appears
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, Platform.OS === 'ios' ? 100 : 200);
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      // Optional: Handle keyboard hide if needed
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  // Function to scroll to input field
+  const scrollToInput = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, Platform.OS === 'ios' ? 100 : 200);
+  };
 
   // Persist OTP data when it changes
   useEffect(() => {
@@ -227,9 +256,16 @@ const AuthScreen = () => {
     <SafeAreaWrapper>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          ref={scrollViewRef}
+          contentContainerStyle={styles.container} 
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={Platform.OS === 'ios' ? false : true}
+        >
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <Image
@@ -266,6 +302,7 @@ const AuthScreen = () => {
                   onChangeText={setPhone}
                   style={styles.input}
                   keyboardType="phone-pad"
+                  onFocus={scrollToInput}
                 />
                 <Text style={styles.helpText}>Include country code (e.g., +1 for US, +91 for India)</Text>
                 <View style={styles.button}>
@@ -298,6 +335,7 @@ const AuthScreen = () => {
                   style={styles.input}
                   maxLength={6}
                   keyboardType="numeric"
+                  onFocus={scrollToInput}
                 />
                 <View style={styles.button}>
                   <Button onPress={handleOtpVerify} disabled={loading}>
@@ -349,7 +387,11 @@ const AuthScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#001826' },
+  container: { 
+    flexGrow: 1, 
+    backgroundColor: '#001826',
+    paddingBottom: Platform.OS === 'ios' ? 20 : 40 // Extra padding for keyboard
+  },
   heroSection: { 
     height: 200, 
     justifyContent: 'center', 
