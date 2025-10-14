@@ -1,0 +1,108 @@
+{
+  "project_info": {
+    "project_number": "693306869303",
+    "project_id": "tax-filing-app-3649f",
+    "storage_bucket": "tax-filing-app-3649f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:693306869303:android:272504a5637c95da91a1b2",
+        "android_client_info": {
+          "package_name": "com.creayaa.thegrowwell"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "693306869303-3c6quk9783jffvnh4lv7g33o7qimjkf0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.creayaa.thegrowwell",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "693306869303-ik7msfkav82mi5as2np9epk6ur160uh2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.creayaa.thegrowwell",
+            "certificate_hash": "43360658110a43367e3c4e5b8314fd19e895c7c4"
+          }
+        },
+        {
+          "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCp6yEzcE2B0m06y1MnB_2J8kB7UyW4Pc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:693306869303:android:1f3a4b7d2dc623be91a1b2",
+        "android_client_info": {
+          "package_name": "com.vedsharma9644.TaxFilingApp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "693306869303-fl6nffmms13pf4qmfl3dmjvlm2796740.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vedsharma9644.TaxFilingApp",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "693306869303-j2dui567dqbq7ktos9dju9kgu7n69uf1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vedsharma9644.TaxFilingApp",
+            "certificate_hash": "fc7cfb676fed741a12db20e29f392524017841bf"
+          }
+        },
+        {
+          "client_id": "693306869303-mvmgsjgcij6c1cm7lqmvqv1880291i6d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vedsharma9644.TaxFilingApp",
+            "certificate_hash": "042b4b7cdfb0c82e581294bb73bc2562811cf112"
+          }
+        },
+        {
+          "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCp6yEzcE2B0m06y1MnB_2J8kB7UyW4Pc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
