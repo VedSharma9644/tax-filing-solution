@@ -234,7 +234,7 @@ const TaxWizard: React.FC = () => {
     { id: 1, title: 'W-2 Form', icon: 'document-text' },
     { id: 2, title: 'Income', icon: 'cash' },
     { id: 3, title: 'Deduction', icon: 'receipt' },
-    { id: 4, title: 'Personal Info', icon: 'person' },
+    { id: 4, title: 'Info', icon: 'person' },
     { id: 5, title: 'Review', icon: 'checkmark-circle' },
   ];
 

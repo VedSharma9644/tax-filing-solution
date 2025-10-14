@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import CustomHeader from '../components/CustomHeader';
-import { BackgroundColors } from '../utils/colors';
+import { BackgroundColors, TextColors } from '../utils/colors';
 import { useNotifications } from '../contexts/NotificationContext';
 
 const NotificationsScreen = () => {
@@ -114,14 +114,14 @@ const NotificationsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   notificationCard: {
     marginBottom: 12,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: BackgroundColors.primary,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: TextColors.primary,
     flex: 1,
   },
   unreadDot: {
@@ -192,13 +192,13 @@ const styles = StyleSheet.create({
   },
   notificationMessage: {
     fontSize: 14,
-    color: '#333333',
+    color: TextColors.secondary,
     lineHeight: 20,
     marginBottom: 8,
   },
   notificationTime: {
     fontSize: 12,
-    color: '#666666',
+    color: TextColors.tertiary,
   },
   emptyState: {
     flex: 1,
@@ -209,13 +209,13 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: TextColors.white,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateMessage: {
     fontSize: 14,
-    color: '#cccccc',
+    color: TextColors.secondary,
     textAlign: 'center',
   },
 });

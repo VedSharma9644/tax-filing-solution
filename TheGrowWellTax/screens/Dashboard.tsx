@@ -229,11 +229,6 @@ const Dashboard = () => {
     };
   };
 
-  const processSteps = [
-    { number: 1, title: "Upload Documents" },
-    { number: 2, title: "Review & Complete" },
-    { number: 3, title: "File & Get Refund" }
-  ];
 
   return (
     <SafeAreaWrapper>
@@ -383,36 +378,6 @@ const Dashboard = () => {
           </View>
         </View>
 
-        {/* How It Works Section */}
-        <View style={styles.howItWorksSection}>
-          <Text style={styles.sectionTitle}>How It Works</Text>
-          <Text style={styles.sectionSubtitle}>Simple steps to file your taxes</Text>
-          
-          {/* Process Steps Image */}
-          <Card style={styles.processImageCard}>
-            <CardContent>
-              <Image 
-                source={require('../assets/process-steps.jpg')} 
-                style={styles.processImage}
-                resizeMode="contain"
-              />
-            </CardContent>
-          </Card>
-
-          {/* Process Steps Details */}
-          <View style={styles.processStepsRow}>
-            {processSteps.map((step) => (
-              <View key={step.number} style={styles.processStepItem}>
-                <View style={styles.stepNumberCircle}>
-                  <Text style={styles.stepNumberText}>{step.number}</Text>
-                </View>
-                <Text style={styles.stepLabel}>{step.title}</Text>
-              </View>
-            ))}
-          </View>
-
-
-        </View>
       </ScrollView>
       
       {/* Notification Test Panel */}
@@ -425,8 +390,8 @@ const Dashboard = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: BackgroundColors.primary, paddingHorizontal: 16, paddingBottom: 20 },
-  heroHeader: { backgroundColor: BackgroundColors.primary, padding: 16, paddingTop: 20, marginHorizontal: -16 },
+  container: { flexGrow: 1, backgroundColor: BackgroundColors.secondary, paddingHorizontal: 16, paddingBottom: 20 },
+  heroHeader: { backgroundColor: BackgroundColors.secondary, padding: 16, paddingTop: 20, marginHorizontal: -16 },
   heroContent: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   heroTextContainer: { flex: 1, marginRight: 8 },
   heroTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', flexWrap: 'wrap' },
@@ -473,25 +438,6 @@ const styles = StyleSheet.create({
   adminReviewRow: { marginTop: 8 },
   adminReviewButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6c757d', borderRadius: 8, padding: 12 },
   adminReviewButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 12, marginBottom: 6 },
-  sectionSubtitle: { color: '#888', fontSize: 14, marginBottom: 12 },
-  card: { marginBottom: 8, borderRadius: 12 },
-  howItWorksSection: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#eee' },
-  processImageCard: { marginBottom: 16, borderRadius: 12 },
-  processImage: { width: '100%', height: 160, borderRadius: 8 },
-  processStepsRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 12 },
-  processStepItem: { alignItems: 'center', flex: 1 },
-  stepNumberCircle: { 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
-    backgroundColor: '#007bff', 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    marginBottom: 6
-  },
-  stepNumberText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
-  stepLabel: { fontSize: 11, color: '#666', textAlign: 'center', fontWeight: '500' },
   loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16 },
   loadingText: { marginLeft: 8, color: '#666', fontSize: 14 },
   errorText: { color: '#e74c3c', textAlign: 'center', padding: 16 },

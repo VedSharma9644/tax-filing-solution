@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import AppointmentService from '../services/appointmentService';
-import { BackgroundColors, BrandColors } from '../utils/colors';
+import { BackgroundColors, BrandColors, TextColors } from '../utils/colors';
 
 const AppointmentScreen = () => {
   const navigation = useNavigation<any>();
@@ -161,22 +161,19 @@ const AppointmentScreen = () => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#007bff" />
+            <Ionicons name="arrow-back" size={24} color={TextColors.white} />
           </Button>
           <Text style={styles.headerTitle}>Schedule Appointment</Text>
         </View>
 
+        {/* Appointment Form Title */}
+        <View style={styles.sectionTitle}>
+          <Ionicons name="calendar" size={24} color="#D7B04C" />
+          <Text style={styles.sectionTitleText}>Book Your Session</Text>
+        </View>
+
         {/* Appointment Form */}
         <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle style={styles.cardTitle}>
-              <Ionicons name="calendar" size={24} color="#007bff" />
-              <Text style={styles.cardTitleText}>Book Your Session</Text>
-            </CardTitle>
-            <CardDescription style={styles.cardDescription}>
-              Schedule a call with our tax professionals to get personalized assistance
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             {/* Appointment Type */}
             <View style={styles.section}>
@@ -296,14 +293,14 @@ const AppointmentScreen = () => {
           </CardContent>
         </Card>
 
+        {/* Upcoming Appointments Title */}
+        <View style={styles.sectionTitle}>
+          <Ionicons name="time-outline" size={24} color="#D7B04C" />
+          <Text style={styles.sectionTitleText}>Upcoming Appointments</Text>
+        </View>
+
         {/* Upcoming Appointments */}
         <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle style={styles.cardTitle}>
-              <Ionicons name="time-outline" size={24} color="#007bff" />
-              <Text style={styles.cardTitleText}>Upcoming Appointments</Text>
-            </CardTitle>
-          </CardHeader>
           <CardContent>
             {loadingHistory ? (
               <Text style={styles.loadingText}>Loading appointments...</Text>
@@ -362,16 +359,40 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+    backgroundColor: BackgroundColors.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderRadius: 8,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 6,
+    marginTop: -6,
+    marginLeft: -10,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: TextColors.white,
+  },
+  sectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  sectionTitleText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#D7B04C',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: TextColors.secondary,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   card: {
     marginBottom: 16,

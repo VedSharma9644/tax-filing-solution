@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
-import { BackgroundColors, BrandColors } from '../utils/colors';
+import { BackgroundColors, BrandColors, TextColors } from '../utils/colors';
 
 const PaymentHistoryScreen = () => {
   const navigation = useNavigation<any>();
@@ -120,7 +120,7 @@ const PaymentHistoryScreen = () => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#007bff" />
+            <Ionicons name="arrow-back" size={24} color={TextColors.white} />
           </Button>
           <Text style={styles.headerTitle}>Payment History</Text>
         </View>
@@ -258,16 +258,22 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+    backgroundColor: BackgroundColors.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderRadius: 8,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 6,
+    marginTop: -6,
+    marginLeft: -10,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: TextColors.white,
   },
   summaryContainer: {
     flexDirection: 'row',

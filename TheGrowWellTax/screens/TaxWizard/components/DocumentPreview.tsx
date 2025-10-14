@@ -408,9 +408,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
-    borderWidth: 1,
-    borderColor: '#007bff',
-    borderStyle: 'dashed',
   },
   documentHeader: {
     flexDirection: 'row',

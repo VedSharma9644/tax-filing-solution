@@ -14,12 +14,12 @@ export const TaxWizardStyles = StyleSheet.create({
   // Main Container Styles
   container: {
     flex: 1,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
   },
   
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
@@ -29,7 +29,7 @@ export const TaxWizardStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 0,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
   },
   
   headerTitle: {
@@ -95,9 +95,6 @@ export const TaxWizardStyles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 4,
-    borderWidth: 1,
-    borderColor: BrandColors.primary,
-    borderStyle: 'dashed',
   },
   
   cardHeader: {
@@ -198,7 +195,6 @@ export const TaxWizardStyles = StyleSheet.create({
   uploadContainer: {
     borderWidth: 2,
     borderColor: BackgroundColors.tertiary,
-    borderStyle: 'dashed',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
@@ -272,7 +268,7 @@ export const TaxWizardStyles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: BackgroundColors.tertiary,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
   },
   
   navButton: {
@@ -363,7 +359,7 @@ export const TaxWizardStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: BackgroundColors.secondary,
   },
   
   loadingText: {

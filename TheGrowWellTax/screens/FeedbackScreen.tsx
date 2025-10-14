@@ -7,7 +7,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import FeedbackService from '../services/feedbackService';
 import { useAuth } from '../contexts/AuthContext';
-import { BackgroundColors, BrandColors } from '../utils/colors';
+import { BackgroundColors, BrandColors, TextColors } from '../utils/colors';
 
 const FeedbackScreen = () => {
   const navigation = useNavigation<any>();
@@ -127,22 +127,19 @@ const FeedbackScreen = () => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#007bff" />
+            <Ionicons name="arrow-back" size={24} color={TextColors.white} />
           </Button>
           <Text style={styles.headerTitle}>Feedback</Text>
         </View>
 
+        {/* Feedback Form Title */}
+        <View style={styles.sectionTitle}>
+          <FontAwesome name="comment" size={24} color={TextColors.white} />
+          <Text style={styles.sectionTitleText}>Share Your Experience</Text>
+        </View>
+
         {/* Feedback Form */}
         <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle style={styles.cardTitle}>
-              <FontAwesome name="comment" size={24} color="#007bff" />
-              <Text style={styles.cardTitleText}>Share Your Experience</Text>
-            </CardTitle>
-            <CardDescription style={styles.cardDescription}>
-              Help us improve by sharing your thoughts about our service
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             {/* Rating Section */}
             <View style={styles.ratingSection}>
@@ -191,14 +188,14 @@ const FeedbackScreen = () => {
           </CardContent>
         </Card>
 
+        {/* Feedback History Title */}
+        <View style={styles.sectionTitle}>
+          <Ionicons name="time-outline" size={24} color={TextColors.white} />
+          <Text style={styles.sectionTitleText}>Previous Feedback</Text>
+        </View>
+
         {/* Feedback History */}
         <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle style={styles.cardTitle}>
-              <Ionicons name="time-outline" size={24} color="#007bff" />
-              <Text style={styles.cardTitleText}>Previous Feedback</Text>
-            </CardTitle>
-          </CardHeader>
           <CardContent>
             {loadingHistory ? (
               <Text style={styles.loadingText}>Loading feedback history...</Text>
@@ -250,16 +247,40 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+    backgroundColor: BackgroundColors.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderRadius: 8,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 6,
+    marginTop: -6,
+    marginLeft: -10,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: TextColors.white,
+  },
+  sectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  sectionTitleText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: TextColors.white,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: TextColors.secondary,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   card: {
     marginBottom: 16,
@@ -281,10 +302,10 @@ const styles = StyleSheet.create({
   cardTitleText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: TextColors.primary,
   },
   cardDescription: {
-    color: '#666',
+    color: TextColors.secondary,
     marginTop: 4,
   },
   ratingSection: {
@@ -294,7 +315,7 @@ const styles = StyleSheet.create({
   ratingLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: TextColors.primary,
     marginBottom: 12,
   },
   starsContainer: {
@@ -306,7 +327,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: '#666',
+    color: TextColors.secondary,
     fontWeight: '500',
   },
   feedbackSection: {
@@ -315,7 +336,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: TextColors.primary,
     marginBottom: 8,
   },
   feedbackInput: {
@@ -329,7 +350,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 12,
-    color: '#999',
+    color: TextColors.tertiary,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -339,7 +360,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   submitButtonText: {
-    color: '#fff',
+    color: TextColors.white,
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -358,22 +379,22 @@ const styles = StyleSheet.create({
   },
   historyDate: {
     fontSize: 12,
-    color: '#999',
+    color: TextColors.tertiary,
   },
   historyText: {
     fontSize: 14,
-    color: '#333',
+    color: TextColors.primary,
     lineHeight: 20,
   },
   loadingText: {
     fontSize: 14,
-    color: '#666',
+    color: TextColors.secondary,
     textAlign: 'center',
     fontStyle: 'italic',
   },
   noFeedbackText: {
     fontSize: 14,
-    color: '#999',
+    color: TextColors.tertiary,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -387,12 +408,12 @@ const styles = StyleSheet.create({
   },
   historyCategory: {
     fontSize: 12,
-    color: '#666',
+    color: TextColors.secondary,
     textTransform: 'capitalize',
   },
   historyStatus: {
     fontSize: 12,
-    color: '#666',
+    color: TextColors.secondary,
     textTransform: 'capitalize',
   },
 });

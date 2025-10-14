@@ -69,19 +69,13 @@ const MilestoneProgressBar: React.FC<MilestoneProgressBarProps> = ({
       <View style={styles.progressBar}>
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
-            {/* Step */}
+            {/* Step Circle */}
             <TouchableOpacity
               style={styles.stepContainer}
               onPress={() => onStepPress(step.id)}
               activeOpacity={0.7}
             >
               {getStepIcon(step.id, step.icon)}
-              <Text style={[
-                styles.stepText,
-                getStepStatus(step.id) === 'current' && styles.currentStepText
-              ]}>
-                {step.title}
-              </Text>
             </TouchableOpacity>
 
             {/* Connector Line */}
@@ -96,13 +90,27 @@ const MilestoneProgressBar: React.FC<MilestoneProgressBarProps> = ({
           </React.Fragment>
         ))}
       </View>
+      
+      {/* Labels Row */}
+      <View style={styles.labelsContainer}>
+        {steps.map((step) => (
+          <View key={`label-${step.id}`} style={styles.labelContainer}>
+            <Text style={[
+              styles.stepText,
+              getStepStatus(step.id) === 'current' && styles.currentStepText
+            ]}>
+              {step.title}
+            </Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1F2937', // Dark background like in the image
+    backgroundColor: '#1F2937',
     paddingVertical: 20,
     paddingHorizontal: 16,
   },
@@ -110,10 +118,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16, // Add padding to prevent overflow
+    marginBottom: 16,
   },
   stepContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  connector: {
+    height: 2,
     flex: 1,
+    marginHorizontal: 8, // Space between circles
+  },
+  labelsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16, // Match progress bar padding
+  },
+  labelContainer: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 4, // Small padding to prevent text overflow
   },
   iconContainer: {
     width: 32,
@@ -121,7 +147,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
   },
   completedIcon: {
     backgroundColor: '#10B981', // Green
@@ -135,19 +160,13 @@ const styles = StyleSheet.create({
     borderColor: '#6B7280', // Gray
   },
   stepText: {
-    fontSize: 12,
+    fontSize: 11, // Slightly smaller to prevent overflow
     color: '#ffffff',
     textAlign: 'center',
     fontWeight: '400',
   },
   currentStepText: {
     fontWeight: '600',
-  },
-  connector: {
-    height: 2,
-    flex: 1,
-    marginHorizontal: 8,
-    marginTop: -20, // Adjust to align with icon center
   },
 });
 

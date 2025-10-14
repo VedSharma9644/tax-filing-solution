@@ -8,24 +8,24 @@
 export const Colors = {
   // Background Colors
   background: {
-    primary: '#0F172A',           // Main white background
-    secondary: '#f8f9fa',      // Light gray background
-    tertiary: '#e9ecef',       // Medium gray background
-    dark: '#343a40',          // Dark background
+    primary: '#ffffff',           // White background for cards
+    secondary: '#001826',         // Dark background for main screen
+    tertiary: '#e9ecef',         // Medium gray background
+    dark: '#343a40',            // Dark background
   },
 
   // Text Colors
   text: {
-    primary: '#ffffff',           // Dark text
-    secondary: '#ffffff',         // Medium gray text
-    tertiary: '#ffffff',          // Light gray text
-    light: '#ffffff',             // Very light gray text
+    primary: '#001826',           // Dark text
+    secondary: '#666666',         // Medium gray text
+    tertiary: '#999999',          // Light gray text
+    light: '#cccccc',             // Very light gray text
     white: '#ffffff',             // White text
   },
 
   // Brand Colors
   brand: {
-    primary: '#007bff',        // Primary blue
+    primary: '#0E502B',         // Primary green
     secondary: '#6c757d',      // Secondary gray
     success: '#28a745',        // Success green
     danger: '#dc3545',         // Danger red

@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import SupportService from '../services/supportService';
-import { BackgroundColors, BrandColors } from '../utils/colors';
+import { BackgroundColors, BrandColors, TextColors } from '../utils/colors';
 
 const SupportRequestScreen = () => {
   const navigation = useNavigation<any>();
@@ -115,22 +115,19 @@ const SupportRequestScreen = () => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#007bff" />
+            <Ionicons name="arrow-back" size={24} color={TextColors.white} />
           </Button>
           <Text style={styles.headerTitle}>Support Request</Text>
         </View>
 
+        {/* New Request Form Title */}
+        <View style={styles.sectionTitle}>
+          <Ionicons name="help-circle" size={24} color="#D7B04C" />
+          <Text style={styles.sectionTitleText}>Submit New Request</Text>
+        </View>
+
         {/* New Request Form */}
         <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle style={styles.cardTitle}>
-              <Ionicons name="help-circle" size={24} color="#007bff" />
-              <Text style={styles.cardTitleText}>Submit New Request</Text>
-            </CardTitle>
-            <CardDescription style={styles.cardDescription}>
-              We're here to help! Submit your request and we'll get back to you soon.
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             {/* Category Selection */}
             <View style={styles.categorySection}>
@@ -204,14 +201,14 @@ const SupportRequestScreen = () => {
           </CardContent>
         </Card>
 
+        {/* Recent Requests Title */}
+        <View style={styles.sectionTitle}>
+          <Ionicons name="time-outline" size={24} color="#D7B04C" />
+          <Text style={styles.sectionTitleText}>Recent Requests</Text>
+        </View>
+
         {/* Recent Requests */}
         <Card style={styles.card}>
-          <CardHeader>
-            <CardTitle style={styles.cardTitle}>
-              <Ionicons name="time-outline" size={24} color="#007bff" />
-              <Text style={styles.cardTitleText}>Recent Requests</Text>
-            </CardTitle>
-          </CardHeader>
           <CardContent>
             {loadingHistory ? (
               <Text style={styles.loadingText}>Loading support requests...</Text>
@@ -264,16 +261,40 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+    backgroundColor: BackgroundColors.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderRadius: 8,
   },
   backButton: {
-    marginRight: 16,
+    marginRight: 6,
+    marginTop: -6,
+    marginLeft: -10,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: TextColors.white,
+  },
+  sectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  sectionTitleText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#D7B04C',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: TextColors.secondary,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   card: {
     marginBottom: 16,
