@@ -12,6 +12,7 @@ import ApiService from '../services/api';
 import * as DocumentPicker from 'expo-document-picker';
 import { uploadDocumentToGCS } from '../services/gcsService';
 import { BackgroundColors, BrandColors } from '../utils/colors';
+import { formatAdminNoteDate } from '../utils/dateUtils';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -402,7 +403,8 @@ const DocumentReview = () => {
         uploadCategory,
         (progress) => {
           setUploadProgress(progress);
-        }
+        },
+        token
       );
 
       if (result.success) {
@@ -475,10 +477,20 @@ const DocumentReview = () => {
               onPress={() => navigation.goBack()}
               style={styles.backButton}
             >
-              <Ionicons name="arrow-back" size={24} color="#007bff" />
+              <Ionicons name="arrow-back" size={24} color="#ffffff" />
             </Button>
             <Text style={styles.headerTitle}>Admin Document Review</Text>
           </View>
+
+          {/* Document Info Section Title */}
+          {!loading && !error && adminDocument && (
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>
+                <FontAwesome name="file-pdf-o" size={24} color="#D7B04C" />
+                <Text style={styles.sectionTitleText}> Review Filed Tax Document</Text>
+              </Text>
+            </View>
+          )}
 
           {/* Document Info Card */}
           {loading ? (
@@ -504,13 +516,6 @@ const DocumentReview = () => {
             </Card>
           ) : (
             <Card style={styles.card}>
-              <CardHeader>
-                <CardTitle style={styles.cardTitle}>
-                  <FontAwesome name="file-pdf-o" size={24} color="#dc3545" />
-                  <Text style={styles.cardTitleText}> Review Filed Tax Document</Text>
-                </CardTitle>
-                
-              </CardHeader>
               <CardContent>
                 <View style={styles.documentInfo}>
                   
@@ -548,6 +553,24 @@ const DocumentReview = () => {
             </Card>
           )}
 
+          {/* Admin Notes Section Title */}
+          {(() => {
+            const hasAdminNotes = adminDocuments && adminDocuments.some(doc => doc.type === 'admin_notes');
+            console.log('🔍 Admin notes section check:', {
+              adminDocuments: adminDocuments?.length || 0,
+              hasAdminNotes,
+              adminNotesDocs: adminDocuments?.filter(doc => doc.type === 'admin_notes') || []
+            });
+            return hasAdminNotes;
+          })() && (
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionTitle}>
+                <Ionicons name="chatbubble-outline" size={24} color="#D7B04C" />
+                <Text style={styles.sectionTitleText}> Admin Notes</Text>
+              </Text>
+            </View>
+          )}
+
           {/* Admin Notes Section */}
           {(() => {
             const hasAdminNotes = adminDocuments && adminDocuments.some(doc => doc.type === 'admin_notes');
@@ -559,12 +582,6 @@ const DocumentReview = () => {
             return hasAdminNotes;
           })() && (
             <Card style={styles.card}>
-              <CardHeader>
-                <CardTitle style={styles.cardTitle}>
-                  <Ionicons name="chatbubble-outline" size={24} color="#28a745" />
-                  <Text style={styles.cardTitleText}>Admin Notes</Text>
-                </CardTitle>
-              </CardHeader>
               <CardContent>
                 {adminDocuments
                   .filter(doc => {
@@ -580,7 +597,7 @@ const DocumentReview = () => {
                         <Text style={styles.adminNoteText}>{note.content}</Text>
                         <View style={styles.adminNoteMeta}>
                           <Text style={styles.adminNoteDate}>
-                            {note.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'Unknown date'}
+                            {note.createdAt ? formatAdminNoteDate(note.createdAt) : 'Unknown date'}
                           </Text>
                           {note.status && (
                             <Text style={[
@@ -604,14 +621,16 @@ const DocumentReview = () => {
             </Card>
           )}
 
+          {/* Upload New Document Section Title */}
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="cloud-upload-outline" size={24} color="#D7B04C" />
+              <Text style={styles.sectionTitleText}> Upload Additional Documents</Text>
+            </Text>
+          </View>
+
           {/* Upload New Document Section */}
           <Card style={styles.card}>
-            <CardHeader>
-              <CardTitle style={styles.cardTitle}>
-                <Ionicons name="cloud-upload-outline" size={24} color="#007bff" />
-                <Text style={styles.cardTitleText}>Upload Additional Documents</Text>
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               
               
@@ -639,14 +658,16 @@ const DocumentReview = () => {
             </CardContent>
           </Card>
 
+          {/* Additional Uploaded Documents Section Title */}
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>
+              <FontAwesome name="user" size={24} color="#D7B04C" />
+              <Text style={styles.sectionTitleText}> Your Documents</Text>
+            </Text>
+          </View>
+
           {/* Additional Uploaded Documents Section */}
           <Card style={styles.card}>
-            <CardHeader>
-              <CardTitle style={styles.cardTitle}>
-                <FontAwesome name="user" size={24} color="#007bff" />
-                <Text style={styles.cardTitleText}>Your Documents</Text>
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               {additionalDocuments.length === 0 ? (
                 <Text style={styles.noDataText}>📭 No additional documents uploaded yet</Text>
@@ -679,14 +700,16 @@ const DocumentReview = () => {
           </Card>
 
 
+          {/* Review Actions Section Title */}
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="checkmark-circle-outline" size={24} color="#D7B04C" />
+              <Text style={styles.sectionTitleText}> Review Actions</Text>
+            </Text>
+          </View>
+
           {/* Review Actions */}
           <Card style={styles.card}>
-            <CardHeader>
-              <CardTitle style={styles.cardTitle}>
-                <Ionicons name="checkmark-circle-outline" size={24} color="#28a745" />
-                <Text style={styles.cardTitleText}>Review Actions</Text>
-              </CardTitle>
-            </CardHeader>
             <CardContent>
               <Text style={styles.sectionText}>
                 Please review the document carefully. You can either approve it or send notes to the CA Team for any changes needed.
@@ -1000,11 +1023,11 @@ const DocumentReview = () => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: '#001826',
   },
   container: {
     flexGrow: 1,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: '#001826',
     paddingHorizontal: Math.min(16, screenWidth * 0.04),
     paddingBottom: 20,
   },
@@ -1037,12 +1060,30 @@ const styles = StyleSheet.create({
   cardTitle: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   cardTitleText: {
     fontSize: Math.min(18, screenWidth * 0.045),
     fontWeight: 'bold',
-    flex: 1,
+    color: '#D7B04C',
+  },
+  // Section titles outside cards
+  sectionTitleContainer: {
+    alignItems: 'center',
+    marginVertical: 16,
+    marginHorizontal: 16,
+  },
+  sectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  sectionTitleText: {
+    fontSize: Math.min(18, screenWidth * 0.045),
+    fontWeight: 'bold',
+    color: '#D7B04C',
   },
   documentInfo: {
     marginBottom: 16,
@@ -1055,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontWeight: '500',
-    color: '#ffffff',
+    color: '#D7B04C',
     fontSize: Math.min(14, screenWidth * 0.035),
   },
   infoValue: {
@@ -1081,7 +1122,7 @@ const styles = StyleSheet.create({
   },
   sectionText: {
     fontSize: Math.min(14, screenWidth * 0.035),
-    color: '#000000',
+    color: '#ffffff',
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -1092,7 +1133,7 @@ const styles = StyleSheet.create({
     fontSize: Math.min(14, screenWidth * 0.035),
     fontWeight: '600',
     marginBottom: 8,
-    color: '#000000',
+    color: '#D7B04C',
   },
   notesInput: {
     minHeight: 100,
@@ -1233,7 +1274,7 @@ const styles = StyleSheet.create({
   documentsSectionTitle: {
     fontSize: Math.min(18, screenWidth * 0.045),
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#D7B04C',
     marginBottom: 12,
   },
   documentCard: {
@@ -1282,7 +1323,7 @@ const styles = StyleSheet.create({
   termsTitle: {
     fontSize: Math.min(18, screenWidth * 0.045),
     fontWeight: 'bold',
-    color: '#333',
+    color: '#D7B04C',
     marginBottom: 12,
   },
   termsContent: {

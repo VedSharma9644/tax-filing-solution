@@ -323,13 +323,13 @@ const DocumentReviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: '#001826',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: '#001826',
   },
   loadingText: {
     marginTop: 16,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: '#001826',
     padding: 20,
   },
   errorTitle: {
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: BackgroundColors.primary,
+    backgroundColor: '#001826',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },

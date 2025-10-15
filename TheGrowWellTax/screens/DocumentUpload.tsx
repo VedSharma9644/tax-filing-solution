@@ -34,7 +34,7 @@ const DocumentUpload = () => {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   // Document categories
   const documentCategories = [
@@ -117,7 +117,8 @@ const DocumentUpload = () => {
                 : f
             )
           );
-        }
+        },
+        token
       );
 
       // Update file with success status
@@ -267,7 +268,7 @@ const DocumentUpload = () => {
         >
       <View style={styles.header}>
         <Button variant="ghost" onPress={() => navigation.navigate('Home')} style={styles.iconButton}>
-          <Ionicons name="arrow-back" size={24} color="#007bff" />
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </Button>
         <Text style={styles.headerTitle}>Document Upload</Text>
         <View style={styles.iconButton} />
@@ -444,7 +445,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'space-between', 
-    paddingVertical: Math.min(16, screenWidth * 0.04) 
+    paddingVertical: Math.min(16, screenWidth * 0.04),
+    backgroundColor: '#001826',
+    paddingHorizontal: Math.min(16, screenWidth * 0.04),
+    marginHorizontal: -Math.min(16, screenWidth * 0.04), // Extend to full width
   },
   iconButton: { 
     width: Math.max(40, screenWidth * 0.1), 
@@ -455,7 +459,7 @@ const styles = StyleSheet.create({
   headerTitle: { 
     fontSize: Math.min(18, screenWidth * 0.045), 
     fontWeight: 'bold', 
-    color: '#222', 
+    color: '#ffffff', 
     flex: 1, 
     textAlign: 'center' 
   },
