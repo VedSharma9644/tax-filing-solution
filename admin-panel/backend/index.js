@@ -31,7 +31,7 @@ const ADMIN_CREDENTIALS = {
 const serviceAccount = require('./firebase-service-account.json');
 
 // Initialize GCS/KMS Service Account (different from Firebase)
-const gcsServiceAccount = require('../../TaxFilingApp/gcs-service-account.json');
+const gcsServiceAccount = require('../../TheGrowWellTax/gcs-service-account.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -42,21 +42,21 @@ const db = admin.firestore();
 
 // Initialize Google Cloud Storage
 const storage = new Storage({ 
-  projectId: 'tax-filing-app-472019', 
+  projectId: 'tax-filing-app-3649f', 
   credentials: gcsServiceAccount 
 });
-const BUCKET_NAME = 'tax-filing-documents-tax-filing-app-472019';
+const BUCKET_NAME = 'tax-filing-documents-tax-filing-app-3649f';
 const bucket = storage.bucket(BUCKET_NAME);
 
 // Initialize KMS
 console.log('🔧 Initializing KMS Client...');
 console.log('  - Service Account Project:', gcsServiceAccount.project_id);
 console.log('  - Service Account Email:', gcsServiceAccount.client_email);
-console.log('  - KMS Project ID:', 'tax-filing-app-472019');
+console.log('  - KMS Project ID:', 'tax-filing-app-3649f');
 
 const kmsClient = new KeyManagementServiceClient({
   credentials: gcsServiceAccount,
-  projectId: 'tax-filing-app-472019'
+  projectId: 'tax-filing-app-3649f'
 });
 
 console.log('✅ KMS Client initialized');
@@ -100,9 +100,9 @@ const testKMSConnection = async () => {
 };
 
 // KMS Configuration
-const PROJECT_ID = 'tax-filing-app-472019';
-const KEY_RING_ID = 'tax-filing-keys';
-const KEY_ID = 'file-encryption-key';
+const PROJECT_ID = 'tax-filing-app-3649f';
+const KEY_RING_ID = 'tax-filing-key-ring';
+const KEY_ID = 'tax-filing-key';
 const LOCATION_ID = 'global';
 
 
@@ -505,12 +505,32 @@ app.get('/api/tax-forms', authenticateAdmin, async (req, res) => {
     const formsSnapshot = await db.collection('taxForms').get();
     const forms = [];
     
-    formsSnapshot.forEach(doc => {
+    // Process each form and fetch user data
+    for (const doc of formsSnapshot.docs) {
+      const taxFormData = doc.data();
+      let userData = null;
+      
+      // Get user information if userId exists
+      if (taxFormData.userId) {
+        try {
+          const userDoc = await db.collection('users').doc(taxFormData.userId).get();
+          if (userDoc.exists) {
+            userData = {
+              id: userDoc.id,
+              ...userDoc.data()
+            };
+          }
+        } catch (userError) {
+          console.warn(`Failed to fetch user data for userId: ${taxFormData.userId}`, userError.message);
+        }
+      }
+      
       forms.push({
         id: doc.id,
-        ...doc.data()
+        ...taxFormData,
+        user: userData
       });
-    });
+    }
     
     res.json({
       success: true,

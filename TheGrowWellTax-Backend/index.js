@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   // In development, use local service account files
   serviceAccount = require('./firebase-service-account.json');
-  gcsServiceAccount = require('../TaxFilingApp/gcs-service-account.json');
+  gcsServiceAccount = require('./gcs-service-account.json');
 }
 
 const app = express();
@@ -80,16 +80,16 @@ if (process.env.NODE_ENV === 'production') {
   console.log('  - Service Account Email:', gcsServiceAccount.client_email);
   kmsClient = new KeyManagementServiceClient({
     credentials: gcsServiceAccount,
-    projectId: 'tax-filing-app-472019'
+    projectId: 'tax-filing-app-3649f'
   });
 }
 
-console.log('  - KMS Project ID:', process.env.GCS_PROJECT_ID || 'tax-filing-app-472019');
+console.log('  - KMS Project ID:', process.env.GCS_PROJECT_ID || 'tax-filing-app-3649f');
 
 console.log('✅ KMS Client initialized for mobile app');
 
 // KMS Configuration
-const PROJECT_ID = process.env.GCS_PROJECT_ID || 'tax-filing-app-472019';
+const PROJECT_ID = process.env.GCS_PROJECT_ID || 'tax-filing-app-3649f';
 const KEY_RING_ID = process.env.KMS_KEY_RING || 'tax-filing-keys';
 const KEY_ID = process.env.KMS_KEY_NAME || 'file-encryption-key';
 const LOCATION_ID = process.env.KMS_LOCATION || 'global';
@@ -2338,18 +2338,9 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
     
     // Encrypt the file using DEK approach
     console.log('🔐 Encrypting mobile app file with DEK approach...');
-    
-    // TEMPORARY: Skip encryption for testing
-    console.log('⚠️ TEMPORARY: Skipping encryption for testing');
-    const encryptedFileData = {
-      encryptedData: req.file.buffer,
-      encryptedKey: Buffer.from('test-key'),
-      iv: Buffer.from('test-iv'),
-      algorithm: 'none'
-    };
-    
-    console.log('✅ Mobile app file processed (encryption skipped)');
-    console.log('🔍 Data structure:', {
+    const encryptedFileData = await encryptFileWithDEK(req.file.buffer);
+    console.log('✅ Mobile app file encrypted successfully with DEK');
+    console.log('🔍 Encrypted data structure:', {
       hasEncryptedData: !!encryptedFileData.encryptedData,
       hasEncryptedKey: !!encryptedFileData.encryptedKey,
       hasIv: !!encryptedFileData.iv,
@@ -2392,14 +2383,15 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
           
           res.json({
             success: true,
-            message: 'File uploaded and encrypted successfully',
+            message: 'File uploaded and encrypted successfully with AES-256-CBC + KMS',
             fileName: fileName,
             gcsPath: fileName,
             publicUrl: signedUrl,
             size: req.file.size,
             contentType: req.file.mimetype,
             uploadedAt: new Date().toISOString(),
-            encrypted: true
+            encrypted: true,
+            encryptionMethod: 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS'
           });
           resolve();
         } catch (error) {
@@ -2491,10 +2483,18 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
 
     console.log(`🔓 Decrypting mobile app file with DEK approach...`);
 
-    // Decrypt the file using DEK approach
-    const decryptedBuffer = await decryptFileWithDEK(encryptedData);
+    let decryptedBuffer;
     
-    console.log(`✅ Mobile app file decrypted successfully, size: ${decryptedBuffer.length} bytes`);
+    // Check if this is a properly encrypted file or a legacy unencrypted file
+    if (encryptedFileData.algorithm === 'none' || encryptedFileData.algorithm === 'test') {
+      console.log('⚠️ Legacy file detected - using raw data without decryption');
+      decryptedBuffer = Buffer.from(encryptedFileData.encryptedData, 'base64');
+    } else {
+      // Decrypt the file using DEK approach
+      decryptedBuffer = await decryptFileWithDEK(encryptedData);
+    }
+    
+    console.log(`✅ Mobile app file processed successfully, size: ${decryptedBuffer.length} bytes`);
 
     // Get file metadata to determine content type
     const [metadata] = await fileRef.getMetadata();

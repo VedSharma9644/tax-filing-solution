@@ -191,10 +191,35 @@ const Feedbacks = () => {
     if (!timestamp) return 'Unknown date';
     
     let date;
-    if (timestamp.seconds) {
-      date = new Date(timestamp.seconds * 1000);
-    } else {
+    
+    // Handle Firestore Timestamp objects
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
+    }
+    // Handle Firestore Timestamp serialized objects
+    else if (timestamp._seconds) {
+      date = new Date(timestamp._seconds * 1000);
+    }
+    // Handle regular Date objects or date strings
+    else if (timestamp instanceof Date) {
+      date = timestamp;
+    }
+    else if (typeof timestamp === 'string') {
       date = new Date(timestamp);
+    }
+    // Handle timestamp in milliseconds
+    else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    }
+    else {
+      console.warn('Unknown timestamp format:', timestamp);
+      return 'Invalid Date';
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date:', timestamp);
+      return 'Invalid Date';
     }
     
     return date.toLocaleDateString('en-US', {

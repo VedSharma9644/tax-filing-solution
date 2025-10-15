@@ -9,7 +9,15 @@ const Applications = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [totalPages, setTotalPages] = useState(1);
+  
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [taxYearFilter, setTaxYearFilter] = useState('all');
+  
+  // Pagination states
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +32,6 @@ const Applications = () => {
       
       if (response.success) {
         setApplications(response.data || []);
-        setTotalPages(Math.ceil((response.data || []).length / 10)); // 10 items per page
       } else {
         setError('Failed to fetch applications');
       }
@@ -45,25 +52,121 @@ const Applications = () => {
     navigate(`/admin/applications/${applicationId}`);
   };
 
+  // Get unique values for filter options
+  const getUniqueStatuses = () => {
+    const statuses = [...new Set(applications.map(app => app.status).filter(Boolean))];
+    return statuses;
+  };
+
+  const getUniqueTaxYears = () => {
+    const years = [...new Set(applications.map(app => app.taxYear).filter(Boolean))];
+    return years.sort((a, b) => b - a); // Sort descending (newest first)
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setDateFilter('all');
+    setTaxYearFilter('all');
+  };
+
   const filteredApplications = applications.filter(app => {
     const searchLower = searchTerm.toLowerCase();
-    return (
+    const mobileNumber = app.user?.phone || app.user?.mobile || app.user?.phoneNumber || app.phone || app.mobile || app.phoneNumber || '';
+    
+    // Search filter
+    const matchesSearch = (
       app.id.toLowerCase().includes(searchLower) ||
       (app.userName && app.userName.toLowerCase().includes(searchLower)) ||
       (app.userEmail && app.userEmail.toLowerCase().includes(searchLower)) ||
-      (app.socialSecurityNumber && app.socialSecurityNumber.includes(searchTerm))
+      (app.socialSecurityNumber && app.socialSecurityNumber.includes(searchTerm)) ||
+      (mobileNumber && mobileNumber.includes(searchTerm))
     );
+    
+    // Status filter
+    const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
+    
+    // Date filter
+    let matchesDate = true;
+    if (dateFilter !== 'all' && app.submittedAt) {
+      const submittedDate = new Date(app.submittedAt._seconds ? app.submittedAt._seconds * 1000 : app.submittedAt);
+      const now = new Date();
+      const daysDiff = Math.floor((now - submittedDate) / (1000 * 60 * 60 * 24));
+      
+      switch (dateFilter) {
+        case 'today':
+          matchesDate = daysDiff === 0;
+          break;
+        case 'week':
+          matchesDate = daysDiff <= 7;
+          break;
+        case 'month':
+          matchesDate = daysDiff <= 30;
+          break;
+        case 'quarter':
+          matchesDate = daysDiff <= 90;
+          break;
+        default:
+          matchesDate = true;
+      }
+    }
+    
+    // Tax year filter
+    const matchesTaxYear = taxYearFilter === 'all' || app.taxYear?.toString() === taxYearFilter;
+    
+    return matchesSearch && matchesStatus && matchesDate && matchesTaxYear;
   });
 
   // Pagination
-  const itemsPerPage = 10;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedApplications = filteredApplications.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    const newItemsPerPageNum = parseInt(newItemsPerPage);
+    if (newItemsPerPageNum > 0 && newItemsPerPageNum <= 100) {
+      setItemsPerPage(newItemsPerPageNum);
+      setCurrentPage(1); // Reset to first page when changing items per page
+    }
+  };
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    
+    let date;
+    
+    // Handle Firestore Timestamp objects
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
+    }
+    // Handle Firestore Timestamp serialized objects
+    else if (timestamp._seconds) {
+      date = new Date(timestamp._seconds * 1000);
+    }
+    // Handle regular Date objects or date strings
+    else if (timestamp instanceof Date) {
+      date = timestamp;
+    }
+    else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    }
+    // Handle timestamp in milliseconds
+    else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    }
+    else {
+      console.warn('Unknown timestamp format:', timestamp);
+      return 'Invalid Date';
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date:', timestamp);
+      return 'Invalid Date';
+    }
+    
     return date.toLocaleDateString();
   };
 
@@ -121,9 +224,69 @@ const Applications = () => {
           </p>
           
           <div className="applications-actions">
+            {/* Filters */}
+            <div className="filters-container">
+              <div className="filter-group">
+                <label htmlFor="status-filter">Status:</label>
+                <select 
+                  id="status-filter"
+                  className="filter-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Statuses</option>
+                  {getUniqueStatuses().map(status => (
+                    <option key={status} value={status}>
+                      {status.replace('_', ' ').toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label htmlFor="date-filter">Submitted:</label>
+                <select 
+                  id="date-filter"
+                  className="filter-select"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
+                  <option value="quarter">Last 90 Days</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label htmlFor="tax-year-filter">Tax Year:</label>
+                <select 
+                  id="tax-year-filter"
+                  className="filter-select"
+                  value={taxYearFilter}
+                  onChange={(e) => setTaxYearFilter(e.target.value)}
+                >
+                  <option value="all">All Years</option>
+                  {getUniqueTaxYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button 
+                className="clear-filters-button"
+                onClick={clearAllFilters}
+                disabled={searchTerm === '' && statusFilter === 'all' && dateFilter === 'all' && taxYearFilter === 'all'}
+              >
+                Clear Filters
+              </button>
+            </div>
+
+            {/* Search */}
             <input
               type="text"
-              placeholder="Search by email, application ID, name, or SSN"
+              placeholder="Search by email, application ID, name, SSN, or mobile number"
               className="applications-search-input"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -132,67 +295,90 @@ const Applications = () => {
           
           {paginatedApplications.length > 0 ? (
             <>
-              <table className="applications-table">
-                <thead>
-                  <tr>
-                    <th>Sl.No</th>
-                    <th>Application ID</th>
-                    <th>User Name</th>
-                    <th>User Email</th>
-                    <th>Tax Year</th>
-                    <th>Status</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedApplications.map((app, index) => (
-                    <tr key={app.id}>
-                      <td>{startIndex + index + 1}</td>
-                      <td className="application-id">{app.id}</td>
-                      <td>{app.userName || 'N/A'}</td>
-                      <td>{app.userEmail || 'N/A'}</td>
-                      <td>{app.taxYear || 'N/A'}</td>
-                      <td>
-                        <span 
-                          className="status-badge"
-                          style={{ backgroundColor: getStatusColor(app.status) }}
-                        >
-                          {app.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
-                        </span>
-                      </td>
-                      <td>{formatDate(app.submittedAt)}</td>
-                      <td>
-                        <button 
-                          className="applications-action-button"
-                          onClick={() => handleViewApplication(app.id)}
-                        >
-                          View Details
-                        </button>
-                      </td>
+              <div className="applications-table-container">
+                <table className="applications-table">
+                  <thead>
+                    <tr>
+                      <th>Sl.No</th>
+                      <th>Application ID</th>
+                      <th>User Name</th>
+                      <th>User Email</th>
+                      <th>Mobile Number</th>
+                      <th>Tax Year</th>
+                      <th>Status</th>
+                      <th>Submitted</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedApplications.map((app, index) => (
+                      <tr key={app.id}>
+                        <td>{startIndex + index + 1}</td>
+                        <td className="application-id">{app.id}</td>
+                        <td>{app.userName || 'N/A'}</td>
+                        <td>{app.userEmail || 'N/A'}</td>
+                        <td>{app.user?.phone || app.user?.mobile || app.user?.phoneNumber || app.phone || app.mobile || app.phoneNumber || 'N/A'}</td>
+                        <td>{app.taxYear || 'N/A'}</td>
+                        <td>
+                          <span 
+                            className="status-badge"
+                            style={{ backgroundColor: getStatusColor(app.status) }}
+                          >
+                            {app.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                          </span>
+                        </td>
+                        <td>{formatDate(app.submittedAt)}</td>
+                        <td>
+                          <button 
+                            className="applications-action-button"
+                            onClick={() => handleViewApplication(app.id)}
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               
               <div className="pagination-controls">
-                <button 
-                  className="pagination-button" 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                >
-                  Previous
-                </button>
-                <span className="pagination-info">
-                  Page {currentPage} of {Math.ceil(filteredApplications.length / itemsPerPage)}
-                </span>
-                <button 
-                  className="pagination-button"
-                  disabled={currentPage >= Math.ceil(filteredApplications.length / itemsPerPage)}
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                >
-                  Next
-                </button>
+                <div className="pagination-left">
+                  <button 
+                    className="pagination-button" 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                  >
+                    Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button 
+                    className="pagination-button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+                
+                <div className="pagination-right">
+                  <label htmlFor="items-per-page" className="items-per-page-label">
+                    Show:
+                  </label>
+                  <input
+                    id="items-per-page"
+                    type="number"
+                    min="5"
+                    max="100"
+                    step="5"
+                    value={itemsPerPage}
+                    onChange={(e) => handleItemsPerPageChange(e.target.value)}
+                    className="items-per-page-input"
+                  />
+                  <span className="items-per-page-text">per page</span>
+                </div>
               </div>
             </>
           ) : (
