@@ -16,7 +16,10 @@ import { BackgroundColors, BrandColors } from '../utils/colors';
 import { formatAdminNoteDate } from '../utils/dateUtils';
 import { 
   SectionSelector,
-  AdditionalIncomeManagement
+  AdditionalIncomeManagement,
+  MainActionCard,
+  SectionSelectionModal,
+  AdditionalIncomeModal
 } from './AdminDocumentReviewComponents/index';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -127,6 +130,27 @@ const DocumentReview = () => {
   });
   const [pendingDocuments, setPendingDocuments] = useState([]);
   const [activeSection, setActiveSection] = useState<'additional-income' | 'dependents' | 'personal-info'>('additional-income');
+  
+  // New modal states
+  const [showSectionModal, setShowSectionModal] = useState(false);
+  const [showAdditionalIncomeModal, setShowAdditionalIncomeModal] = useState(false);
+
+  // Handler functions for new modal flow
+  const handleMainActionPress = () => {
+    setShowSectionModal(true);
+  };
+
+  const handleSectionSelect = (section: 'additional-income' | 'dependents' | 'personal-info') => {
+    setShowSectionModal(false);
+    if (section === 'additional-income') {
+      setShowAdditionalIncomeModal(true);
+    }
+    // TODO: Add handlers for dependents and personal-info when implemented
+  };
+
+  const handleCloseAdditionalIncomeModal = () => {
+    setShowAdditionalIncomeModal(false);
+  };
 
   // Load existing personal information data from tax forms
   const loadExistingPersonalInfo = async () => {
@@ -1158,110 +1182,7 @@ const DocumentReview = () => {
             </Card>
           )}
 
-          {/* Upload New Document Section Title */}
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="cloud-upload-outline" size={24} color="#D7B04C" />
-              <Text style={styles.sectionTitleText}> Upload Additional Documents</Text>
-            </Text>
-          </View>
-
-          {/* Upload New Document Section */}
-          <Card style={styles.card}>
-            <CardContent>
-              
-              
-              <Button 
-                style={styles.uploadButton} 
-                onPress={() => setShowUploadModal(true)}
-                disabled={isUploading}
-              >
-                <Ionicons name="cloud-upload" size={20} color="#fff" />
-                <Text style={styles.uploadButtonText}>
-                  {isUploading ? 'Uploading...' : 'Upload Document'}
-                </Text>
-              </Button>
-
-              {isUploading && (
-                <View style={styles.uploadProgressContainer}>
-                  <Text style={styles.uploadProgressText}>
-                    Uploading... {uploadProgress}%
-                  </Text>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
-                  </View>
-                </View>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Edit Personal Information Section Title */}
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>
-              <Ionicons name="person-outline" size={24} color="#D7B04C" />
-              <Text style={styles.sectionTitleText}> Edit Tax Information</Text>
-            </Text>
-          </View>
-
-          {/* Edit Personal Information Section */}
-          <Card style={styles.card}>
-            <CardContent>
-              <Text style={styles.sectionText}>
-                Update your personal information, additional income sources, and dependents information.
-              </Text>
-              
-
-                <Button 
-                  style={styles.editInfoButton}
-                  onPress={handleEditPersonalInfo}
-                >
-                  <Text style={styles.editInfoButtonText}>Edit Tax Information</Text>
-                </Button>
-            </CardContent>
-          </Card>
-
-          {/* Additional Uploaded Documents Section Title */}
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>
-              <FontAwesome name="user" size={24} color="#D7B04C" />
-              <Text style={styles.sectionTitleText}> Your Documents</Text>
-            </Text>
-          </View>
-
-          {/* Additional Uploaded Documents Section */}
-          <Card style={styles.card}>
-            <CardContent>
-              {additionalDocuments.length === 0 ? (
-                <Text style={styles.noDataText}>📭 No additional documents uploaded yet</Text>
-              ) : (
-                additionalDocuments.map(doc => (
-                  <View key={doc.id} style={styles.documentItem}>
-                    <View style={styles.documentItemHeader}>
-                      <FontAwesome name="file-text-o" size={20} color="#007bff" />
-                      <View style={styles.documentItemInfo}>
-                        <Text style={[styles.dataValue, { fontSize: 14, fontWeight: '600' }]} numberOfLines={1}>
-                          📁 {doc.category.charAt(0).toUpperCase() + doc.category.slice(1)}
-                        </Text>
-                        <Text style={[styles.dataValue, { fontSize: 14 }]} numberOfLines={1}>{doc.name}</Text>
-                        <Text style={[styles.dataValue, { fontSize: 12, color: '#666' }]}>
-                          📏 {doc.size ? `${(doc.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown'} • 📅 {new Date(doc.uploadedAt).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </View>
-                    <Button 
-                      variant="ghost" 
-                      style={styles.viewDocumentButton}
-                      onPress={() => openDocumentInBrowser(doc)}
-                    >
-                      <Feather name="eye" size={16} color="#007bff" />
-                    </Button>
-                  </View>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          {/* New Section Selector */}
+          {/* New Modal Flow - Main Action Card */}
           <View style={styles.sectionTitleContainer}>
             <Text style={styles.sectionTitle}>
               <FontAwesome name="edit" size={24} color="#D7B04C" />
@@ -1269,83 +1190,7 @@ const DocumentReview = () => {
             </Text>
           </View>
 
-          {/* Section Selector */}
-          <SectionSelector
-            activeSection={activeSection}
-            onSectionChange={setActiveSection}
-          />
-
-          {/* Conditional Content Based on Active Section */}
-          {activeSection === 'additional-income' && (() => {
-            const currentForm = getApprovedTaxForm();
-            if (!currentForm || !currentForm.id) {
-              return (
-                <Card style={styles.card}>
-                  <CardContent>
-                    <Text style={styles.sectionText}>
-                      No tax form available for editing. Please submit a tax form first.
-                    </Text>
-                  </CardContent>
-                </Card>
-              );
-            }
-            
-            console.log('🔍 AdminDocumentReview - User object:', {
-              user: user,
-              userId: user?.id,
-              userUid: user?.uid,
-              token: token
-            });
-            
-            return (
-              <AdditionalIncomeManagement
-                applicationId={currentForm.id}
-                userId={user?.id || ''}
-                token={token || ''}
-                initialIncomeSources={additionalIncome.map(item => ({
-                  id: item.id,
-                  source: item.source,
-                  amount: item.amount,
-                  description: item.description,
-                  createdAt: new Date().toISOString()
-                }))}
-                initialDocuments={additionalDocuments.filter(doc => doc.category === 'additional_income')}
-                onIncomeSourcesUpdate={(sources) => {
-                  setAdditionalIncome(sources.map(source => ({
-                    id: source.id,
-                    source: source.source,
-                    amount: source.amount,
-                    description: source.description
-                  })));
-                }}
-                onDocumentsUpdate={(documents) => {
-                  // Update additionalDocuments with new additional_income documents
-                  const otherDocs = additionalDocuments.filter(doc => doc.category !== 'additional_income');
-                  setAdditionalDocuments([...otherDocs, ...documents]);
-                }}
-              />
-            );
-          })()}
-
-          {activeSection === 'dependents' && (
-            <Card style={styles.card}>
-              <CardContent>
-                <Text style={styles.sectionText}>
-                  Dependents management will be available here soon.
-                </Text>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeSection === 'personal-info' && (
-            <Card style={styles.card}>
-              <CardContent>
-                <Text style={styles.sectionText}>
-                  Personal information management will be available here soon.
-                </Text>
-              </CardContent>
-            </Card>
-          )}
+          <MainActionCard onPress={handleMainActionPress} />
 
 
           {/* Review Actions Section Title */}
@@ -1676,6 +1521,42 @@ const DocumentReview = () => {
       {/* <EditPersonalInfoModal
        
       /> */}
+
+      {/* New Modal Flow Components */}
+      <SectionSelectionModal
+        visible={showSectionModal}
+        onClose={() => setShowSectionModal(false)}
+        onSelectSection={handleSectionSelect}
+      />
+
+      <AdditionalIncomeModal
+        visible={showAdditionalIncomeModal}
+        onClose={handleCloseAdditionalIncomeModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialIncomeSources={additionalIncome.map(item => ({
+          id: item.id,
+          source: item.source,
+          amount: item.amount,
+          description: item.description,
+          createdAt: new Date().toISOString()
+        }))}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'additional_income')}
+        onIncomeSourcesUpdate={(sources) => {
+          setAdditionalIncome(sources.map(source => ({
+            id: source.id,
+            source: source.source,
+            amount: source.amount,
+            description: source.description
+          })));
+        }}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new additional_income documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'additional_income');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+      />
     </SafeAreaWrapper>
   );
 };
