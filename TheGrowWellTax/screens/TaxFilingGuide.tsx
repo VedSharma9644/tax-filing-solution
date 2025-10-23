@@ -5,11 +5,13 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from '../components/CustomHeader';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { useAuth } from '../contexts/AuthContext';
 import { BackgroundColors } from '../utils/colors';
 
 const TaxFilingGuide = () => {
   const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const filingSteps = [
@@ -127,7 +129,7 @@ const TaxFilingGuide = () => {
         <CustomHeader 
           title="Tax Filing Guide" 
           subtitle="Step-by-step instructions"
-          avatarInitials="JD"
+          user={user}
           scrollY={scrollY}
         />
         <Animated.ScrollView 

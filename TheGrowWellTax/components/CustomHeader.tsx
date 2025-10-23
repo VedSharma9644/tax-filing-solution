@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
@@ -8,6 +8,7 @@ interface CustomHeaderProps {
   subtitle?: string;
   showAvatar?: boolean;
   avatarInitials?: string;
+  user?: any;
   onBackPress?: () => void;
   scrollY?: Animated.Value;
 }
@@ -16,11 +17,26 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
   title,
   subtitle,
   showAvatar = true,
-  avatarInitials = 'JD',
+  avatarInitials,
+  user,
   onBackPress,
   scrollY
 }) => {
   const navigation = useNavigation<any>();
+
+  // Get user initials from user data or fallback to provided initials
+  const getUserInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName.charAt(0).toUpperCase()}${user.lastName.charAt(0).toUpperCase()}`;
+    }
+    if (user?.firstName) {
+      return user.firstName.charAt(0).toUpperCase();
+    }
+    if (user?.lastName) {
+      return user.lastName.charAt(0).toUpperCase();
+    }
+    return avatarInitials || 'U';
+  };
 
   const handleBackPress = () => {
     if (onBackPress) {
@@ -58,7 +74,15 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
         {showAvatar && (
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarInitials}</Text>
+              {user?.profilePicture ? (
+                <Image 
+                  source={{ uri: user.profilePicture }} 
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.avatarText}>{getUserInitials()}</Text>
+              )}
             </View>
             <TouchableOpacity style={styles.cameraButton}>
               <Ionicons name="camera" size={12} color="#fff" />
@@ -103,6 +127,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#0E502B',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarText: {
     color: '#fff',

@@ -25,6 +25,7 @@ class TaxFormService {
         socialSecurityNumber: formData.socialSecurityNumber,
         documents: documents,
         dependents: dependents,
+        additionalIncomeSources: formData.additionalIncomeSources || [], // Include additional income sources
         formType: '1040', // Default form type
         taxYear: new Date().getFullYear(),
         filingStatus: 'single' // Default filing status
@@ -110,7 +111,8 @@ class TaxFormService {
    * @returns {Array} Array of completed documents
    */
   prepareDocumentsForSubmission(formData) {
-    const allDocuments = [
+    // Get documents from main categories
+    const mainDocuments = [
       ...(formData.previousYearTaxDocuments || []),
       ...(formData.w2Forms || []),
       ...(formData.medicalDocuments || []),
@@ -119,6 +121,18 @@ class TaxFormService {
       ...(formData.homeownerDeductionDocuments || []),
       ...(formData.personalIdDocuments || [])
     ];
+
+    // Get documents from additional income sources
+    const additionalIncomeDocuments = [];
+    if (formData.additionalIncomeSources && Array.isArray(formData.additionalIncomeSources)) {
+      formData.additionalIncomeSources.forEach(incomeSource => {
+        if (incomeSource.documents && Array.isArray(incomeSource.documents)) {
+          additionalIncomeDocuments.push(...incomeSource.documents);
+        }
+      });
+    }
+
+    const allDocuments = [...mainDocuments, ...additionalIncomeDocuments];
 
     // Filter only completed documents with GCS paths
     const completedDocuments = allDocuments.filter(doc => 

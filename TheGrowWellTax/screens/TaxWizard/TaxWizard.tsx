@@ -39,6 +39,8 @@ const TaxWizard: React.FC = () => {
     removeDependent,
     uploadDocument,
     deleteDocument,
+    uploadIncomeSourceDocument,
+    deleteIncomeSourceDocument,
     handleImageLoad,
     handleImageError,
     initializeImageStates,
@@ -98,20 +100,31 @@ const TaxWizard: React.FC = () => {
       // Clear saved data after successful submission
       await clearSavedData();
 
-      // Show success message
+      // Show success message and navigate to home
       Alert.alert(
         'Success!',
-        `Your tax form has been submitted successfully.\n\nForm ID: ${result.taxFormId}\nDocuments: ${result.data.documentCount}\nDependents: ${result.data.dependentCount}`,
+        `Your tax form has been submitted successfully.\n\nForm ID: ${result.taxFormId}\nDocuments: ${result.data.documentCount}\nDependents: ${result.data.dependentCount}\n\nYou will be redirected to the home screen.`,
         [
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to home
-              // navigation.navigate('Home');
+              // Navigate back to home to prevent duplicate submissions
+              navigation.navigate('Home');
             },
           },
-        ]
+        ],
+        {
+          // Auto-dismiss after 5 seconds and navigate to home
+          onDismiss: () => {
+            navigation.navigate('Home');
+          }
+        }
       );
+
+      // Backup navigation after 6 seconds (in case Alert doesn't auto-dismiss)
+      setTimeout(() => {
+        navigation.navigate('Home');
+      }, 6000);
     } catch (error) {
       console.error('Tax form submission error:', error);
       
@@ -156,6 +169,9 @@ const TaxWizard: React.FC = () => {
           <Step2AdditionalIncome
             formData={formData}
             onUpdateFormData={updateFormData}
+            onUploadIncomeSourceDocument={uploadIncomeSourceDocument}
+            onDeleteIncomeSourceDocument={deleteIncomeSourceDocument}
+            isUploading={isUploading}
           />
         );
       case 3:

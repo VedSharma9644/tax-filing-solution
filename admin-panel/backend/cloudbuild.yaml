@@ -1,0 +1,47 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/admin-panel-backend:latest'
+      - '--file'
+      - 'Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/admin-panel-backend:latest'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'admin-panel-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/admin-panel-backend:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--min-instances'
+      - '0'
+      - '--concurrency'
+      - '80'
+      - '--timeout'
+      - '300'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,JWT_SECRET=Y5CV6Cm0eNewJOvbzDmujrskwZCUoISUtNzG6+hA/R5hP3Vxr0FjRG8AWLut2SNPzHicB/2uUM2LLseFdW2isA==,JWT_EXPIRES_IN=24h,JWT_REFRESH_EXPIRES_IN=7d,FIREBASE_PROJECT_ID=tax-filing-app-3649f,GCS_PROJECT_ID=tax-filing-app-3649f,GCS_BUCKET_NAME=tax-filing-documents-tax-filing-app-3649f,KMS_PROJECT_ID=tax-filing-app-3649f,KMS_LOCATION=global,KMS_KEY_RING=tax-filing-key-ring,KMS_KEY_NAME=tax-filing-key,ADMIN_EMAIL=admin@taxfiling.com,ADMIN_PASSWORD=$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi,CORS_ORIGIN=https://admin-panel-frontend-693306869303.us-central1.run.app'
+
+images:
+  - 'gcr.io/$PROJECT_ID/admin-panel-backend:latest'

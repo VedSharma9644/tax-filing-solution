@@ -79,6 +79,34 @@ const ApplicationDetail = () => {
     }
   };
 
+  const handleDeleteApplication = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this application?\n\nApplication ID: ${id}\nUser: ${application?.userName || 'Unknown'}\n\nThis action cannot be undone and will permanently remove the application from the database.`
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      const response = await AdminApiService.deleteTaxForm(id);
+      
+      if (response.success) {
+        alert('Application deleted successfully!');
+        // Navigate back to applications list
+        navigate('/admin/applications');
+      } else {
+        alert('Failed to delete application. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert('Error deleting application. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const openDocument = async (doc) => {
     try {
       console.log(`🔓 Opening document: ${doc.name}`);
@@ -256,7 +284,7 @@ const ApplicationDetail = () => {
       
       // Add timestamp to prevent caching
       const timestamp = Date.now();
-      const viewUrl = `http://localhost:5001/admin/returns/${application.id}/${returnType}/view?token=${token}&t=${timestamp}`;
+      const viewUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/admin/returns/${application.id}/${returnType}/view?token=${token}&t=${timestamp}`;
       console.log(`🔓 Opening decrypted view URL: ${viewUrl}`);
       console.log(`📁 Current uploaded returns state:`, uploadedReturns);
       
@@ -549,6 +577,60 @@ const ApplicationDetail = () => {
         )}
       </div>
 
+      {/* Additional Income Sources */}
+      <div className="info-card">
+        <h3>Additional Income Sources ({application.additionalIncomeSources?.length || 0})</h3>
+        {application.additionalIncomeSources && application.additionalIncomeSources.length > 0 ? (
+          <div className="additional-income-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Amount</th>
+                  <th>Description</th>
+                  <th>Documents</th>
+                </tr>
+              </thead>
+              <tbody>
+                {application.additionalIncomeSources.map((income, index) => (
+                  <tr key={income.id || index}>
+                    <td>{income.source || 'N/A'}</td>
+                    <td>${income.amount || '0.00'}</td>
+                    <td>{income.description || 'No description'}</td>
+                    <td>
+                      {income.documents && income.documents.length > 0 ? (
+                        <div className="document-count">
+                          <span className="document-badge">
+                            {income.documents.length} file{income.documents.length !== 1 ? 's' : ''}
+                          </span>
+                          <div className="document-list">
+                            {income.documents.map((doc, docIndex) => (
+                              <div key={doc.id || docIndex} className="document-item-small">
+                                <span className="document-icon">📄</span>
+                                <span className="document-name">{doc.name}</span>
+                                <span className={`document-status ${doc.status}`}>
+                                  {doc.status === 'uploading' ? 'Uploading...' :
+                                   doc.status === 'completed' ? 'Uploaded' :
+                                   doc.status === 'error' ? 'Failed' : ''}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="no-documents">No documents</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p>No additional income sources listed</p>
+        )}
+      </div>
+
       {/* Admin Actions */}
       <div className="info-card admin-actions">
         <h3>Admin Actions</h3>
@@ -727,6 +809,13 @@ const ApplicationDetail = () => {
               disabled={updating}
             >
               Processing
+            </button>
+            <button 
+              className="action-button delete-button"
+              onClick={handleDeleteApplication}
+              disabled={updating}
+            >
+              {updating ? 'Deleting...' : 'Delete Application'}
             </button>
           </div>
         </div>

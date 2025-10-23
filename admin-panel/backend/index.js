@@ -31,7 +31,7 @@ const ADMIN_CREDENTIALS = {
 const serviceAccount = require('./firebase-service-account.json');
 
 // Initialize GCS/KMS Service Account (different from Firebase)
-const gcsServiceAccount = require('../../TheGrowWellTax/gcs-service-account.json');
+const gcsServiceAccount = require('./gcs-service-account.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -243,7 +243,11 @@ app.use(morgan('combined'));
 
 // CORS middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:3001',
+    'https://admin-panel-frontend-693306869303.us-central1.run.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
@@ -591,7 +595,9 @@ app.get('/api/tax-forms/:id', authenticateAdmin, async (req, res) => {
       // Ensure documents have proper structure
       documents: taxFormData.documents || [],
       // Ensure dependents have proper structure
-      dependents: taxFormData.dependents || []
+      dependents: taxFormData.dependents || [],
+      // Ensure additional income sources have proper structure
+      additionalIncomeSources: taxFormData.additionalIncomeSources || []
     };
     
     res.json({
@@ -1492,6 +1498,108 @@ app.delete('/api/users/:userId', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Delete tax form application
+app.delete('/api/tax-forms/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tax form ID is required'
+      });
+    }
+    
+    console.log(`🗑️ Admin attempting to delete tax form: ${id}`);
+    
+    // Check if tax form exists
+    const taxFormDoc = await db.collection('taxForms').doc(id).get();
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax form not found'
+      });
+    }
+    
+    const taxFormData = taxFormDoc.data();
+    const userId = taxFormData.userId;
+    
+    console.log(`📋 Tax form found for user: ${userId}`);
+    
+    // Delete the tax form document
+    await db.collection('taxForms').doc(id).delete();
+    console.log(`✅ Tax form ${id} deleted successfully`);
+    
+    // Optional: Also delete related documents from GCS
+    // Note: This is optional - you might want to keep documents for audit purposes
+    // Uncomment the following section if you want to delete GCS files as well
+    
+    /*
+    try {
+      // Get all document references from the tax form
+      const documentPaths = [];
+      
+      // Collect all document paths from various categories
+      const categories = [
+        'previousYearTaxDocuments',
+        'w2Forms', 
+        'medicalDocuments',
+        'educationDocuments',
+        'dependentChildrenDocuments',
+        'homeownerDeductionDocuments',
+        'personalIdDocuments'
+      ];
+      
+      categories.forEach(category => {
+        if (taxFormData[category] && Array.isArray(taxFormData[category])) {
+          taxFormData[category].forEach(doc => {
+            if (doc.gcsPath) {
+              documentPaths.push(doc.gcsPath);
+            }
+          });
+        }
+      });
+      
+      // Delete files from GCS
+      if (documentPaths.length > 0) {
+        console.log(`🗂️ Deleting ${documentPaths.length} files from GCS...`);
+        const deletePromises = documentPaths.map(path => {
+          const fileRef = bucket.file(path);
+          return fileRef.delete().catch(err => {
+            console.warn(`⚠️ Failed to delete file ${path}:`, err.message);
+            // Don't throw error - continue with other deletions
+          });
+        });
+        
+        await Promise.all(deletePromises);
+        console.log(`✅ GCS files deleted successfully`);
+      }
+    } catch (gcsError) {
+      console.warn('⚠️ GCS cleanup failed (continuing with database deletion):', gcsError.message);
+      // Don't fail the entire operation if GCS cleanup fails
+    }
+    */
+    
+    res.json({
+      success: true,
+      message: 'Tax form application deleted successfully',
+      data: {
+        deletedFormId: id,
+        userId: userId,
+        deletedAt: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error deleting tax form:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete tax form application',
+      details: error.message
+    });
+  }
+});
+
 // Admin file serving endpoints
 
 // Debug endpoint
@@ -1970,6 +2078,7 @@ app.get('/', (req, res) => {
         'GET /api/users - Get all users',
         'DELETE /api/users/:userId - Delete user and all related data',
         'GET /api/tax-forms - Get all tax forms',
+        'DELETE /api/tax-forms/:id - Delete tax form application',
         'GET /api/appointments - Get all appointments',
         'PUT /api/appointments/status - Update appointment status',
         'PUT /api/appointments/reschedule - Reschedule appointment',

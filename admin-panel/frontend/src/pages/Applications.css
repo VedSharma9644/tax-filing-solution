@@ -459,4 +459,62 @@
     order: 1;
     justify-content: center;
   }
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.applications-action-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+}
+
+.applications-action-button.view-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.applications-action-button.view-button:hover {
+  background-color: #0056b3;
+}
+
+.applications-action-button.delete-button {
+  background-color: #dc3545;
+  color: white;
+}
+
+.applications-action-button.delete-button:hover {
+  background-color: #c82333;
+}
+
+.applications-action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Mobile responsive for action buttons */
+@media (max-width: 768px) {
+  .action-buttons {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .applications-action-button {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+    min-width: 70px;
+  }
 } 

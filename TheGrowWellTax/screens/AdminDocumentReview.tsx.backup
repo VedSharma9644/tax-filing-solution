@@ -15,9 +15,9 @@ import { uploadDocumentToGCS } from '../services/gcsService';
 import { BackgroundColors, BrandColors } from '../utils/colors';
 import { formatAdminNoteDate } from '../utils/dateUtils';
 import { 
-  SectionSelector,
-  AdditionalIncomeManagement
-} from './AdminDocumentReviewComponents/index';
+  EditPersonalInfoModal, 
+  EditFormModal 
+} from './AdminDocumentReviewComponents';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -126,7 +126,6 @@ const DocumentReview = () => {
     ssn: ''
   });
   const [pendingDocuments, setPendingDocuments] = useState([]);
-  const [activeSection, setActiveSection] = useState<'additional-income' | 'dependents' | 'personal-info'>('additional-income');
 
   // Load existing personal information data from tax forms
   const loadExistingPersonalInfo = async () => {
@@ -269,19 +268,9 @@ const DocumentReview = () => {
     fetchAdditionalDocuments();
   }, [token]);
 
-  // Get the most recent tax form that allows editing (approved, processing, or any submitted form)
+  // Get the most recent approved tax form
   const getApprovedTaxForm = () => {
-    // Allow editing for forms that are approved, processing, or any submitted form
-    const editableStatuses = ['approved', 'processing', 'submitted', 'under_review'];
-    const editableForm = taxForms.find(form => editableStatuses.includes(form.status));
-    const fallbackForm = taxForms[0];
-    
-    console.log('🔍 Tax forms available:', taxForms.map(f => ({ id: f.id, status: f.status })));
-    console.log('🔍 Looking for editable form with statuses:', editableStatuses);
-    console.log('🔍 Found editable form:', editableForm ? { id: editableForm.id, status: editableForm.status } : 'None');
-    console.log('🔍 Using fallback form:', fallbackForm ? { id: fallbackForm.id, status: fallbackForm.status } : 'None');
-    
-    return editableForm || fallbackForm;
+    return taxForms.find(form => form.status === 'approved') || taxForms[0];
   };
 
   // Get all documents from the approved tax form
@@ -310,13 +299,13 @@ const DocumentReview = () => {
         doc.type === 'draft_return' || doc.type === 'final_return'
       ) || adminDocuments[0];
 
-
+   
       if (adminDoc) {
         // Find admin notes separately
         const adminNotesDoc = adminDocuments.find(doc => doc.type === 'admin_notes');
         const adminNotes = adminNotesDoc ? adminNotesDoc.content : '';
         
-
+     
         const document = {
           id: adminDoc.id,
           name: cleanDocumentName(adminDoc.name, adminDoc.type),
@@ -915,8 +904,8 @@ const DocumentReview = () => {
           logMessage = `👥 Updating dependents (${dependents.length} dependents)`;
         } else if (selectedEditSection === 'SSN') {
           updateData = {
-          socialSecurityNumber: formData.ssn
-        };
+            socialSecurityNumber: formData.ssn
+          };
           logMessage = `🔐 Updating Social Security Number`;
         }
 
@@ -945,7 +934,7 @@ const DocumentReview = () => {
         if (currentForm && currentForm.id) {
           console.log('🔄 Updating tax form:', currentForm.id);
           console.log(logMessage);
-
+          
           // Save to API
           const response = await ApiService.makeRequest(`/tax-forms/${currentForm.id}/update-personal-info`, {
             method: 'PUT',
@@ -1260,92 +1249,6 @@ const DocumentReview = () => {
               )}
             </CardContent>
           </Card>
-
-          {/* New Section Selector */}
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>
-              <FontAwesome name="edit" size={24} color="#D7B04C" />
-              <Text style={styles.sectionTitleText}> Manage Application Information</Text>
-            </Text>
-          </View>
-
-          {/* Section Selector */}
-          <SectionSelector
-            activeSection={activeSection}
-            onSectionChange={setActiveSection}
-          />
-
-          {/* Conditional Content Based on Active Section */}
-          {activeSection === 'additional-income' && (() => {
-            const currentForm = getApprovedTaxForm();
-            if (!currentForm || !currentForm.id) {
-              return (
-                <Card style={styles.card}>
-                  <CardContent>
-                    <Text style={styles.sectionText}>
-                      No tax form available for editing. Please submit a tax form first.
-                    </Text>
-                  </CardContent>
-                </Card>
-              );
-            }
-            
-            console.log('🔍 AdminDocumentReview - User object:', {
-              user: user,
-              userId: user?.id,
-              userUid: user?.uid,
-              token: token
-            });
-            
-            return (
-              <AdditionalIncomeManagement
-                applicationId={currentForm.id}
-                userId={user?.id || ''}
-                token={token || ''}
-                initialIncomeSources={additionalIncome.map(item => ({
-                  id: item.id,
-                  source: item.source,
-                  amount: item.amount,
-                  description: item.description,
-                  createdAt: new Date().toISOString()
-                }))}
-                initialDocuments={additionalDocuments.filter(doc => doc.category === 'additional_income')}
-                onIncomeSourcesUpdate={(sources) => {
-                  setAdditionalIncome(sources.map(source => ({
-                    id: source.id,
-                    source: source.source,
-                    amount: source.amount,
-                    description: source.description
-                  })));
-                }}
-                onDocumentsUpdate={(documents) => {
-                  // Update additionalDocuments with new additional_income documents
-                  const otherDocs = additionalDocuments.filter(doc => doc.category !== 'additional_income');
-                  setAdditionalDocuments([...otherDocs, ...documents]);
-                }}
-              />
-            );
-          })()}
-
-          {activeSection === 'dependents' && (
-            <Card style={styles.card}>
-              <CardContent>
-                <Text style={styles.sectionText}>
-                  Dependents management will be available here soon.
-                </Text>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeSection === 'personal-info' && (
-            <Card style={styles.card}>
-              <CardContent>
-                <Text style={styles.sectionText}>
-                  Personal information management will be available here soon.
-                </Text>
-              </CardContent>
-            </Card>
-          )}
 
 
           {/* Review Actions Section Title */}
@@ -1664,18 +1567,418 @@ const DocumentReview = () => {
           </Modal>
 
           {/* Edit Personal Information Selection Modal */}
+          <EditPersonalInfoModal
+            visible={showEditInfoModal}
+            onClose={handleCancelEditInfo}
+            onSelectSection={handleSelectEditSection}
+          />
 
-          {/* Edit Form Modal - Replaced with new components */}
-          {/* <EditFormModal
-            
-          /> */}
+          {/* Edit Form Modal */}
+          <Modal
+            visible={showEditFormModal}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={handleCancelEditForm}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <ScrollView 
+                  style={styles.modalScrollView}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <View style={styles.modalHeader}>
+                    <Ionicons 
+                      name={
+                        selectedEditSection === 'Additional Income' ? 'cash-outline' :
+                        selectedEditSection === 'Dependents' ? 'people-outline' :
+                        'card-outline'
+                      } 
+                      size={32} 
+                      color="#007bff" 
+                    />
+                    <Text style={styles.modalTitle}>Edit {selectedEditSection}</Text>
+                    <Text style={styles.modalSubtitle}>
+                      {selectedEditSection === 'SSN' ? 'Update your Social Security Number' :
+                       selectedEditSection === 'Additional Income' ? 'Add or edit your additional income sources' :
+                       'Add or edit your dependents information'}
+                    </Text>
+                  </View>
+
+                  {/* Form Content based on selected section */}
+                  {selectedEditSection === 'Additional Income' && (
+                    <View style={styles.formSection}>
+                      <View style={styles.formHeader}>
+                        <Text style={styles.formSectionTitle}>Additional Income Sources</Text>
+                        <TouchableOpacity 
+                          style={styles.addNewButton}
+                          onPress={handleAddNew}
+                        >
+                          <Ionicons name="add" size={20} color="#007bff" />
+                          <Text style={styles.addNewButtonText}>Add New</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.formDescription}>
+                        Add any additional income sources such as freelance work, rental income, or other earnings.
+                      </Text>
+                      
+                      {/* Existing Records */}
+                      <View style={styles.existingRecordsSection}>
+                        <Text style={styles.existingRecordsTitle}>
+                          Existing Income Sources ({additionalIncome.length})
+                        </Text>
+                        {additionalIncome.length > 0 ? (
+                          additionalIncome.map((record, index) => (
+                            <View key={record.id} style={styles.recordCard}>
+                              <View style={styles.recordInfo}>
+                                <Text style={styles.recordTitle}>{record.source}</Text>
+                                <Text style={styles.recordSubtitle}>${record.amount}</Text>
+                              </View>
+                              <View style={styles.recordActions}>
+                                <TouchableOpacity 
+                                  style={styles.editRecordButton}
+                                  onPress={() => handleEditRecord(record, 'income')}
+                                >
+                                  <Ionicons name="create-outline" size={16} color="#007bff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                  style={styles.deleteRecordButton}
+                                  onPress={() => handleDeleteRecord(record.id, 'income')}
+                                >
+                                  <Ionicons name="trash-outline" size={16} color="#dc3545" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))
+                        ) : (
+                          <View style={styles.emptyRecordsCard}>
+                            <Ionicons name="cash-outline" size={32} color="#ccc" />
+                            <Text style={styles.emptyRecordsText}>No income sources added yet</Text>
+                            <Text style={styles.emptyRecordsSubtext}>Click "Add New" to add your first income source</Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      {/* Additional Income Form Fields */}
+                      {isEditMode && (
+                        <View style={styles.editModeIndicator}>
+                          <Ionicons name="create-outline" size={16} color="#007bff" />
+                          <Text style={styles.editModeText}>Editing: {editingRecord?.source}</Text>
+                        </View>
+                      )}
+                      {/* Income Type Picker */}
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Income Type *</Text>
+                        <View style={styles.pickerContainer}>
+                          <Picker
+                            selectedValue={formData.incomeSource}
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, incomeSource: value }))}
+                            style={styles.picker}
+                          >
+                            <Picker.Item label="Select income type..." value="" />
+                            <Picker.Item label="Investment Income (Stocks, Bonds)" value="Investment Income (Stocks, Bonds)" />
+                            <Picker.Item label="Rental Income" value="Rental Income" />
+                            <Picker.Item label="Freelance/Self-Employment" value="Freelance/Self-Employment" />
+                            <Picker.Item label="Interest Income (Savings, CDs)" value="Interest Income (Savings, CDs)" />
+                            <Picker.Item label="Dividend Income" value="Dividend Income" />
+                            <Picker.Item label="Capital Gains (Property Sale)" value="Capital Gains (Property Sale)" />
+                            <Picker.Item label="Business Income" value="Business Income" />
+                            <Picker.Item label="Royalty Income" value="Royalty Income" />
+                            <Picker.Item label="Pension/Annuity Income" value="Pension/Annuity Income" />
+                            <Picker.Item label="Unemployment Benefits" value="Unemployment Benefits" />
+                            <Picker.Item label="Social Security Benefits" value="Social Security Benefits" />
+                            <Picker.Item label="Other" value="Other" />
+                          </Picker>
+                        </View>
+                      </View>
+
+                      {/* Custom Income Source (if Other selected) */}
+                      {formData.incomeSource === 'Other' && (
+                        <View style={styles.formField}>
+                          <Text style={styles.formLabel}>Custom Income Source *</Text>
+                          <Textarea
+                            placeholder="Please specify the income source"
+                            value={formData.customIncomeSource || ''}
+                            onChangeText={(value) => setFormData(prev => ({ ...prev, customIncomeSource: value }))}
+                            style={styles.formInput}
+                          />
+                        </View>
+                      )}
+
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Amount ($) *</Text>
+                        <Textarea
+                          placeholder="e.g., 5000"
+                          value={formData.incomeAmount}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, incomeAmount: text }))}
+                          style={styles.formInput}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Description (Optional)</Text>
+                        <Textarea
+                          placeholder="Additional details about this income source"
+                          value={formData.incomeDescription || ''}
+                          onChangeText={(value) => setFormData(prev => ({ ...prev, incomeDescription: value }))}
+                          style={styles.formInput}
+                          multiline
+                          numberOfLines={3}
+                        />
+                      </View>
+
+                      {/* Document Upload Section */}
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Supporting Documents (Optional)</Text>
+                        <Text style={styles.formDescription}>
+                          Upload receipts, statements, or other documents related to this income source.
+                        </Text>
+                        <TouchableOpacity 
+                          style={styles.formUploadButton}
+                          onPress={handleUploadPendingDocument}
+                        >
+                          <Ionicons name="cloud-upload-outline" size={20} color="#007bff" />
+                          <Text style={styles.formUploadButtonText}>Upload Documents</Text>
+                        </TouchableOpacity>
+                        
+                        {/* Display pending documents (while editing) */}
+                        {pendingDocuments.length > 0 && (
+                          <View style={styles.uploadedDocumentsSection}>
+                            <Text style={styles.uploadedDocumentsTitle}>Pending Documents ({pendingDocuments.length})</Text>
+                            {pendingDocuments.map((doc) => (
+                              <View key={doc.id} style={styles.uploadedDocumentItem}>
+                                <View style={styles.uploadedDocumentInfo}>
+                                  <Ionicons name="document-text" size={16} color="#007bff" />
+                                  <Text style={styles.uploadedDocumentName}>{doc.name}</Text>
+                                  <Text style={styles.uploadedDocumentStatus}>{doc.status}</Text>
+                                </View>
+                                <TouchableOpacity 
+                                  style={styles.deleteDocumentButton}
+                                  onPress={() => handleDeletePendingDocument(doc.id)}
+                                >
+                                  <Ionicons name="trash-outline" size={16} color="#dc3545" />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                        
+                        {/* Display existing documents for this income source (when editing existing record) */}
+                        {isEditMode && editingRecord?.documents && editingRecord.documents.length > 0 && (
+                          <View style={styles.uploadedDocumentsSection}>
+                            <Text style={styles.uploadedDocumentsTitle}>Existing Documents ({editingRecord.documents.length})</Text>
+                            {editingRecord.documents.map((doc) => (
+                              <View key={doc.id} style={styles.uploadedDocumentItem}>
+                                <View style={styles.uploadedDocumentInfo}>
+                                  <Ionicons name="document-text" size={16} color="#007bff" />
+                                  <Text style={styles.uploadedDocumentName}>{doc.name}</Text>
+                                  <Text style={styles.uploadedDocumentStatus}>{doc.status}</Text>
+                                </View>
+                                <TouchableOpacity 
+                                  style={styles.deleteDocumentButton}
+                                  onPress={() => handleDeleteIncomeDocument(editingRecord.id, doc.id)}
+                                >
+                                  <Ionicons name="trash-outline" size={16} color="#dc3545" />
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {selectedEditSection === 'Dependents' && (
+                    <View style={styles.formSection}>
+                      <View style={styles.formHeader}>
+                        <Text style={styles.formSectionTitle}>Dependents Information</Text>
+                        <TouchableOpacity 
+                          style={styles.addNewButton}
+                          onPress={handleAddNew}
+                        >
+                          <Ionicons name="add" size={20} color="#007bff" />
+                          <Text style={styles.addNewButtonText}>Add New</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.formDescription}>
+                        Add or edit information about your dependents for tax purposes.
+                      </Text>
+                      
+                      {/* Existing Records */}
+                      <View style={styles.existingRecordsSection}>
+                        <Text style={styles.existingRecordsTitle}>
+                          Existing Dependents ({dependents.length})
+                        </Text>
+                        {dependents.length > 0 ? (
+                          dependents.map((record, index) => (
+                            <View key={record.id} style={styles.recordCard}>
+                              <View style={styles.recordInfo}>
+                                <Text style={styles.recordTitle}>{record.name}</Text>
+                                <Text style={styles.recordSubtitle}>{record.relationship} • {record.dob}</Text>
+                              </View>
+                              <View style={styles.recordActions}>
+                                <TouchableOpacity 
+                                  style={styles.editRecordButton}
+                                  onPress={() => handleEditRecord(record, 'dependent')}
+                                >
+                                  <Ionicons name="create-outline" size={16} color="#007bff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                  style={styles.deleteRecordButton}
+                                  onPress={() => handleDeleteRecord(record.id, 'dependent')}
+                                >
+                                  <Ionicons name="trash-outline" size={16} color="#dc3545" />
+                                </TouchableOpacity>
+                              </View>
+                            </View>
+                          ))
+                        ) : (
+                          <View style={styles.emptyRecordsCard}>
+                            <Ionicons name="people-outline" size={32} color="#ccc" />
+                            <Text style={styles.emptyRecordsText}>No dependents added yet</Text>
+                            <Text style={styles.emptyRecordsSubtext}>Click "Add New" to add your first dependent</Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      {/* Dependents Form Fields */}
+                      {isEditMode && (
+                        <View style={styles.editModeIndicator}>
+                          <Ionicons name="create-outline" size={16} color="#007bff" />
+                          <Text style={styles.editModeText}>Editing: {editingRecord?.name}</Text>
+                        </View>
+                      )}
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Full Name *</Text>
+                        <Textarea
+                          placeholder="Enter dependent's full name"
+                          value={formData.dependentName}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, dependentName: text }))}
+                          style={styles.formInput}
+                        />
+                      </View>
+                      
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Relationship *</Text>
+                        <View style={styles.pickerContainer}>
+                          <Picker
+                            selectedValue={formData.dependentRelationship}
+                            onValueChange={(value) => setFormData(prev => ({ ...prev, dependentRelationship: value }))}
+                            style={styles.picker}
+                          >
+                            <Picker.Item label="Select relationship..." value="" />
+                            <Picker.Item label="Child" value="Child" />
+                            <Picker.Item label="Spouse" value="Spouse" />
+                            <Picker.Item label="Parent" value="Parent" />
+                            <Picker.Item label="Sibling" value="Sibling" />
+                            <Picker.Item label="Grandchild" value="Grandchild" />
+                            <Picker.Item label="Other Relative" value="Other Relative" />
+                            <Picker.Item label="Other" value="Other" />
+                          </Picker>
+                        </View>
+                      </View>
+
+                      {/* Custom Relationship (if Other selected) */}
+                      {formData.dependentRelationship === 'Other' && (
+                        <View style={styles.formField}>
+                          <Text style={styles.formLabel}>Custom Relationship *</Text>
+                          <Textarea
+                            placeholder="Please specify the relationship"
+                            value={formData.customRelationship || ''}
+                            onChangeText={(value) => setFormData(prev => ({ ...prev, customRelationship: value }))}
+                            style={styles.formInput}
+                          />
+                        </View>
+                      )}
+                      
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Date of Birth *</Text>
+                        <Textarea
+                          placeholder="MM/DD/YYYY"
+                          value={formData.dependentDob}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, dependentDob: text }))}
+                          style={styles.formInput}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Age *</Text>
+                        <Textarea
+                          placeholder="Enter age"
+                          value={formData.dependentAge}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, dependentAge: text }))}
+                          style={styles.formInput}
+                          keyboardType="numeric"
+                        />
+                      </View>
+
+                      {/* Document Upload Section */}
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Supporting Documents (Optional)</Text>
+                        <Text style={styles.formDescription}>
+                          Upload birth certificates, adoption papers, or other documents proving dependency.
+                        </Text>
+                        <TouchableOpacity 
+                          style={styles.formUploadButton}
+                          onPress={() => Alert.alert('Info', 'Document upload for dependents is not yet implemented.')}
+                        >
+                          <Ionicons name="cloud-upload-outline" size={20} color="#007bff" />
+                          <Text style={styles.formUploadButtonText}>Upload Documents</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  {selectedEditSection === 'SSN' && (
+                    <View style={styles.formSection}>
+                      <Text style={styles.formSectionTitle}>Social Security Number</Text>
+                      <Text style={styles.formDescription}>
+                        Update your Social Security Number. This information is required for tax filing.
+                      </Text>
+                      
+                      {/* SSN Form Fields */}
+                      <View style={styles.formField}>
+                        <Text style={styles.formLabel}>Current SSN</Text>
+                        <Textarea
+                          placeholder="XXX-XX-XXXX"
+                          value={formData.ssn}
+                          onChangeText={(text) => setFormData(prev => ({ ...prev, ssn: text }))}
+                          keyboardType="numeric"
+                          maxLength={11}
+                          style={styles.formInput}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </ScrollView>
+
+                <View style={styles.modalActions}>
+                  <Button 
+                    style={styles.cancelButton} 
+                    onPress={handleCancelEditForm}
+                  >
+                    <Ionicons name="close" size={20} color="#fff" />
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </Button>
+                  
+                  <Button 
+                    style={styles.submitButton} 
+                    onPress={handleSubmitEditForm}
+                    disabled={isSubmittingInfo}
+                  >
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                    <Text style={styles.modalButtonText}>
+                      {isSubmittingInfo ? 'Updating...' : 'Update'}
+                    </Text>
+                  </Button>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Unified Edit Personal Information Modal - Replaced with new components */}
-      {/* <EditPersonalInfoModal
-       
-      /> */}
     </SafeAreaWrapper>
   );
 };

@@ -5,30 +5,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 class AdminNotificationService {
   constructor() {
     this.pollingInterval = null;
+    this.historyInterval = null;
     this.lastCheckTime = null;
+    this.lastHistoryFetch = null;
     this.isPolling = false;
+    this.cachedTaxFormData = null;
   }
 
   /**
-   * Start polling for admin actions
+   * Start polling for admin actions with optimized intervals
    */
-  startPolling(token, intervalMs = 10000) { // Default 10 seconds (reduced for better responsiveness)
+  startPolling(token, adminIntervalMs = 10000, historyIntervalMs = 60000) {
     if (this.isPolling) {
-      console.log('⚠️ Admin notification polling already active');
       return;
     }
 
     this.isPolling = true;
     this.lastCheckTime = new Date();
+    this.lastHistoryFetch = new Date();
     
-    console.log('🔄 Starting admin notification polling...');
     
+    // Fast polling for admin actions (status changes, notifications)
     this.pollingInterval = setInterval(async () => {
       await this.checkForAdminActions(token);
-    }, intervalMs);
+    }, adminIntervalMs);
 
-    // Initial check
+    // Slower polling for tax form history (only when needed)
+    this.historyInterval = setInterval(async () => {
+      await this.fetchTaxFormHistory(token);
+    }, historyIntervalMs);
+
+    // Initial checks
     this.checkForAdminActions(token);
+    this.fetchTaxFormHistory(token);
   }
 
   /**
@@ -39,38 +48,71 @@ class AdminNotificationService {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
     }
+    if (this.historyInterval) {
+      clearInterval(this.historyInterval);
+      this.historyInterval = null;
+    }
     this.isPolling = false;
-    console.log('⏹️ Admin notification polling stopped');
+   
   }
 
   /**
-   * Check for new admin actions
+   * Fetch tax form history (separate from admin action checking)
+   */
+  async fetchTaxFormHistory(token) {
+    try {
+      if (!token) {
+        return;
+      }
+
+      
+      const response = await ApiService.getTaxFormHistory(token);
+      
+      if (response.success && response.data && response.data.length > 0) {
+        this.cachedTaxFormData = response.data;
+        this.lastHistoryFetch = new Date();
+      } else {
+        this.cachedTaxFormData = [];
+      }
+    } catch (error) {
+    }
+  }
+
+  /**
+   * Check for new admin actions using cached data
    */
   async checkForAdminActions(token) {
     try {
       if (!token) {
-        console.log('❌ No token available for admin action check');
         return;
       }
 
-      console.log('🔄 Checking for admin actions...');
       
-      // Get the latest tax form to check for changes
-      const response = await ApiService.getTaxFormHistory(token);
+      // Use cached data if available and recent (less than 5 minutes old)
+      let taxFormData = this.cachedTaxFormData;
+      const timeSinceLastFetch = this.lastHistoryFetch ? 
+        (new Date() - this.lastHistoryFetch) / 1000 / 60 : 999; // minutes
       
-      if (response.success && response.data && response.data.length > 0) {
-        const latestForm = response.data[0];
-        console.log(`📋 Found tax form: ${latestForm.id}, status: ${latestForm.status}`);
-        console.log(`📋 Full form data:`, JSON.stringify(latestForm, null, 2));
+      if (!taxFormData || timeSinceLastFetch > 5) {
+
+        await this.fetchTaxFormHistory(token);
+        taxFormData = this.cachedTaxFormData;
+      } else {
+
+      }
+      
+      if (taxFormData && taxFormData.length > 0) {
+        const latestForm = taxFormData[0];
+
         await this.processTaxFormChanges(latestForm);
       } else {
-        console.log('📭 No tax forms found');
+
       }
 
       this.lastCheckTime = new Date();
-      console.log(`⏰ Last check time updated: ${this.lastCheckTime.toISOString()}`);
+
     } catch (error) {
-      console.error('❌ Error checking for admin actions:', error);
+
     }
   }
 
@@ -100,19 +142,15 @@ class AdminNotificationService {
   async handleStatusChange(taxForm) {
     const storedStatus = await this.getStoredStatus(taxForm.id);
     
-    console.log(`🔍 Checking status for form ${taxForm.id}: stored=${storedStatus}, current=${taxForm.status}`);
     
     // If no stored status, this is the first time we're seeing this form
     if (!storedStatus) {
-      console.log(`📝 First time seeing form ${taxForm.id}, storing initial status: ${taxForm.status}`);
       await this.storeStatus(taxForm.id, taxForm.status);
       return;
     }
     
     // Check if status actually changed
     if (storedStatus !== taxForm.status) {
-      console.log(`📊 Status changed from ${storedStatus} to ${taxForm.status}`);
-      console.log(`🔔 Triggering notification for status change...`);
       
       try {
         await notificationTriggers.executeTrigger(
@@ -121,12 +159,9 @@ class AdminNotificationService {
           taxForm.status,
           taxForm.id
         );
-        console.log(`✅ Notification trigger executed successfully`);
       } catch (error) {
-        console.error(`❌ Error executing notification trigger:`, error);
       }
     } else {
-      console.log(`✅ Status unchanged: ${taxForm.status}`);
     }
 
     // Always store current status
@@ -149,7 +184,6 @@ class AdminNotificationService {
     );
 
     for (const document of newDocuments) {
-      console.log(`📄 New admin document: ${document.name}`);
       
       if (document.category === 'draft_return') {
         await notificationTriggers.executeTrigger(
@@ -190,15 +224,11 @@ class AdminNotificationService {
    */
   async storeStatus(formId, status) {
     try {
-      console.log(`💾 Debug - Attempting to store status for ${formId}: ${status}`);
-      console.log(`💾 Debug - AsyncStorage available:`, typeof AsyncStorage);
       
       await AsyncStorage.setItem(`admin_status_${formId}`, JSON.stringify(status));
-      console.log(`✅ Debug - Successfully stored status for ${formId}: ${status}`);
+      
     } catch (error) {
-      console.error('❌ Error storing status:', error);
-      console.error('❌ Error details:', error.message);
-      console.error('❌ Error stack:', error.stack);
+
     }
   }
 
@@ -210,7 +240,7 @@ class AdminNotificationService {
       const stored = await AsyncStorage.getItem(`admin_documents_${formId}`);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('❌ Error getting stored documents:', error);
+
       return [];
     }
   }
@@ -276,7 +306,11 @@ class AdminNotificationService {
     return {
       isActive: this.isPolling,
       lastCheck: this.lastCheckTime,
-      interval: this.pollingInterval ? 'active' : 'inactive'
+      lastHistoryFetch: this.lastHistoryFetch,
+      adminInterval: this.pollingInterval ? 'active' : 'inactive',
+      historyInterval: this.historyInterval ? 'active' : 'inactive',
+      cachedDataAge: this.lastHistoryFetch ? 
+        Math.round((new Date() - this.lastHistoryFetch) / 1000 / 60) : null
     };
   }
 
@@ -284,7 +318,7 @@ class AdminNotificationService {
    * Force check for admin actions (for testing)
    */
   async forceCheck(token) {
-    console.log('🔧 Force checking for admin actions...');
+
     await this.checkForAdminActions(token);
   }
 
@@ -293,16 +327,10 @@ class AdminNotificationService {
    */
   async clearStoredData(formId) {
     try {
-      console.log(`🗑️ Debug - Attempting to clear stored data for ${formId}`);
-      console.log(`🗑️ Debug - AsyncStorage available:`, typeof AsyncStorage);
       
       await AsyncStorage.removeItem(`admin_status_${formId}`);
       await AsyncStorage.removeItem(`admin_documents_${formId}`);
-      console.log(`🗑️ Cleared stored data for form: ${formId}`);
     } catch (error) {
-      console.error('❌ Error clearing stored data:', error);
-      console.error('❌ Error details:', error.message);
-      console.error('❌ Error stack:', error.stack);
     }
   }
 
@@ -311,20 +339,14 @@ class AdminNotificationService {
    */
   async testAsyncStorage() {
     try {
-      console.log(`🧪 Testing AsyncStorage functionality...`);
-      console.log(`🧪 AsyncStorage type:`, typeof AsyncStorage);
       
       // Test basic operations
       await AsyncStorage.setItem('test_key', 'test_value');
       const value = await AsyncStorage.getItem('test_key');
       await AsyncStorage.removeItem('test_key');
       
-      console.log(`✅ AsyncStorage test successful. Retrieved value: ${value}`);
       return true;
     } catch (error) {
-      console.error('❌ AsyncStorage test failed:', error);
-      console.error('❌ Error details:', error.message);
-      console.error('❌ Error stack:', error.stack);
       return false;
     }
   }
@@ -334,16 +356,13 @@ class AdminNotificationService {
    */
   async triggerStatusChangeNotification(oldStatus, newStatus, formId = 'TEST123') {
     try {
-      console.log(`🧪 Manually triggering status change: ${oldStatus} → ${newStatus}`);
       await notificationTriggers.executeTrigger(
         'adminStatusChanged',
         oldStatus,
         newStatus,
         formId
       );
-      console.log(`✅ Manual status change notification triggered`);
     } catch (error) {
-      console.error('❌ Error triggering manual status change:', error);
     }
   }
 
@@ -352,16 +371,10 @@ class AdminNotificationService {
    */
   async getStoredStatusDebug(formId) {
     try {
-      console.log(`🔍 Debug - Attempting to get stored status for ${formId}`);
-      console.log(`🔍 Debug - AsyncStorage available:`, typeof AsyncStorage);
       
       const storedStatus = await AsyncStorage.getItem(`admin_status_${formId}`);
-      console.log(`🔍 Debug - Stored status for ${formId}: ${storedStatus}`);
       return storedStatus;
     } catch (error) {
-      console.error('❌ Error getting stored status:', error);
-      console.error('❌ Error details:', error.message);
-      console.error('❌ Error stack:', error.stack);
       return null;
     }
   }

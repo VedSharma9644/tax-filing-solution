@@ -87,11 +87,21 @@ export const secureStorage = {
       const encryptionKey = await getEncryptionKey();
       if (!encryptionKey) {
         // Fallback to regular storage if encryption fails
-        return JSON.parse(encryptedValue);
+        try {
+          return JSON.parse(encryptedValue);
+        } catch (parseError) {
+          console.warn(`Failed to parse unencrypted data for key ${key}, returning raw value`);
+          return encryptedValue;
+        }
       }
       
       const decryptedValue = decrypt(encryptedValue, encryptionKey);
-      return JSON.parse(decryptedValue);
+      try {
+        return JSON.parse(decryptedValue);
+      } catch (parseError) {
+        console.warn(`Failed to parse decrypted data for key ${key}, returning raw value`);
+        return decryptedValue;
+      }
     } catch (error) {
       console.error('Error retrieving secure data:', error);
       return null;

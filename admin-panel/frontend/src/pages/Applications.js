@@ -52,6 +52,34 @@ const Applications = () => {
     navigate(`/admin/applications/${applicationId}`);
   };
 
+  const handleDeleteApplication = async (applicationId, applicationName) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the application "${applicationName}"?\n\nThis action cannot be undone and will permanently remove the application from the database.`
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await AdminApiService.deleteTaxForm(applicationId);
+      
+      if (response.success) {
+        alert('Application deleted successfully!');
+        // Refresh the applications list
+        await fetchApplications();
+      } else {
+        alert('Failed to delete application. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      alert('Error deleting application. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Get unique values for filter options
   const getUniqueStatuses = () => {
     const statuses = [...new Set(applications.map(app => app.status).filter(Boolean))];
@@ -329,12 +357,21 @@ const Applications = () => {
                         </td>
                         <td>{formatDate(app.submittedAt)}</td>
                         <td>
-                          <button 
-                            className="applications-action-button"
-                            onClick={() => handleViewApplication(app.id)}
-                          >
-                            View Details
-                          </button>
+                          <div className="action-buttons">
+                            <button 
+                              className="applications-action-button view-button"
+                              onClick={() => handleViewApplication(app.id)}
+                            >
+                              View Details
+                            </button>
+                            <button 
+                              className="applications-action-button delete-button"
+                              onClick={() => handleDeleteApplication(app.id, app.userName || app.id)}
+                              disabled={loading}
+                            >
+                              {loading ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

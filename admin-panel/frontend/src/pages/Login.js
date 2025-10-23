@@ -67,7 +67,10 @@ const Login = ({ onLogin }) => {
     setLoginError('');
     
     try {
-      const response = await fetch('http://localhost:5001/api/auth/login', {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+      console.log('🔍 Login API URL:', apiUrl);
+      console.log('🔍 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,6 +108,11 @@ const Login = ({ onLogin }) => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
+          <div className="logo-container">
+            <div className="logo-placeholder">
+              <span className="logo-text">T</span>
+            </div>
+          </div>
           <h1>Admin Login</h1>
           <p>Tax Filing System Administration</p>
         </div>

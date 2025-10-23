@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -229,6 +229,20 @@ const Dashboard = () => {
     };
   };
 
+  // Check if user has submitted their application for the current year
+  const hasSubmittedApplication = () => {
+    if (taxForms.length === 0) return false;
+    
+    const currentYear = new Date().getFullYear();
+    const currentYearForm = taxForms.find(form => form.taxYear === currentYear);
+    
+    if (!currentYearForm) return false;
+    
+    // Check if the form has been submitted or is in any post-submission state
+    const submittedStatuses = ['submitted', 'under_review', 'processing', 'approved', 'completed'];
+    return submittedStatuses.includes(currentYearForm.status);
+  };
+
 
   return (
     <SafeAreaWrapper>
@@ -288,9 +302,36 @@ const Dashboard = () => {
         {/* Quick Actions */}
         <View style={styles.actionsContainer}>
           <View style={styles.actionsRow}>
-            <Button style={styles.actionButton} onPress={() => navigation.navigate('TaxForm')}>
-              <Feather name="plus" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Start New Return</Text>
+            <Button 
+              style={{
+                ...styles.actionButton,
+                ...(hasSubmittedApplication() ? styles.disabledButton : {})
+              }} 
+              onPress={() => {
+                if (hasSubmittedApplication()) {
+                  // Show alert explaining why button is disabled
+                  Alert.alert(
+                    'Tax Return Already Submitted',
+                    'You have already filled out your tax return. Please wait for your tax consultant to share update.',
+                    [{ text: 'OK' }]
+                  );
+                } else {
+                  navigation.navigate('TaxForm');
+                }
+              }}
+              disabled={hasSubmittedApplication()}
+            >
+              <Feather 
+                name={hasSubmittedApplication() ? "check" : "plus"} 
+                size={20} 
+                color={hasSubmittedApplication() ? "#666" : "#fff"} 
+              />
+              <Text style={[
+                styles.actionButtonText,
+                hasSubmittedApplication() && styles.disabledButtonText
+              ]}>
+                {hasSubmittedApplication() ? 'Application Submitted' : 'Start New Return'}
+              </Text>
             </Button>
             <Button style={styles.actionButton} onPress={() => navigation.navigate('DocumentReviewNew')}>
               <Feather name="file-text" size={20} color="#fff" />
@@ -302,7 +343,7 @@ const Dashboard = () => {
           <View style={styles.adminReviewRow}>
             <Button style={styles.adminReviewButton} onPress={() => navigation.navigate('DocumentReview')}>
               <FontAwesome name="eye" size={18} color="#fff" />
-              <Text style={styles.adminReviewButtonText}>Review Admin Document</Text>
+              <Text style={styles.adminReviewButtonText}>Review Draft Document</Text>
             </Button>
           </View>
         </View>
@@ -435,6 +476,8 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#16A34A', borderRadius: 8, padding: 12, minHeight: 44, minWidth: 100 },
   actionButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },
+  disabledButton: { backgroundColor: '#e9ecef', borderColor: '#dee2e6', borderWidth: 1 },
+  disabledButtonText: { color: '#6c757d' },
   adminReviewRow: { marginTop: 8 },
   adminReviewButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6c757d', borderRadius: 8, padding: 12 },
   adminReviewButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },

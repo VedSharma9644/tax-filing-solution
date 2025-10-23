@@ -328,7 +328,8 @@ app.get('/', (req, res) => {
         refreshToken: '/auth/refresh-token'
       },
       profile: {
-        updateProfile: '/profile/update'
+        updateProfile: '/profile/update',
+        updateImage: '/profile/update-image'
       },
       feedback: {
         submitFeedback: '/feedback/submit',
@@ -1486,6 +1487,69 @@ app.put('/profile/update', authenticateToken, async (req, res) => {
   }
 });
 
+// Update user profile image
+app.put('/profile/update-image', authenticateToken, async (req, res) => {
+  try {
+    const { profilePicture } = req.body;
+    const userId = req.user.userId;
+
+    // Validate required fields
+    if (!profilePicture) {
+      return res.status(400).json({
+        success: false,
+        error: 'Profile picture URL is required'
+      });
+    }
+
+    // Validate URL format
+    try {
+      new URL(profilePicture);
+    } catch (urlError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid profile picture URL format'
+      });
+    }
+
+    // Update user profile picture
+    const updateData = {
+      profilePicture: profilePicture,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('users').doc(userId).update(updateData);
+
+    // Get updated user data
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+
+    res.json({
+      success: true,
+      message: 'Profile picture updated successfully',
+      user: {
+        id: userDoc.id,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        phone: userData.phone,
+        profilePicture: userData.profilePicture,
+        role: userData.role,
+        status: userData.status,
+        createdAt: userData.createdAt,
+        updatedAt: userData.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating profile picture:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update profile picture',
+      details: error.message
+    });
+  }
+});
+
 // Feedback endpoints
 
 // Submit feedback
@@ -2084,6 +2148,7 @@ app.post('/tax-forms/submit', authenticateToken, async (req, res) => {
       socialSecurityNumber, 
       documents, 
       dependents, 
+      additionalIncomeSources,
       formType = '1040',
       taxYear = new Date().getFullYear(),
       filingStatus = 'single'
@@ -2118,7 +2183,7 @@ app.post('/tax-forms/submit', authenticateToken, async (req, res) => {
     const userData = userDoc.data();
 
     // Sanitize and validate documents
-    const sanitizedDocuments = documents.map(doc => ({
+    const sanitizedDocuments = (documents || []).map(doc => ({
       id: doc.id,
       name: doc.name?.substring(0, 255) || 'Unknown Document',
       type: doc.type || 'application/octet-stream',
@@ -2138,6 +2203,26 @@ app.post('/tax-forms/submit', authenticateToken, async (req, res) => {
       createdAt: new Date().toISOString()
     }));
 
+    // Sanitize and validate additional income sources
+    const sanitizedAdditionalIncomeSources = (additionalIncomeSources || []).map(income => ({
+      id: income.id?.substring(0, 50) || Math.random().toString(36).substr(2, 9),
+      source: income.source?.substring(0, 100).replace(/[<>]/g, '') || '',
+      amount: income.amount?.toString().substring(0, 20) || '0',
+      description: income.description?.substring(0, 500).replace(/[<>]/g, '') || '',
+      documents: (income.documents || []).map(doc => ({
+        id: doc.id?.substring(0, 50) || Math.random().toString(36).substr(2, 9),
+        name: doc.name?.substring(0, 255) || 'Unknown Document',
+        type: doc.type || 'application/octet-stream',
+        size: parseInt(doc.size) || 0,
+        category: doc.category?.substring(0, 50) || 'additional_income',
+        gcsPath: doc.gcsPath?.substring(0, 500) || '',
+        publicUrl: doc.publicUrl?.substring(0, 500) || '',
+        status: doc.status || 'completed',
+        uploadedAt: doc.timestamp ? admin.firestore.Timestamp.fromDate(new Date(doc.timestamp)) : admin.firestore.FieldValue.serverTimestamp()
+      })),
+      createdAt: new Date().toISOString()
+    }));
+
     // Create tax form document
     const taxFormData = {
       userId: userId,
@@ -2151,6 +2236,7 @@ app.post('/tax-forms/submit', authenticateToken, async (req, res) => {
       filingStatus: filingStatus,
       documents: sanitizedDocuments,
       dependents: sanitizedDependents,
+      additionalIncomeSources: sanitizedAdditionalIncomeSources,
       status: 'submitted', // submitted, under_review, approved, rejected, completed
       priority: 'normal', // low, normal, high, urgent
       submittedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -2181,7 +2267,8 @@ app.post('/tax-forms/submit', authenticateToken, async (req, res) => {
         status: taxFormData.status,
         submittedAt: taxFormData.submittedAt,
         documentCount: sanitizedDocuments.length,
-        dependentCount: sanitizedDependents.length
+        dependentCount: sanitizedDependents.length,
+        additionalIncomeCount: sanitizedAdditionalIncomeSources.length
       }
     });
   } catch (error) {
@@ -2288,6 +2375,172 @@ app.get('/tax-forms/:formId', authenticateToken, async (req, res) => {
   }
 });
 
+// Update tax form personal information
+app.put('/tax-forms/:id/update-personal-info', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { additionalIncomeSources, dependents, socialSecurityNumber } = req.body;
+    const userId = req.user.userId;
+
+    // Determine what's being updated for better logging
+    const updateTypes = [];
+    if (additionalIncomeSources && Array.isArray(additionalIncomeSources)) updateTypes.push('additional income');
+    if (dependents && Array.isArray(dependents)) updateTypes.push('dependents');
+    if (socialSecurityNumber) updateTypes.push('SSN');
+    
+    const updateDescription = updateTypes.length > 0 ? updateTypes.join(', ') : 'personal info';
+    console.log(`📝 Updating ${updateDescription} for tax form ${id} by user ${userId}`);
+
+    // Validate required fields
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tax form ID is required'
+      });
+    }
+
+    // Check if tax form exists and belongs to user
+    const taxFormDoc = await db.collection('taxForms').doc(id).get();
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax form not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+    if (taxFormData.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only update your own tax forms'
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Update additional income sources
+    if (additionalIncomeSources && Array.isArray(additionalIncomeSources)) {
+      const sanitizedIncome = additionalIncomeSources.map(income => ({
+        id: income.id?.substring(0, 50) || Math.random().toString(36).substr(2, 9),
+        source: income.source?.substring(0, 100).replace(/[<>]/g, '') || '',
+        amount: income.amount?.toString().substring(0, 20) || '0',
+        description: income.description?.substring(0, 500).replace(/[<>]/g, '') || '',
+        documents: income.documents || [],
+        updatedAt: new Date().toISOString()
+      }));
+      updateData.additionalIncomeSources = sanitizedIncome;
+      console.log(`📊 Updated ${sanitizedIncome.length} additional income sources`);
+    }
+
+    // Update dependents
+    if (dependents && Array.isArray(dependents)) {
+      const sanitizedDependents = dependents.map(dep => ({
+        id: dep.id?.substring(0, 50) || Math.random().toString(36).substr(2, 9),
+        name: dep.name?.substring(0, 100).replace(/[<>]/g, '') || '',
+        relationship: dep.relationship?.substring(0, 50).replace(/[<>]/g, '') || '',
+        dob: dep.dob?.substring(0, 20) || '',
+        age: parseInt(dep.age) || 0,
+        updatedAt: new Date().toISOString()
+      }));
+      updateData.dependents = sanitizedDependents;
+      console.log(`👥 Updated ${sanitizedDependents.length} dependents`);
+    }
+
+    // Update SSN
+    if (socialSecurityNumber) {
+      // Validate SSN format
+      const ssnRegex = /^\d{3}-?\d{2}-?\d{4}$/;
+      const cleanSSN = socialSecurityNumber.replace(/\s/g, '');
+      if (!ssnRegex.test(cleanSSN)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid Social Security Number format. Use XXX-XX-XXXX format.'
+        });
+      }
+      updateData.socialSecurityNumber = cleanSSN.replace(/\D/g, '');
+      console.log(`🔐 Updated SSN (masked: ***-**-${cleanSSN.slice(-4)})`);
+    }
+
+    // Update tax form in database
+    await db.collection('taxForms').doc(id).update(updateData);
+
+    console.log(`✅ Successfully updated personal info for tax form ${id}`);
+
+    res.json({
+      success: true,
+      message: 'Personal information updated successfully',
+      data: {
+        id: id,
+        additionalIncomeSources: updateData.additionalIncomeSources || taxFormData.additionalIncomeSources || [],
+        dependents: updateData.dependents || taxFormData.dependents || [],
+        socialSecurityNumber: updateData.socialSecurityNumber ? 
+          '***-**-' + updateData.socialSecurityNumber.slice(-4) : 
+          '***-**-' + (taxFormData.socialSecurityNumber || '').slice(-4),
+        updatedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Update personal info error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update personal information',
+      details: error.message
+    });
+  }
+});
+
+// Get tax form personal information
+app.get('/tax-forms/:id/personal-info', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    console.log(`📋 Getting personal info for tax form ${id} by user ${userId}`);
+
+    // Check if tax form exists and belongs to user
+    const taxFormDoc = await db.collection('taxForms').doc(id).get();
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax form not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+    if (taxFormData.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only view your own tax forms'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: id,
+        additionalIncomeSources: taxFormData.additionalIncomeSources || [],
+        dependents: taxFormData.dependents || [],
+        socialSecurityNumber: taxFormData.socialSecurityNumber ? 
+          '***-**-' + taxFormData.socialSecurityNumber.slice(-4) : 
+          null,
+        updatedAt: taxFormData.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Get personal info error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch personal information',
+      details: error.message
+    });
+  }
+});
+
 // File Upload endpoints
 
 // Upload document to GCS
@@ -2381,6 +2634,87 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
           
           console.log(`✅ Using GCS path instead of signed URL: ${fileName}`);
           
+          console.log(`🔍 Starting database update process...`);
+          
+          // Generate unique document ID
+          const documentId = `${category}_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Create document metadata
+          const documentMetadata = {
+            id: documentId,
+            name: req.file.originalname,
+            type: req.file.mimetype,
+            size: req.file.size,
+            category: category,
+            gcsPath: fileName,
+            publicUrl: signedUrl,
+            uploadedAt: new Date().toISOString() // Use regular Date, not FieldValue.serverTimestamp()
+          };
+          
+          console.log(`📄 Document metadata created:`, documentMetadata);
+          
+          // Find the user's tax form (application) to update
+          console.log(`🔍 Looking for tax form for user: ${userId}`);
+          let taxFormsSnapshot;
+          try {
+            taxFormsSnapshot = await db.collection('taxForms')
+              .where('userId', '==', userId)
+              .orderBy('createdAt', 'desc')
+              .limit(1)
+              .get();
+            console.log(`🔍 Database query completed, found ${taxFormsSnapshot.docs.length} forms`);
+          } catch (dbError) {
+            console.error(`❌ Database query failed:`, dbError);
+            throw dbError;
+          }
+          
+          if (taxFormsSnapshot.empty) {
+            console.log(`⚠️ No tax form found for user: ${userId}`);
+            // Still return success since file was uploaded to GCS
+            res.json({
+              success: true,
+              message: 'File uploaded and encrypted successfully with AES-256-CBC + KMS',
+              fileName: fileName,
+              gcsPath: fileName,
+              publicUrl: signedUrl,
+              size: req.file.size,
+              contentType: req.file.mimetype,
+              uploadedAt: new Date().toISOString(),
+              encrypted: true,
+              encryptionMethod: 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS',
+              warning: 'Document uploaded but no tax form found to link it to'
+            });
+            resolve();
+            return;
+          }
+          
+          // Get the most recent tax form
+          const taxFormDoc = taxFormsSnapshot.docs[0];
+          const taxFormId = taxFormDoc.id;
+          const taxFormData = taxFormDoc.data();
+          
+          console.log(`📋 Found tax form: ${taxFormId} with status: ${taxFormData.status}`);
+          
+          // Get existing documents array or create empty one
+          const existingDocuments = taxFormData.documents || [];
+          
+          // Add new document to the array
+          const updatedDocuments = [...existingDocuments, documentMetadata];
+          
+          // Update the tax form with the new document
+          try {
+            await db.collection('taxForms').doc(taxFormId).update({
+              documents: updatedDocuments,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log(`✅ Document metadata saved to tax form: ${taxFormId}`);
+            console.log(`📊 Total documents in form: ${updatedDocuments.length}`);
+          } catch (updateError) {
+            console.error(`❌ Database update failed:`, updateError);
+            throw updateError;
+          }
+          
           res.json({
             success: true,
             message: 'File uploaded and encrypted successfully with AES-256-CBC + KMS',
@@ -2391,7 +2725,10 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
             contentType: req.file.mimetype,
             uploadedAt: new Date().toISOString(),
             encrypted: true,
-            encryptionMethod: 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS'
+            encryptionMethod: 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS',
+            documentId: documentId,
+            taxFormId: taxFormId,
+            totalDocuments: updatedDocuments.length
           });
           resolve();
         } catch (error) {

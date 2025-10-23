@@ -1,5 +1,9 @@
 // Admin Panel API Service
-const API_BASE_URL = 'http://localhost:5001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
+// Debug logging
+console.log('🔍 API_BASE_URL:', API_BASE_URL);
+console.log('🔍 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 
 class AdminApiService {
   constructor() {
@@ -134,7 +138,7 @@ class AdminApiService {
     
     try {
       // Use admin backend for viewing (with decryption)
-      const response = await fetch(`http://localhost:5001/admin/files/view/${encodeURIComponent(gcsPath)}`, {
+      const response = await fetch(`${this.baseURL}/admin/files/view/${encodeURIComponent(gcsPath)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -161,7 +165,7 @@ class AdminApiService {
     
     try {
       // Use admin backend for downloads
-      const response = await fetch(`http://localhost:5001/admin/files/download/${encodeURIComponent(gcsPath)}`, {
+      const response = await fetch(`${this.baseURL}/admin/files/download/${encodeURIComponent(gcsPath)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -187,7 +191,7 @@ class AdminApiService {
     
     try {
       // Use admin backend for download all
-      const response = await fetch(`http://localhost:5001/admin/files/download-all/${applicationId}`, {
+      const response = await fetch(`${this.baseURL}/admin/files/download-all/${applicationId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -210,8 +214,8 @@ class AdminApiService {
     if (!token) {
       throw new Error('Authentication required');
     }
-    // Use the correct admin backend port (5001) and properly encode the GCS path
-    return `http://localhost:5001/admin/files/${encodeURIComponent(gcsPath)}/download?token=${token}`;
+    // Use the correct admin backend URL and properly encode the GCS path
+    return `${this.baseURL}/admin/files/${encodeURIComponent(gcsPath)}/download?token=${token}`;
   }
 
   // Get all appointments with pagination and filters
@@ -337,6 +341,13 @@ class AdminApiService {
   // Delete user
   async deleteUser(userId) {
     return this.makeRequest(`/api/users/${userId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Delete tax form application
+  async deleteTaxForm(formId) {
+    return this.makeRequest(`/api/tax-forms/${formId}`, {
       method: 'DELETE'
     });
   }

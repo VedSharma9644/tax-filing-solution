@@ -10,14 +10,11 @@ const getApiBaseUrl = () => {
 export const API_BASE_URL = getApiBaseUrl();
 
 // Log the detected API URL for debugging
-console.log(`🌐 API Base URL: ${API_BASE_URL}`);
-console.log(`📱 Platform: ${Platform.OS}`);
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
     if (__DEV__) {
-      console.log(`🔗 ApiService initialized with base URL: ${this.baseURL}`);
     }
   }
 
@@ -66,32 +63,26 @@ class ApiService {
       }
 
       if (__DEV__) {
-        console.log(`🌐 Making request to: ${url}`);
-        console.log(`📡 Method: ${config.method || 'GET'}`);
       }
 
       const response = await fetch(url, config);
       
       if (__DEV__) {
-        console.log(`📡 Response status: ${response.status}`);
       }
       
       const data = await response.json();
       
       if (!response.ok) {
         if (__DEV__) {
-          console.error(`❌ API Error: ${data.error || response.status}`);
         }
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
       if (__DEV__) {
-        console.log(`✅ Request successful`);
       }
       return data;
     } catch (error) {
       if (__DEV__) {
-        console.error('❌ API Request error:', error);
       }
       throw error;
     }
@@ -102,7 +93,6 @@ class ApiService {
   // Firebase Phone Auth Login
   async firebasePhoneLogin(idToken) {
     try {
-      console.log('📱 Sending Firebase ID token to backend');
       
       const response = await fetch(`${this.baseURL}/auth/firebase-phone-login`, {
         method: 'POST',
@@ -113,19 +103,15 @@ class ApiService {
         body: JSON.stringify({ idToken }),
       });
 
-      console.log(`📡 Response status: ${response.status}`);
       
       const data = await response.json();
       
       if (!response.ok) {
-        console.error(`❌ API Error: ${data.error || response.status}`);
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
-      console.log(`✅ Firebase Phone Auth successful`);
       return data;
     } catch (error) {
-      console.error('❌ Firebase Phone Auth error:', error);
       throw error;
     }
   }
@@ -153,7 +139,6 @@ class ApiService {
       
       return data;
     } catch (error) {
-      console.error('Google login error:', error);
       throw error;
     }
   }
@@ -177,7 +162,6 @@ class ApiService {
       
       return data;
     } catch (error) {
-      console.error('Get current user error:', error);
       throw error;
     }
   }
@@ -260,7 +244,6 @@ class ApiService {
   // Submit tax form
   async submitTaxForm(formData, token) {
     try {
-      console.log('📋 Submitting tax form...');
       
       const response = await fetch(`${this.baseURL}/tax-forms/submit`, {
         method: 'POST',
@@ -278,10 +261,8 @@ class ApiService {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
-      console.log('✅ Tax form submitted successfully');
       return data;
     } catch (error) {
-      console.error('Submit tax form error:', error);
       throw error;
     }
   }
@@ -289,8 +270,6 @@ class ApiService {
   // Get user documents from GCS
   async getUserDocuments(token) {
     try {
-      console.log('🌐 Making request to:', `${this.baseURL}/documents`);
-      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
       
       const response = await fetch(`${this.baseURL}/documents`, {
         method: 'GET',
@@ -300,9 +279,7 @@ class ApiService {
         },
       });
 
-      console.log('📡 Response status:', response.status);
       const data = await response.json();
-      console.log('📊 Response data:', data);
       
       if (!response.ok) {
         console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
@@ -311,7 +288,6 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error('Get user documents error:', error);
       throw error;
     }
   }
@@ -319,8 +295,6 @@ class ApiService {
   // Delete document from GCS
   async deleteDocument(documentId, token) {
     try {
-      console.log('🌐 Making request to:', `${this.baseURL}/documents/${documentId}`);
-      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
       
       const response = await fetch(`${this.baseURL}/documents/${documentId}`, {
         method: 'DELETE',
@@ -330,18 +304,14 @@ class ApiService {
         },
       });
 
-      console.log('📡 Response status:', response.status);
       const data = await response.json();
-      console.log('📊 Response data:', data);
       
       if (!response.ok) {
-        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
 
       return data;
     } catch (error) {
-      console.error('Delete document error:', error);
       throw error;
     }
   }
@@ -349,8 +319,6 @@ class ApiService {
   // Get admin documents and notes for user
   async getAdminDocuments(token) {
     try {
-      console.log('🌐 Making request to:', `${this.baseURL}/user/admin-documents`);
-      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
       
       const response = await fetch(`${this.baseURL}/user/admin-documents`, {
         method: 'GET',
@@ -360,9 +328,7 @@ class ApiService {
         },
       });
 
-      console.log('📡 Response status:', response.status);
       const data = await response.json();
-      console.log('📊 Response data:', data);
       
       if (!response.ok) {
         console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
@@ -371,7 +337,6 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error('Get admin documents error:', error);
       throw error;
     }
   }
@@ -379,8 +344,6 @@ class ApiService {
   // Get tax form history
   async getTaxFormHistory(token) {
     try {
-      console.log('🌐 Making request to:', `${this.baseURL}/tax-forms/history`);
-      console.log('🔑 Using token:', token ? 'Present' : 'Missing');
       
       const response = await fetch(`${this.baseURL}/tax-forms/history`, {
         method: 'GET',
@@ -390,21 +353,15 @@ class ApiService {
         },
       });
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', response.headers);
-
+   
       const data = await response.json();
-      console.log('📊 Response data:', data);
       
       if (!response.ok) {
-        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
-      console.log('✅ Tax form history request successful');
       return data;
     } catch (error) {
-      console.error('❌ Get tax form history error:', error);
       throw error;
     }
   }
@@ -436,7 +393,6 @@ class ApiService {
   // Get user uploaded documents
   async getUserDocuments(token) {
     try {
-      console.log('📄 Fetching user documents...');
       
       const response = await fetch(`${this.baseURL}/documents`, {
         method: 'GET',
@@ -446,7 +402,6 @@ class ApiService {
         },
       });
 
-      console.log('📡 Response status:', response.status);
       
       const data = await response.json();
       
@@ -455,10 +410,8 @@ class ApiService {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
-      console.log('✅ User documents request successful');
       return data;
     } catch (error) {
-      console.error('❌ Get user documents error:', error);
       throw error;
     }
   }

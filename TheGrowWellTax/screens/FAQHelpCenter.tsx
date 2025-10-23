@@ -5,11 +5,13 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import CustomHeader from '../components/CustomHeader';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
+import { useAuth } from '../contexts/AuthContext';
 import { BackgroundColors } from '../utils/colors';
 
 const FAQHelpCenter = () => {
   const [expandedItems, setExpandedItems] = useState<number[]>([]);
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const faqData = [
@@ -78,7 +80,7 @@ const FAQHelpCenter = () => {
         <CustomHeader 
           title="FAQ & Help Center" 
           subtitle="Find answers to common questions"
-          avatarInitials="JD"
+          user={user}
           scrollY={scrollY}
         />
         <Animated.ScrollView 

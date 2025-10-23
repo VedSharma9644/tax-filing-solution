@@ -62,7 +62,7 @@ export const AdminAuthProvider = ({ children }) => {
         throw new Error('No refresh token');
       }
 
-      const response = await fetch('http://localhost:5001/api/auth/refresh', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5001'}/api/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

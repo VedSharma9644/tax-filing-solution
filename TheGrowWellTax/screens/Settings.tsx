@@ -30,7 +30,7 @@ const Settings = () => {
   
   // Profile management
   const { profile, loading, saving, errors, updateProfile, resetProfile } = useProfile();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [profileChanges, setProfileChanges] = useState({});
 
   const handleNotificationChange = (key: string, value: boolean) => {
@@ -75,7 +75,7 @@ const Settings = () => {
         <CustomHeader 
           title="Settings" 
           subtitle="Account & Preferences"
-          avatarInitials="JD"
+          user={user}
           scrollY={scrollY}
         />
         <Animated.ScrollView 
@@ -311,9 +311,9 @@ const Settings = () => {
           
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>TaxEase Mobile App</Text>
-            <Text style={styles.footerText}>Version 2.1.0 • Build 156</Text>
-            <Text style={styles.footerText}>© 2023 TaxEase Inc. All rights reserved.</Text>
+            <Text style={styles.footerText}>The Growwell Tax </Text>
+            <Text style={styles.footerText}>Powered by Creayaa Private Limited </Text>
+            <Text style={styles.footerText}>Creayaa Pvt Ltd • © 2025 |  All rights reserved.</Text>
           </View>
           </View>
         </Animated.ScrollView>

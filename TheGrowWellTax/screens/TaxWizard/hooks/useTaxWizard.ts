@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { Alert } from 'react-native';
 import { TaxFormData, UploadedDocument, Dependent, AdditionalIncomeSource } from '../types';
 import { uploadToGCS, deleteFromGCS } from '../utils/documentUtils';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -155,6 +156,118 @@ export const useTaxWizard = () => {
   const removeDependent = useCallback((id: string) => {
     setDependents(prev => prev.filter(dep => dep.id !== id));
   }, []);
+
+  // Upload document for a specific additional income source
+  const uploadIncomeSourceDocument = useCallback(async (file: any, incomeSourceId: string) => {
+    const userId = user?.id;
+    if (!userId || !token) {
+      Alert.alert('Error', 'Please log in to upload documents');
+      return;
+    }
+
+    const isImage = file.mimeType?.startsWith('image/');
+
+    const document: UploadedDocument = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name || 'Document',
+      type: file.mimeType || 'application/octet-stream',
+      size: file.size || 0,
+      status: 'uploading',
+      progress: 0,
+      category: 'additional_income',
+      uri: file.uri,
+      timestamp: new Date(),
+      previewUrl: file.uri,
+      isImage: isImage,
+    };
+
+    // Update the specific income source's documents
+    setFormData(prev => ({
+      ...prev,
+      additionalIncomeSources: prev.additionalIncomeSources.map(source => 
+        source.id === incomeSourceId 
+          ? { ...source, documents: [...(source.documents || []), document] }
+          : source
+      )
+    }));
+
+    // Upload to Google Cloud Storage
+    setIsUploading(true);
+    try {
+      console.log('🔐 Debug - Token value:', token ? 'Token exists' : 'Token is null/undefined');
+      console.log('📤 Uploading income source document:', {
+        fileName: document.name,
+        incomeSourceId,
+        userId,
+        category: 'additional_income'
+      });
+
+      const result = await uploadToGCS(file, userId, 'additional_income', (progress) => {
+        // Update progress for this specific document
+        setFormData(prev => ({
+          ...prev,
+          additionalIncomeSources: prev.additionalIncomeSources.map(source => 
+            source.id === incomeSourceId 
+              ? {
+                  ...source, 
+                  documents: source.documents?.map(doc => 
+                    doc.id === document.id ? { ...doc, progress } : doc
+                  ) || []
+                }
+              : source
+          )
+        }));
+      }, token);
+
+      // Update document with success status
+      setFormData(prev => ({
+        ...prev,
+        additionalIncomeSources: prev.additionalIncomeSources.map(source => 
+          source.id === incomeSourceId 
+            ? {
+                ...source, 
+                documents: source.documents?.map(doc => 
+                  doc.id === document.id 
+                    ? { 
+                        ...doc, 
+                        status: 'completed' as const,
+                        progress: 100,
+                        gcsPath: result.gcsPath,
+                        publicUrl: result.publicUrl
+                      } 
+                    : doc
+                ) || []
+              }
+            : source
+        )
+      }));
+
+      console.log('✅ Income source document uploaded successfully:', result);
+    } catch (error) {
+      console.error('❌ Income source document upload error:', error);
+      
+      // Update document with error status
+      setFormData(prev => ({
+        ...prev,
+        additionalIncomeSources: prev.additionalIncomeSources.map(source => 
+          source.id === incomeSourceId 
+            ? {
+                ...source, 
+                documents: source.documents?.map(doc => 
+                  doc.id === document.id 
+                    ? { ...doc, status: 'error' as const, progress: 0 } 
+                    : doc
+                ) || []
+              }
+            : source
+        )
+      }));
+
+      Alert.alert('Upload Failed', error.message || 'Failed to upload document. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [user, token]);
 
   const uploadDocument = useCallback(async (file: any, category: string) => {
     // Use the authenticated user's ID
@@ -460,6 +573,39 @@ export const useTaxWizard = () => {
     }
   }, [user?.id]);
 
+  // Delete document for a specific additional income source
+  const deleteIncomeSourceDocument = useCallback(async (documentId: string, incomeSourceId: string) => {
+    // Find the document to get GCS path
+    const incomeSource = formData.additionalIncomeSources.find(source => source.id === incomeSourceId);
+    const documentToDelete = incomeSource?.documents?.find(doc => doc.id === documentId);
+
+    // Delete from GCS if document exists and has GCS path
+    if (documentToDelete && documentToDelete.gcsPath) {
+      try {
+        await deleteFromGCS(documentToDelete.gcsPath);
+        console.log('✅ Document deleted from GCS:', documentToDelete.gcsPath);
+      } catch (error) {
+        console.error('❌ Failed to delete document from GCS:', error);
+        // Continue with local deletion even if GCS deletion fails
+      }
+    }
+
+    // Remove from local state
+    setFormData(prev => ({
+      ...prev,
+      additionalIncomeSources: prev.additionalIncomeSources.map(source => 
+        source.id === incomeSourceId 
+          ? {
+              ...source, 
+              documents: source.documents?.filter(doc => doc.id !== documentId) || []
+            }
+          : source
+      )
+    }));
+
+    console.log('✅ Income source document deleted locally:', documentId);
+  }, [formData]);
+
   return {
     // State
     step,
@@ -482,6 +628,8 @@ export const useTaxWizard = () => {
     removeDependent,
     uploadDocument,
     deleteDocument,
+    uploadIncomeSourceDocument,
+    deleteIncomeSourceDocument,
     handleImageLoad,
     handleImageError,
     initializeImageStates,

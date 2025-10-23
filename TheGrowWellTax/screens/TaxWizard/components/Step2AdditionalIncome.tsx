@@ -4,15 +4,17 @@ import { Button } from '../../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../ui/card';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { BackgroundColors } from '../../../utils/colors';
 import { TaxWizardStyles, ContainerStyles, ButtonStyles, InputStyles } from '../../../utils/taxWizardStyles';
+import { UploadedDocument } from '../types';
 
 interface AdditionalIncomeSource {
   id: string;
   source: string;
   amount: string;
   description?: string;
-  documents?: any[]; // For future document upload functionality
+  documents?: UploadedDocument[];
 }
 
 interface Step2AdditionalIncomeProps {
@@ -21,11 +23,17 @@ interface Step2AdditionalIncomeProps {
     additionalIncomeSources: AdditionalIncomeSource[];
   };
   onUpdateFormData: (field: string, value: any) => void;
+  onUploadIncomeSourceDocument: (file: any, incomeSourceId: string) => void;
+  onDeleteIncomeSourceDocument: (documentId: string, incomeSourceId: string) => void;
+  isUploading?: boolean;
 }
 
 const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
   formData,
   onUpdateFormData,
+  onUploadIncomeSourceDocument,
+  onDeleteIncomeSourceDocument,
+  isUploading = false,
 }) => {
   const [newIncomeSource, setNewIncomeSource] = useState('');
   const [newIncomeAmount, setNewIncomeAmount] = useState('');
@@ -98,6 +106,33 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
       source.id === id ? { ...source, [field]: value } : source
     );
     onUpdateFormData('additionalIncomeSources', updatedSources);
+  };
+
+  const handlePickDocument = async (incomeSourceId: string) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        onUploadIncomeSourceDocument(file, incomeSourceId);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick document. Please try again.');
+    }
+  };
+
+  const handleDeleteDocument = (documentId: string, incomeSourceId: string) => {
+    Alert.alert(
+      'Delete Document',
+      'Are you sure you want to delete this document?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => onDeleteIncomeSourceDocument(documentId, incomeSourceId) },
+      ]
+    );
   };
 
   const handleSourceTypeSelect = (sourceType: string) => {
@@ -217,6 +252,53 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
                         multiline
                         numberOfLines={2}
                       />
+                    </View>
+
+                    {/* Document Upload Section */}
+                    <View style={styles.documentSection}>
+                      <Text style={styles.fieldLabel}>Supporting Documents (Optional)</Text>
+                      <Text style={styles.documentDescription}>
+                        Upload receipts, statements, or other documents related to this income source.
+                      </Text>
+                      
+                      {/* Upload Button */}
+                      <TouchableOpacity
+                        style={styles.uploadButton}
+                        onPress={() => handlePickDocument(source.id)}
+                        disabled={isUploading}
+                      >
+                        <Ionicons name="cloud-upload-outline" size={20} color="#007bff" />
+                        <Text style={styles.uploadButtonText}>
+                          {isUploading ? 'Uploading...' : 'Upload Document'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {/* Document List */}
+                      {source.documents && source.documents.length > 0 && (
+                        <View style={styles.documentList}>
+                          {source.documents.map((doc) => (
+                            <View key={doc.id} style={styles.documentItem}>
+                              <View style={styles.documentInfo}>
+                                <FontAwesome name="file-text-o" size={16} color="#007bff" />
+                                <Text style={styles.documentName} numberOfLines={1}>
+                                  {doc.name}
+                                </Text>
+                                <Text style={styles.documentStatus}>
+                                  {doc.status === 'uploading' ? `Uploading... ${doc.progress}%` :
+                                   doc.status === 'completed' ? 'Uploaded' :
+                                   doc.status === 'error' ? 'Upload Failed' : ''}
+                                </Text>
+                              </View>
+                              <TouchableOpacity
+                                style={styles.deleteDocumentButton}
+                                onPress={() => handleDeleteDocument(doc.id, source.id)}
+                              >
+                                <Ionicons name="trash-outline" size={16} color="#dc3545" />
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </View>
+                      )}
                     </View>
                   </CardContent>
                 </Card>
@@ -492,6 +574,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontStyle: 'italic',
+  },
+  // Document upload styles
+  documentSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  documentDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#007bff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  uploadButtonText: {
+    color: '#007bff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  documentList: {
+    marginTop: 8,
+  },
+  documentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  documentInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  documentName: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  documentStatus: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+  },
+  deleteDocumentButton: {
+    padding: 4,
+    marginLeft: 8,
   },
 });
 
