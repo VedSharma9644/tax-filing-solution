@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import SafeAreaWrapper from '../../components/SafeAreaWrapper';
 import { PersonalInfoManagementProps, UploadedDocument } from './types';
 import PersonalInfoService from './PersonalInfoService';
 import DocumentManagement from './DocumentManagement';
@@ -119,7 +120,8 @@ const PersonalInfoManagement: React.FC<PersonalInfoManagementProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaWrapper>
+      <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Personal Information</Text>
@@ -263,7 +265,8 @@ const PersonalInfoManagement: React.FC<PersonalInfoManagementProps> = ({
           />
         </View>
       </Modal>
-    </View>
+      </View>
+    </SafeAreaWrapper>
   );
 };
 
