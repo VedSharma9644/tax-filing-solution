@@ -20,7 +20,8 @@ import {
   MainActionCard,
   SectionSelectionModal,
   AdditionalIncomeModal,
-  DependentsModal
+  DependentsModal,
+  PersonalInfoModal
 } from './AdminDocumentReviewComponents/index';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -136,6 +137,7 @@ const DocumentReview = () => {
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [showAdditionalIncomeModal, setShowAdditionalIncomeModal] = useState(false);
   const [showDependentsModal, setShowDependentsModal] = useState(false);
+  const [showPersonalInfoModal, setShowPersonalInfoModal] = useState(false);
 
   // Handler functions for new modal flow
   const handleMainActionPress = () => {
@@ -148,8 +150,9 @@ const DocumentReview = () => {
       setShowAdditionalIncomeModal(true);
     } else if (section === 'dependents') {
       setShowDependentsModal(true);
+    } else if (section === 'personal-info') {
+      setShowPersonalInfoModal(true);
     }
-    // TODO: Add handler for personal-info when implemented
   };
 
   const handleCloseAdditionalIncomeModal = () => {
@@ -158,6 +161,10 @@ const DocumentReview = () => {
 
   const handleCloseDependentsModal = () => {
     setShowDependentsModal(false);
+  };
+
+  const handleClosePersonalInfoModal = () => {
+    setShowPersonalInfoModal(false);
   };
 
   // Load existing personal information data from tax forms
@@ -1593,6 +1600,24 @@ const DocumentReview = () => {
         onDocumentsUpdate={(documents) => {
           // Update additionalDocuments with new dependents documents
           const otherDocs = additionalDocuments.filter(doc => doc.category !== 'dependents');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+      />
+
+      <PersonalInfoModal
+        visible={showPersonalInfoModal}
+        onClose={handleClosePersonalInfoModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialSsn={ssn}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'personal_info')}
+        onSsnUpdate={(newSsn) => {
+          setSsn(newSsn);
+        }}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new personal_info documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'personal_info');
           setAdditionalDocuments([...otherDocs, ...documents]);
         }}
       />

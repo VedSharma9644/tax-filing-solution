@@ -149,3 +149,14 @@ export const COMMON_RELATIONSHIPS = [
   'Sister',
   'Other'
 ] as const;
+
+// Personal Information interfaces
+export interface PersonalInfoManagementProps {
+  applicationId: string;
+  userId: string;
+  token: string;
+  initialSsn: string;
+  initialDocuments: UploadedDocument[];
+  onSsnUpdate: (ssn: string) => void;
+  onDocumentsUpdate: (documents: UploadedDocument[]) => void;
+}

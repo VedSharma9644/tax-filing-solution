@@ -16,5 +16,10 @@ export { default as DependentForm } from './DependentForm';
 export { default as DependentsManagement } from './DependentsManagement';
 export { default as DependentsModal } from './DependentsModal';
 
+// Export personal info components
+export { default as PersonalInfoService } from './PersonalInfoService';
+export { default as PersonalInfoManagement } from './PersonalInfoManagement';
+export { default as PersonalInfoModal } from './PersonalInfoModal';
+
 // Export types
 export * from './types';
