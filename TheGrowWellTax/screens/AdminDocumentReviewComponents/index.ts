@@ -10,5 +10,11 @@ export { default as MainActionCard } from './MainActionCard';
 export { default as SectionSelectionModal } from './SectionSelectionModal';
 export { default as AdditionalIncomeModal } from './AdditionalIncomeModal';
 
+// Export dependents components
+export { default as DependentsService } from './DependentsService';
+export { default as DependentForm } from './DependentForm';
+export { default as DependentsManagement } from './DependentsManagement';
+export { default as DependentsModal } from './DependentsModal';
+
 // Export types
 export * from './types';

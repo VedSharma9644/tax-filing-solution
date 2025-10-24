@@ -19,7 +19,8 @@ import {
   AdditionalIncomeManagement,
   MainActionCard,
   SectionSelectionModal,
-  AdditionalIncomeModal
+  AdditionalIncomeModal,
+  DependentsModal
 } from './AdminDocumentReviewComponents/index';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -134,6 +135,7 @@ const DocumentReview = () => {
   // New modal states
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [showAdditionalIncomeModal, setShowAdditionalIncomeModal] = useState(false);
+  const [showDependentsModal, setShowDependentsModal] = useState(false);
 
   // Handler functions for new modal flow
   const handleMainActionPress = () => {
@@ -144,12 +146,18 @@ const DocumentReview = () => {
     setShowSectionModal(false);
     if (section === 'additional-income') {
       setShowAdditionalIncomeModal(true);
+    } else if (section === 'dependents') {
+      setShowDependentsModal(true);
     }
-    // TODO: Add handlers for dependents and personal-info when implemented
+    // TODO: Add handler for personal-info when implemented
   };
 
   const handleCloseAdditionalIncomeModal = () => {
     setShowAdditionalIncomeModal(false);
+  };
+
+  const handleCloseDependentsModal = () => {
+    setShowDependentsModal(false);
   };
 
   // Load existing personal information data from tax forms
@@ -1554,6 +1562,37 @@ const DocumentReview = () => {
         onDocumentsUpdate={(documents) => {
           // Update additionalDocuments with new additional_income documents
           const otherDocs = additionalDocuments.filter(doc => doc.category !== 'additional_income');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+      />
+
+      <DependentsModal
+        visible={showDependentsModal}
+        onClose={handleCloseDependentsModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialDependents={dependents.map(item => ({
+          id: item.id,
+          name: item.name,
+          relationship: item.relationship,
+          dateOfBirth: item.dob,
+          age: item.age,
+          createdAt: new Date().toISOString()
+        }))}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'dependents')}
+        onDependentsUpdate={(dependents) => {
+          setDependents(dependents.map(dep => ({
+            id: dep.id,
+            name: dep.name,
+            relationship: dep.relationship,
+            dob: dep.dateOfBirth,
+            age: dep.age
+          })));
+        }}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new dependents documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'dependents');
           setAdditionalDocuments([...otherDocs, ...documents]);
         }}
       />

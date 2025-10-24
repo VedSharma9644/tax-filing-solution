@@ -87,3 +87,65 @@ export interface FormValidationResult {
   isValid: boolean;
   errors: ValidationError[];
 }
+
+// Dependents interfaces
+export interface Dependent {
+  id: string;
+  name: string;
+  relationship: string;
+  dateOfBirth: string;
+  age: string;
+  ssn?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface DependentFormData {
+  name: string;
+  relationship: string;
+  dateOfBirth: string;
+  age: string;
+  ssn?: string;
+  customRelationship?: string;
+}
+
+export interface DependentsManagementProps {
+  applicationId: string;
+  userId: string;
+  token: string;
+  initialDependents: Dependent[];
+  initialDocuments: UploadedDocument[];
+  onDependentsUpdate: (dependents: Dependent[]) => void;
+  onDocumentsUpdate: (documents: UploadedDocument[]) => void;
+}
+
+export interface DependentFormProps {
+  initialData?: Partial<DependentFormData>;
+  isEditMode: boolean;
+  onSubmit: (data: DependentFormData) => Promise<void>;
+  onCancel: () => void;
+  isLoading?: boolean;
+  onUploadDocument?: (file: any) => Promise<void>;
+  documents?: UploadedDocument[];
+  onRemoveDocument?: (documentId: string) => Promise<void>;
+}
+
+// Common relationships for dropdown
+export const COMMON_RELATIONSHIPS = [
+  'Spouse',
+  'Child',
+  'Son',
+  'Daughter',
+  'Stepchild',
+  'Adopted Child',
+  'Foster Child',
+  'Grandchild',
+  'Parent',
+  'Father',
+  'Mother',
+  'Stepparent',
+  'Sibling',
+  'Brother',
+  'Sister',
+  'Other'
+] as const;
