@@ -6,7 +6,7 @@ import SafeAreaWrapper from '../../components/SafeAreaWrapper';
 interface SectionSelectionModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectSection: (section: 'additional-income' | 'dependents' | 'personal-info') => void;
+  onSelectSection: (section: 'w2-forms' | 'previous-year-tax' | 'medical-deduction' | 'education' | 'homeowner-deduction' | 'additional-income' | 'dependents' | 'personal-info') => void;
 }
 
 const SectionSelectionModal: React.FC<SectionSelectionModalProps> = ({
@@ -15,6 +15,41 @@ const SectionSelectionModal: React.FC<SectionSelectionModalProps> = ({
   onSelectSection
 }) => {
   const sections = [
+    {
+      id: 'w2-forms' as const,
+      title: 'W-2 Forms',
+      description: 'Upload W-2 forms from employers',
+      icon: 'document-outline',
+      color: '#ff6b35'
+    },
+    {
+      id: 'previous-year-tax' as const,
+      title: 'Previous Year Tax',
+      description: 'Upload previous year tax return',
+      icon: 'time-outline',
+      color: '#9b59b6'
+    },
+    {
+      id: 'medical-deduction' as const,
+      title: 'Medical Deductions',
+      description: 'Upload medical expense documents',
+      icon: 'medical-outline',
+      color: '#e74c3c'
+    },
+    {
+      id: 'education' as const,
+      title: 'Education Documents',
+      description: 'Upload education expense documents',
+      icon: 'school-outline',
+      color: '#6f42c1'
+    },
+    {
+      id: 'homeowner-deduction' as const,
+      title: 'Homeowner Deductions',
+      description: 'Upload mortgage and property tax documents',
+      icon: 'home-outline',
+      color: '#20c997'
+    },
     {
       id: 'additional-income' as const,
       title: 'Additional Income',

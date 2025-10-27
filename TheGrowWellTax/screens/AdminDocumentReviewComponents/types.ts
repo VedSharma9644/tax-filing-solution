@@ -160,3 +160,12 @@ export interface PersonalInfoManagementProps {
   onSsnUpdate: (ssn: string) => void;
   onDocumentsUpdate: (documents: UploadedDocument[]) => void;
 }
+
+// W-2 Forms interfaces
+export interface W2FormsManagementProps {
+  applicationId: string;
+  userId: string;
+  token: string;
+  initialDocuments: UploadedDocument[];
+  onDocumentsUpdate: (documents: UploadedDocument[]) => void;
+}

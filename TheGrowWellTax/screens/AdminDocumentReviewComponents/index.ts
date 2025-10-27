@@ -21,5 +21,26 @@ export { default as PersonalInfoService } from './PersonalInfoService';
 export { default as PersonalInfoManagement } from './PersonalInfoManagement';
 export { default as PersonalInfoModal } from './PersonalInfoModal';
 
+// Export W-2 forms components
+export { default as W2FormsService } from './W2FormsService';
+export { default as W2FormsManagement } from './W2FormsManagement';
+export { default as W2FormsModal } from './W2FormsModal';
+
+// Export medical deduction components
+export { default as MedicalDeductionManagement } from './MedicalDeductionManagement';
+export { default as MedicalDeductionModal } from './MedicalDeductionModal';
+
+// Export previous year tax components
+export { default as PreviousYearTaxManagement } from './PreviousYearTaxManagement';
+export { default as PreviousYearTaxModal } from './PreviousYearTaxModal';
+
+// Export education components
+export { default as EducationManagement } from './EducationManagement';
+export { default as EducationModal } from './EducationModal';
+
+// Export homeowner deduction components
+export { default as HomeownerDeductionManagement } from './HomeownerDeductionManagement';
+export { default as HomeownerDeductionModal } from './HomeownerDeductionModal';
+
 // Export types
 export * from './types';

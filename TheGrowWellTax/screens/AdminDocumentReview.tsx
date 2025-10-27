@@ -21,7 +21,11 @@ import {
   SectionSelectionModal,
   AdditionalIncomeModal,
   DependentsModal,
-  PersonalInfoModal
+  PersonalInfoModal,
+  MedicalDeductionModal,
+  PreviousYearTaxModal,
+  EducationModal,
+  HomeownerDeductionModal
 } from './AdminDocumentReviewComponents/index';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -135,6 +139,11 @@ const DocumentReview = () => {
   
   // New modal states
   const [showSectionModal, setShowSectionModal] = useState(false);
+  const [showW2FormsModal, setShowW2FormsModal] = useState(false);
+  const [showPreviousYearTaxModal, setShowPreviousYearTaxModal] = useState(false);
+  const [showMedicalDeductionModal, setShowMedicalDeductionModal] = useState(false);
+  const [showEducationModal, setShowEducationModal] = useState(false);
+  const [showHomeownerDeductionModal, setShowHomeownerDeductionModal] = useState(false);
   const [showAdditionalIncomeModal, setShowAdditionalIncomeModal] = useState(false);
   const [showDependentsModal, setShowDependentsModal] = useState(false);
   const [showPersonalInfoModal, setShowPersonalInfoModal] = useState(false);
@@ -144,15 +153,45 @@ const DocumentReview = () => {
     setShowSectionModal(true);
   };
 
-  const handleSectionSelect = (section: 'additional-income' | 'dependents' | 'personal-info') => {
+  const handleSectionSelect = (section: 'w2-forms' | 'previous-year-tax' | 'medical-deduction' | 'education' | 'homeowner-deduction' | 'additional-income' | 'dependents' | 'personal-info') => {
     setShowSectionModal(false);
-    if (section === 'additional-income') {
+    if (section === 'w2-forms') {
+      setShowW2FormsModal(true);
+    } else if (section === 'previous-year-tax') {
+      setShowPreviousYearTaxModal(true);
+    } else if (section === 'medical-deduction') {
+      setShowMedicalDeductionModal(true);
+    } else if (section === 'education') {
+      setShowEducationModal(true);
+    } else if (section === 'homeowner-deduction') {
+      setShowHomeownerDeductionModal(true);
+    } else if (section === 'additional-income') {
       setShowAdditionalIncomeModal(true);
     } else if (section === 'dependents') {
       setShowDependentsModal(true);
     } else if (section === 'personal-info') {
       setShowPersonalInfoModal(true);
     }
+  };
+
+  const handleCloseW2FormsModal = () => {
+    setShowW2FormsModal(false);
+  };
+
+  const handleClosePreviousYearTaxModal = () => {
+    setShowPreviousYearTaxModal(false);
+  };
+
+  const handleCloseMedicalDeductionModal = () => {
+    setShowMedicalDeductionModal(false);
+  };
+
+  const handleCloseEducationModal = () => {
+    setShowEducationModal(false);
+  };
+
+  const handleCloseHomeownerDeductionModal = () => {
+    setShowHomeownerDeductionModal(false);
   };
 
   const handleCloseAdditionalIncomeModal = () => {
@@ -1602,6 +1641,78 @@ const DocumentReview = () => {
           const otherDocs = additionalDocuments.filter(doc => doc.category !== 'dependents');
           setAdditionalDocuments([...otherDocs, ...documents]);
         }}
+      />
+
+      <MedicalDeductionModal
+        visible={showMedicalDeductionModal}
+        onClose={handleCloseMedicalDeductionModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'medical_deduction')}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new medical_deduction documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'medical_deduction');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+        documents={[]}
+        onUploadDocument={async () => {}}
+        onRemoveDocument={async () => {}}
+        isLoading={false}
+      />
+
+      <PreviousYearTaxModal
+        visible={showPreviousYearTaxModal}
+        onClose={handleClosePreviousYearTaxModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'previousYearTax')}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new previousYearTax documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'previousYearTax');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+        documents={[]}
+        onUploadDocument={async () => {}}
+        onRemoveDocument={async () => {}}
+        isLoading={false}
+      />
+
+      <EducationModal
+        visible={showEducationModal}
+        onClose={handleCloseEducationModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'education')}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new education documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'education');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+        documents={[]}
+        onUploadDocument={async () => {}}
+        onRemoveDocument={async () => {}}
+        isLoading={false}
+      />
+
+      <HomeownerDeductionModal
+        visible={showHomeownerDeductionModal}
+        onClose={handleCloseHomeownerDeductionModal}
+        applicationId={getApprovedTaxForm()?.id || ''}
+        userId={user?.id || ''}
+        token={token || ''}
+        initialDocuments={additionalDocuments.filter(doc => doc.category === 'homeownerDeduction')}
+        onDocumentsUpdate={(documents) => {
+          // Update additionalDocuments with new homeownerDeduction documents
+          const otherDocs = additionalDocuments.filter(doc => doc.category !== 'homeownerDeduction');
+          setAdditionalDocuments([...otherDocs, ...documents]);
+        }}
+        documents={[]}
+        onUploadDocument={async () => {}}
+        onRemoveDocument={async () => {}}
+        isLoading={false}
       />
 
       <PersonalInfoModal
