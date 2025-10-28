@@ -313,6 +313,12 @@ export const AuthProvider = ({ children }) => {
     return !!user && !!token;
   };
 
+  // Update user data (useful after profile updates)
+  const updateUser = async (updatedUser) => {
+    await secureStorage.setUserData(updatedUser);
+    setUser(updatedUser);
+  };
+
   const value = {
     user,
     token,
@@ -322,6 +328,7 @@ export const AuthProvider = ({ children }) => {
     googleLogin,
     logout,
     isAuthenticated,
+    updateUser,
   };
 
   return (

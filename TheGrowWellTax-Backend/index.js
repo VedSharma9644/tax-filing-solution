@@ -835,7 +835,8 @@ app.post('/auth/verify-otp', authLimiter, async (req, res) => {
         name: `${user.firstName} ${user.lastName}`.trim(),
         role: user.role,
         status: user.status,
-        profileComplete: !!(user.firstName && user.lastName && user.email)
+        // Check if user has completed full profile setup (not just basic info)
+        profileComplete: !!(user.firstName && user.lastName && user.email && user.address && user.occupation)
       },
       accessToken: accessToken,
       refreshToken: refreshToken,
@@ -1371,7 +1372,9 @@ app.post('/auth/google-login', authLimiter, async (req, res) => {
         status: user.status,
         profilePicture: user.profilePicture,
         name: `${user.firstName} ${user.lastName}`.trim(),
-        profileComplete: !!(user.firstName && user.lastName && user.email)
+        // Google users have name/email from Google, but still need to complete profile setup
+        // Only mark complete if they have additional profile data (address, employment, etc.)
+        profileComplete: !!(user.firstName && user.lastName && user.email && user.address && user.occupation)
       },
       tokens: {
         accessToken: accessTokenJWT,
@@ -1392,69 +1395,95 @@ app.post('/auth/google-login', authLimiter, async (req, res) => {
 // Update user profile
 app.put('/profile/update', authenticateToken, async (req, res) => {
   try {
-    const { firstName, lastName, email, phone } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      phone,
+      dateOfBirth,
+      address,
+      city,
+      state,
+      zipCode,
+      filingStatus,
+      occupation,
+      employer
+    } = req.body;
     const userId = req.user.userId;
 
     // Validate required fields
-    if (!firstName || !lastName || !email || !phone) {
+    if (!firstName || !lastName) {
       return res.status(400).json({
         success: false,
-        error: 'All fields are required'
+        error: 'First name and last name are required'
       });
     }
 
-    // Validate email format
-    if (!email.includes('@')) {
+    // Validate email format if provided
+    if (email && !email.includes('@')) {
       return res.status(400).json({
         success: false,
         error: 'Invalid email format'
       });
     }
 
-    // Validate phone format
-    if (phone.length < 10) {
+    // Validate phone format if provided
+    if (phone && phone.length < 10) {
       return res.status(400).json({
         success: false,
         error: 'Invalid phone number'
       });
     }
 
-    // Check if email is already taken by another user
-    const emailCheck = await db.collection('users')
-      .where('email', '==', email)
-      .where('__name__', '!=', userId)
-      .limit(1)
-      .get();
+    // Check if email is already taken by another user (only if email is being updated)
+    if (email) {
+      const emailCheck = await db.collection('users')
+        .where('email', '==', email)
+        .where('__name__', '!=', userId)
+        .limit(1)
+        .get();
 
-    if (!emailCheck.empty) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email address is already in use'
-      });
+      if (!emailCheck.empty) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email address is already in use'
+        });
+      }
     }
 
-    // Check if phone is already taken by another user
-    const phoneCheck = await db.collection('users')
-      .where('phone', '==', phone)
-      .where('__name__', '!=', userId)
-      .limit(1)
-      .get();
+    // Check if phone is already taken by another user (only if phone is being updated)
+    if (phone) {
+      const phoneCheck = await db.collection('users')
+        .where('phone', '==', phone)
+        .where('__name__', '!=', userId)
+        .limit(1)
+        .get();
 
-    if (!phoneCheck.empty) {
-      return res.status(400).json({
-        success: false,
-        error: 'Phone number is already in use'
-      });
+      if (!phoneCheck.empty) {
+        return res.status(400).json({
+          success: false,
+          error: 'Phone number is already in use'
+        });
+      }
     }
 
-    // Update user profile
+    // Update user profile - only include fields that are provided
     const updateData = {
-      firstName,
-      lastName,
-      email,
-      phone,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
+
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+    if (address !== undefined) updateData.address = address;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (filingStatus !== undefined) updateData.filingStatus = filingStatus;
+    if (occupation !== undefined) updateData.occupation = occupation;
+    if (employer !== undefined) updateData.employer = employer;
 
     await db.collection('users').doc(userId).update(updateData);
 
@@ -1471,8 +1500,18 @@ app.put('/profile/update', authenticateToken, async (req, res) => {
         lastName: userData.lastName,
         email: userData.email,
         phone: userData.phone,
+        dateOfBirth: userData.dateOfBirth,
+        address: userData.address,
+        city: userData.city,
+        state: userData.state,
+        zipCode: userData.zipCode,
+        filingStatus: userData.filingStatus,
+        occupation: userData.occupation,
+        employer: userData.employer,
         role: userData.role,
         status: userData.status,
+        name: `${userData.firstName} ${userData.lastName}`.trim(),
+        profileComplete: !!(userData.firstName && userData.lastName && userData.email && userData.address && userData.occupation),
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt
       }

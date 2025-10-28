@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +26,29 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, loading } = useAuth();
+  const navigationRef = useRef(null);
+
+  // Handle navigation after user state changes
+  useEffect(() => {
+    if (!loading && user && navigationRef.current) {
+      const isProfileComplete = user.profileComplete === true;
+      const shouldNavigateTo = isProfileComplete ? 'Home' : 'CreateProfile';
+      
+      console.log('🔄 User state changed, navigating to:', shouldNavigateTo);
+      
+      if (shouldNavigateTo === 'CreateProfile') {
+        navigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'CreateProfile' }],
+        });
+      } else if (shouldNavigateTo === 'Home') {
+        navigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'Home' }],
+        });
+      }
+    }
+  }, [user, loading]);
 
   // Show loading screen while checking authentication
   if (loading) {
@@ -36,10 +59,40 @@ const AppNavigator = () => {
     );
   }
 
+  // Determine initial route for authenticated users
+  const getInitialRoute = () => {
+    console.log('🚨 UPDATED CODE IS RUNNING - Profile Setup Integration v2');
+    
+    if (!user) return "Signup";
+    
+    // Check if profile is complete
+    // profileComplete is returned by backend based on firstName, lastName, email
+    // Only redirect to profile setup if profileComplete is explicitly false or undefined
+    const isProfileComplete = user.profileComplete === true;
+    
+    console.log('🔍 AppNavigator Debug:', {
+      userId: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      profileComplete: user.profileComplete,
+      isProfileComplete,
+      redirectTo: isProfileComplete ? 'Home' : 'CreateProfile'
+    });
+    
+    if (!isProfileComplete) {
+      console.log('✅ Redirecting to CreateProfile');
+      return "CreateProfile";
+    }
+    
+    console.log('✅ Redirecting to Home');
+    return "Home";
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator 
-        initialRouteName={user ? "Home" : "Signup"}
+        initialRouteName={getInitialRoute()}
         screenOptions={{ headerShown: false }}
       >
         {user ? (
