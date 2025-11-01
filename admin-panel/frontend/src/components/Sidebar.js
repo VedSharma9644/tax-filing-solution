@@ -1,17 +1,27 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { usePermissions } from '../contexts/PermissionContext';
 import './Sidebar.css';
 
 const Sidebar = ({ isExpanded, activePage, toggleSidebar }) => {
-  const menuItems = [
-    { path: '/admin', icon: 'home', label: 'Home' },
-    { path: '/admin/users', icon: 'users', label: 'Users' },
-    { path: '/admin/applications', icon: 'applications', label: 'Applications' },
-    { path: '/admin/payments', icon: 'payments', label: 'Payments' },
-    { path: '/admin/scheduled-calls', icon: 'scheduled-calls', label: 'Scheduled Calls' },
-    { path: '/admin/feedbacks', icon: 'feedbacks', label: 'FeedBacks' },
-    { path: '/admin/support-requests', icon: 'support-requests', label: 'Support Requests' }
+  const { hasPageAccess } = usePermissions();
+
+  const allMenuItems = [
+    { path: '/admin', icon: 'home', label: 'Home', page: 'dashboard' },
+    { path: '/admin/users', icon: 'users', label: 'Users', page: 'users' },
+    { path: '/admin/applications', icon: 'applications', label: 'Applications', page: 'applications' },
+    { path: '/admin/payments', icon: 'payments', label: 'Payments', page: 'payments' },
+    { path: '/admin/scheduled-calls', icon: 'scheduled-calls', label: 'Scheduled Calls', page: 'scheduled-calls' },
+    { path: '/admin/feedbacks', icon: 'feedbacks', label: 'FeedBacks', page: 'feedbacks' },
+    { path: '/admin/support-requests', icon: 'support-requests', label: 'Support Requests', page: 'support-requests' },
+    { path: '/admin/admin-users', icon: 'admin-users', label: 'Admin Users', page: 'admin-users' }
   ];
+
+  // Filter menu items based on page access
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.page) return true; // Allow items without page mapping
+    return hasPageAccess(item.page);
+  });
 
   const getIcon = (iconName) => {
     const icons = {
@@ -49,6 +59,11 @@ const Sidebar = ({ isExpanded, activePage, toggleSidebar }) => {
       'support-requests': (
         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" role="img" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
           <path d="M22.056 8.447a3.894 3.894 0 0 0-5.313 1.419l-3.889 6.72a3.874 3.874 0 0 0 1.415 5.293l.01.005a3.894 3.894 0 0 0 5.312-1.42l3.889-6.718a3.875 3.875 0 0 0-1.416-5.294l-.008-.005m-14.7 12.168c-1.08 1.888-3.514 2.583-5.384 1.493-1.87-1.09-2.533-3.455-1.453-5.343s3.494-2.586 5.365-1.496c1.87 1.09 2.554 3.457 1.474 5.344m4.131-19.228a3.935 3.935 0 0 0-3.267 2.189l-3.67 6.279a4.638 4.638 0 0 0-.227.387l-2.746 4.737c1.345-.86 3.09-.993 4.55-.143a4.456 4.456 0 0 1 2.22 4.041l2.77-4.763c.082-.124.157-.252.224-.385l3.67-6.281a3.86 3.86 0 0 0-1.283-5.55 3.958 3.958 0 0 0-2.24-.511z"></path>
+        </svg>
+      ),
+      'admin-users': (
+        <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
         </svg>
       )
     };

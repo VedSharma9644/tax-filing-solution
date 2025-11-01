@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { ModalProvider } from './contexts/ModalContext';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
+import { PermissionProvider, usePermissions } from './contexts/PermissionContext';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
@@ -13,13 +14,28 @@ import Payments from './pages/Payments';
 import ScheduledCalls from './pages/ScheduledCalls';
 import Feedbacks from './pages/Feedbacks';
 import SupportRequests from './pages/SupportRequests';
+import AdminUsers from './pages/AdminUsers';
 import Logout from './pages/Logout';
 import Profile from './pages/Profile';
 import './App.css';
 
+// Map routes to page identifiers
+const routeToPage = {
+  '/admin': 'dashboard',
+  '/admin/users': 'users',
+  '/admin/applications': 'applications',
+  '/admin/payments': 'payments',
+  '/admin/scheduled-calls': 'scheduled-calls',
+  '/admin/feedbacks': 'feedbacks',
+  '/admin/support-requests': 'support-requests',
+  '/admin/admin-users': 'admin-users'
+};
+
 // Protected Route Component
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, requiredPermission, requiredPage }) {
   const { isAuthenticated, isLoading } = useAdminAuth();
+  const { hasPermission, hasPageAccess } = usePermissions();
+  const location = useLocation();
   
   if (isLoading) {
     return (
@@ -32,6 +48,33 @@ function ProtectedRoute({ children }) {
   
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
+  }
+  
+  // Check page access first (preferred method)
+  const pageId = requiredPage || routeToPage[location.pathname];
+  if (pageId && !hasPageAccess(pageId)) {
+    return (
+      <div className="loading-container">
+        <div style={{ textAlign: 'center' }}>
+          <h2>Access Denied</h2>
+          <p>You don't have permission to access this page.</p>
+          <Navigate to="/admin" replace />
+        </div>
+      </div>
+    );
+  }
+  
+  // Check permission if required (fallback/backward compatibility)
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    return (
+      <div className="loading-container">
+        <div style={{ textAlign: 'center' }}>
+          <h2>Access Denied</h2>
+          <p>You don't have permission to access this page.</p>
+          <Navigate to="/admin" replace />
+        </div>
+      </div>
+    );
   }
   
   return children;
@@ -59,43 +102,48 @@ function AppContent() {
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="/login" element={<Login onLogin={login} />} />
         <Route path="/admin" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="dashboard">
             <Homepage />
           </ProtectedRoute>
         } />
         <Route path="/admin/users" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="users">
             <Users />
           </ProtectedRoute>
         } />
         <Route path="/admin/applications" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="applications">
             <Applications />
           </ProtectedRoute>
         } />
         <Route path="/admin/applications/:id" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="applications">
             <ApplicationDetail />
           </ProtectedRoute>
         } />
         <Route path="/admin/payments" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="payments">
             <Payments />
           </ProtectedRoute>
         } />
         <Route path="/admin/scheduled-calls" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="scheduled-calls">
             <ScheduledCalls />
           </ProtectedRoute>
         } />
         <Route path="/admin/feedbacks" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="feedbacks">
             <Feedbacks />
           </ProtectedRoute>
         } />
         <Route path="/admin/support-requests" element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPage="support-requests">
             <SupportRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/admin-users" element={
+          <ProtectedRoute requiredPage="admin-users">
+            <AdminUsers />
           </ProtectedRoute>
         } />
         <Route path="/admin/logout" element={
@@ -126,11 +174,13 @@ function AppContent() {
 function App() {
   return (
     <AdminAuthProvider>
-      <ModalProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </ModalProvider>
+      <PermissionProvider>
+        <ModalProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </ModalProvider>
+      </PermissionProvider>
     </AdminAuthProvider>
   );
 }

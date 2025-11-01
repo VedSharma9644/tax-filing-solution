@@ -102,6 +102,8 @@
   border: 2px solid #d1d5db;
   border-radius: 8px;
   font-size: 14px;
+  color: #333;
+  background-color: #fff;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
 }

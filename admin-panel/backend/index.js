@@ -20,11 +20,103 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
 // Admin credentials (in production, store in environment variables)
+// This is kept for backward compatibility during migration
 const ADMIN_CREDENTIALS = {
   email: 'admin@taxfiling.com',
   password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password: "password"
   name: 'Admin User',
-  role: 'admin'
+  role: 'super_admin'
+};
+
+// Permission definitions
+const PERMISSIONS = {
+  // Admin user management
+  MANAGE_ADMINS: 'manage_admins',
+  
+  // User management
+  VIEW_USERS: 'view_users',
+  EDIT_USERS: 'edit_users',
+  DELETE_USERS: 'delete_users',
+  
+  // Application management
+  VIEW_APPLICATIONS: 'view_applications',
+  EDIT_APPLICATIONS: 'edit_applications',
+  DELETE_APPLICATIONS: 'delete_applications',
+  
+  // Payment management
+  VIEW_PAYMENTS: 'view_payments',
+  EDIT_PAYMENTS: 'edit_payments',
+  
+  // Appointment management
+  VIEW_APPOINTMENTS: 'view_appointments',
+  EDIT_APPOINTMENTS: 'edit_appointments',
+  
+  // Feedback management
+  VIEW_FEEDBACK: 'view_feedback',
+  EDIT_FEEDBACK: 'edit_feedback',
+  
+  // Support requests
+  VIEW_SUPPORT: 'view_support',
+  EDIT_SUPPORT: 'edit_support',
+  
+  // Dashboard
+  VIEW_DASHBOARD: 'view_dashboard',
+};
+
+// Role definitions with permissions
+const ROLES = {
+  super_admin: [
+    PERMISSIONS.MANAGE_ADMINS,
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.EDIT_USERS,
+    PERMISSIONS.DELETE_USERS,
+    PERMISSIONS.VIEW_APPLICATIONS,
+    PERMISSIONS.EDIT_APPLICATIONS,
+    PERMISSIONS.DELETE_APPLICATIONS,
+    PERMISSIONS.VIEW_PAYMENTS,
+    PERMISSIONS.EDIT_PAYMENTS,
+    PERMISSIONS.VIEW_APPOINTMENTS,
+    PERMISSIONS.EDIT_APPOINTMENTS,
+    PERMISSIONS.VIEW_FEEDBACK,
+    PERMISSIONS.EDIT_FEEDBACK,
+    PERMISSIONS.VIEW_SUPPORT,
+    PERMISSIONS.EDIT_SUPPORT,
+    PERMISSIONS.VIEW_DASHBOARD,
+  ],
+  admin: [
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.EDIT_USERS,
+    PERMISSIONS.VIEW_APPLICATIONS,
+    PERMISSIONS.EDIT_APPLICATIONS,
+    PERMISSIONS.VIEW_PAYMENTS,
+    PERMISSIONS.EDIT_PAYMENTS,
+    PERMISSIONS.VIEW_APPOINTMENTS,
+    PERMISSIONS.EDIT_APPOINTMENTS,
+    PERMISSIONS.VIEW_FEEDBACK,
+    PERMISSIONS.EDIT_FEEDBACK,
+    PERMISSIONS.VIEW_SUPPORT,
+    PERMISSIONS.EDIT_SUPPORT,
+    PERMISSIONS.VIEW_DASHBOARD,
+  ],
+  viewer: [
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.VIEW_APPLICATIONS,
+    PERMISSIONS.VIEW_PAYMENTS,
+    PERMISSIONS.VIEW_APPOINTMENTS,
+    PERMISSIONS.VIEW_FEEDBACK,
+    PERMISSIONS.VIEW_SUPPORT,
+    PERMISSIONS.VIEW_DASHBOARD,
+  ],
+};
+
+// Helper function to get permissions for a role
+const getPermissionsForRole = (role) => {
+  return ROLES[role] || [];
+};
+
+// Helper function to check if user has permission
+const hasPermission = (userPermissions, permission) => {
+  return userPermissions.includes(permission);
 };
 
 // Initialize Firebase Admin SDK
@@ -297,6 +389,74 @@ app.use('/api/auth', authLimiter);
 app.use('/api', apiLimiter);
 app.use(generalLimiter);
 
+// Available pages that can be assigned to admins
+const AVAILABLE_PAGES = [
+  'dashboard',
+  'users',
+  'applications',
+  'payments',
+  'scheduled-calls',
+  'feedbacks',
+  'support-requests',
+  'admin-users'
+];
+
+// Map pages to permissions (for API endpoint access)
+const PAGE_TO_PERMISSIONS = {
+  'dashboard': [PERMISSIONS.VIEW_DASHBOARD],
+  'users': [PERMISSIONS.VIEW_USERS, PERMISSIONS.EDIT_USERS, PERMISSIONS.DELETE_USERS],
+  'applications': [PERMISSIONS.VIEW_APPLICATIONS, PERMISSIONS.EDIT_APPLICATIONS, PERMISSIONS.DELETE_APPLICATIONS],
+  'payments': [PERMISSIONS.VIEW_PAYMENTS, PERMISSIONS.EDIT_PAYMENTS],
+  'scheduled-calls': [PERMISSIONS.VIEW_APPOINTMENTS, PERMISSIONS.EDIT_APPOINTMENTS],
+  'feedbacks': [PERMISSIONS.VIEW_FEEDBACK, PERMISSIONS.EDIT_FEEDBACK],
+  'support-requests': [PERMISSIONS.VIEW_SUPPORT, PERMISSIONS.EDIT_SUPPORT],
+  'admin-users': [PERMISSIONS.MANAGE_ADMINS]
+};
+
+// Get permissions from pages array
+const getPermissionsFromPages = (pages) => {
+  if (!pages || !Array.isArray(pages)) {
+    return [];
+  }
+  const permissions = new Set();
+  pages.forEach(page => {
+    if (PAGE_TO_PERMISSIONS[page]) {
+      PAGE_TO_PERMISSIONS[page].forEach(perm => permissions.add(perm));
+    }
+  });
+  return Array.from(permissions);
+};
+
+// Initialize default super admin if it doesn't exist
+const initializeDefaultAdmin = async () => {
+  try {
+    const adminUsersRef = db.collection('adminUsers');
+    const defaultAdminEmail = ADMIN_CREDENTIALS.email;
+    
+    // Check if default admin exists
+    const adminQuery = await adminUsersRef.where('email', '==', defaultAdminEmail).limit(1).get();
+    
+    if (adminQuery.empty) {
+      // Create default super admin with all pages
+      const hashedPassword = await bcrypt.hash('password', 10);
+      await adminUsersRef.add({
+        email: defaultAdminEmail,
+        password: hashedPassword,
+        name: ADMIN_CREDENTIALS.name,
+        role: 'super_admin', // Keep for backward compatibility
+        pages: AVAILABLE_PAGES, // All pages for super admin
+        isActive: true,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: null,
+      });
+      console.log('✅ Default super admin created in Firestore');
+    }
+  } catch (error) {
+    console.error('Error initializing default admin:', error);
+  }
+};
+
 // Authentication middleware
 const authenticateAdmin = (req, res, next) => {
   // Check for token in Authorization header first
@@ -315,7 +475,7 @@ const authenticateAdmin = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
       return res.status(403).json({
         success: false,
@@ -323,9 +483,102 @@ const authenticateAdmin = (req, res, next) => {
       });
     }
     
-    req.admin = decoded;
-    next();
+    // Fetch admin user from Firestore to get latest permissions
+    try {
+      // Handle legacy admin
+      if (decoded.adminId === 'legacy-admin') {
+        req.admin = {
+          ...decoded,
+          id: 'legacy-admin',
+          permissions: getPermissionsForRole('super_admin'),
+          role: 'super_admin',
+          name: ADMIN_CREDENTIALS.name,
+          isActive: true
+        };
+        return next();
+      }
+      
+      const adminUsersRef = db.collection('adminUsers');
+      const adminQuery = await adminUsersRef.where('email', '==', decoded.email).limit(1).get();
+      
+      if (adminQuery.empty) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin user not found'
+        });
+      }
+      
+      const adminDoc = adminQuery.docs[0];
+      const adminData = adminDoc.data();
+      
+      // Check if admin is active
+      if (!adminData.isActive) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin account is inactive'
+        });
+      }
+      
+      // Get permissions from pages (preferred) or role (backward compatibility)
+      let permissions = [];
+      if (adminData.pages && Array.isArray(adminData.pages) && adminData.pages.length > 0) {
+        permissions = getPermissionsFromPages(adminData.pages);
+      } else if (adminData.role) {
+        permissions = getPermissionsForRole(adminData.role);
+      }
+      
+      // Attach full admin data to request
+      req.admin = {
+        ...decoded,
+        id: adminDoc.id,
+        permissions: permissions,
+        pages: adminData.pages || [],
+        role: adminData.role || null,
+        name: adminData.name,
+        isActive: adminData.isActive
+      };
+      
+      next();
+    } catch (error) {
+      console.error('Error fetching admin user:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Error authenticating admin'
+      });
+    }
   });
+};
+
+// Permission checking middleware
+const checkPermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.admin) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
+    }
+    
+    if (!hasPermission(req.admin.permissions || [], permission)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions'
+      });
+    }
+    
+    next();
+  };
+};
+
+// Middleware to check if user is super admin
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.admin || req.admin.role !== 'super_admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Super admin access required'
+    });
+  }
+  next();
 };
 
 // Input validation middleware
@@ -350,6 +603,92 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Emergency endpoint to create/reset super admin (for first-time setup or recovery)
+// WARNING: This should be disabled or protected in production!
+app.post('/api/admin/emergency-create-super-admin', async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters'
+      });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    const adminUsersRef = db.collection('adminUsers');
+    
+    // Check if admin already exists
+    const existingQuery = await adminUsersRef.where('email', '==', normalizedEmail).limit(1).get();
+    
+    if (!existingQuery.empty) {
+      // Update existing admin to super_admin and reset password
+      const existingDoc = existingQuery.docs[0];
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      await existingDoc.ref.update({
+        password: hashedPassword,
+        role: 'super_admin',
+        isActive: true,
+        name: name || existingDoc.data().name || 'Super Admin',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      return res.json({
+        success: true,
+        message: 'Super admin account updated successfully',
+        data: {
+          email: normalizedEmail,
+          role: 'super_admin'
+        }
+      });
+    }
+    
+    // Create new super admin
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newAdminRef = await adminUsersRef.add({
+      email: normalizedEmail,
+      password: hashedPassword,
+      name: name || 'Super Admin',
+      role: 'super_admin',
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: null
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Super admin account created successfully',
+      data: {
+        id: newAdminRef.id,
+        email: normalizedEmail,
+        role: 'super_admin'
+      }
+    });
+  } catch (error) {
+    console.error('Error creating super admin:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create super admin',
+      details: error.message
+    });
+  }
+});
+
+// Initialize default admin on startup (run immediately, but don't block)
+initializeDefaultAdmin().catch(err => {
+  console.error('Failed to initialize default admin:', err);
+});
+
 // Authentication endpoints
 app.post('/api/auth/login', [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
@@ -358,16 +697,85 @@ app.post('/api/auth/login', [
 ], async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    // Normalize email
+    const normalizedEmail = email.toLowerCase().trim();
 
-    // Check admin credentials
-    if (email !== ADMIN_CREDENTIALS.email) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid credentials'
+    // Find admin user in Firestore
+    const adminUsersRef = db.collection('adminUsers');
+    const adminQuery = await adminUsersRef.where('email', '==', normalizedEmail).limit(1).get();
+
+    if (adminQuery.empty) {
+      // Fallback to legacy credentials for backward compatibility
+      if (normalizedEmail !== ADMIN_CREDENTIALS.email) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.password);
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+
+      // Generate JWT tokens for legacy admin
+      const accessToken = jwt.sign(
+        { 
+          adminId: 'legacy-admin',
+          email: ADMIN_CREDENTIALS.email,
+          name: ADMIN_CREDENTIALS.name,
+          role: 'super_admin'
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_EXPIRES_IN }
+      );
+
+      const refreshToken = jwt.sign(
+        { 
+          adminId: 'legacy-admin',
+          email: ADMIN_CREDENTIALS.email,
+          type: 'refresh'
+        },
+        JWT_SECRET,
+        { expiresIn: JWT_REFRESH_EXPIRES_IN }
+      );
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        data: {
+          accessToken,
+          refreshToken,
+          admin: {
+            id: 'legacy-admin',
+            email: ADMIN_CREDENTIALS.email,
+            name: ADMIN_CREDENTIALS.name,
+            role: 'super_admin',
+            pages: AVAILABLE_PAGES,
+            permissions: getPermissionsFromPages(AVAILABLE_PAGES)
+          }
+        }
       });
     }
 
-    const isValidPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.password);
+    // Admin user found in Firestore
+    const adminDoc = adminQuery.docs[0];
+    const adminData = adminDoc.data();
+
+    // Check if admin is active
+    if (!adminData.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin account is inactive. Please contact a super admin.'
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, adminData.password);
     if (!isValidPassword) {
       return res.status(401).json({
         success: false,
@@ -375,13 +783,18 @@ app.post('/api/auth/login', [
       });
     }
 
+    // Update last login timestamp
+    await adminDoc.ref.update({
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
     // Generate JWT tokens
     const accessToken = jwt.sign(
       { 
-        adminId: 'admin-001',
-        email: ADMIN_CREDENTIALS.email,
-        name: ADMIN_CREDENTIALS.name,
-        role: ADMIN_CREDENTIALS.role
+        adminId: adminDoc.id,
+        email: adminData.email,
+        name: adminData.name,
+        role: adminData.role
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -389,13 +802,31 @@ app.post('/api/auth/login', [
 
     const refreshToken = jwt.sign(
       { 
-        adminId: 'admin-001',
-        email: ADMIN_CREDENTIALS.email,
+        adminId: adminDoc.id,
+        email: adminData.email,
         type: 'refresh'
       },
       JWT_SECRET,
       { expiresIn: JWT_REFRESH_EXPIRES_IN }
     );
+
+    // Get permissions from pages (preferred) or role (backward compatibility)
+    let permissions = [];
+    let pages = [];
+    if (adminData.pages && Array.isArray(adminData.pages) && adminData.pages.length > 0) {
+      pages = adminData.pages;
+      permissions = getPermissionsFromPages(pages);
+    } else if (adminData.role) {
+      permissions = getPermissionsForRole(adminData.role);
+      // For backward compatibility, assign pages based on role
+      if (adminData.role === 'super_admin') {
+        pages = AVAILABLE_PAGES;
+      } else if (adminData.role === 'admin') {
+        pages = AVAILABLE_PAGES.filter(p => p !== 'admin-users');
+      } else {
+        pages = ['dashboard', 'users', 'applications', 'payments', 'scheduled-calls', 'feedbacks', 'support-requests'];
+      }
+    }
 
     res.json({
       success: true,
@@ -404,10 +835,12 @@ app.post('/api/auth/login', [
         accessToken,
         refreshToken,
         admin: {
-          id: 'admin-001',
-          email: ADMIN_CREDENTIALS.email,
-          name: ADMIN_CREDENTIALS.name,
-          role: ADMIN_CREDENTIALS.role
+          id: adminDoc.id,
+          email: adminData.email,
+          name: adminData.name,
+          role: adminData.role || null,
+          pages: pages,
+          permissions: permissions
         }
       }
     });
@@ -428,7 +861,7 @@ app.post('/api/auth/refresh', [
   try {
     const { refreshToken } = req.body;
 
-    jwt.verify(refreshToken, JWT_SECRET, (err, decoded) => {
+    jwt.verify(refreshToken, JWT_SECRET, async (err, decoded) => {
       if (err || decoded.type !== 'refresh') {
         return res.status(403).json({
           success: false,
@@ -436,13 +869,33 @@ app.post('/api/auth/refresh', [
         });
       }
 
+      // Fetch admin user from Firestore
+      let adminData;
+      if (decoded.adminId === 'legacy-admin') {
+        // Legacy admin
+        adminData = {
+          email: ADMIN_CREDENTIALS.email,
+          name: ADMIN_CREDENTIALS.name,
+          role: 'super_admin'
+        };
+      } else {
+        const adminDoc = await db.collection('adminUsers').doc(decoded.adminId).get();
+        if (!adminDoc.exists || !adminDoc.data().isActive) {
+          return res.status(403).json({
+            success: false,
+            error: 'Admin user not found or inactive'
+          });
+        }
+        adminData = adminDoc.data();
+      }
+
       // Generate new access token
       const accessToken = jwt.sign(
         { 
           adminId: decoded.adminId,
           email: decoded.email,
-          name: ADMIN_CREDENTIALS.name,
-          role: ADMIN_CREDENTIALS.role
+          name: adminData.name,
+          role: adminData.role
         },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
@@ -475,8 +928,296 @@ app.post('/api/auth/logout', authenticateAdmin, (req, res) => {
 
 // Protected Admin API endpoints
 
+// ============================================
+// Admin User Management Endpoints (Super Admin Only)
+// ============================================
+
+// Get available pages
+app.get('/api/admin/available-pages', authenticateAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const pageLabels = {
+      'dashboard': 'Dashboard / Home',
+      'users': 'Users',
+      'applications': 'Applications',
+      'payments': 'Payments',
+      'scheduled-calls': 'Scheduled Calls',
+      'feedbacks': 'Feedbacks',
+      'support-requests': 'Support Requests',
+      'admin-users': 'Admin Users'
+    };
+    
+    const pages = AVAILABLE_PAGES.map(page => ({
+      value: page,
+      label: pageLabels[page] || page
+    }));
+    
+    res.json({
+      success: true,
+      data: pages
+    });
+  } catch (error) {
+    console.error('Error fetching available pages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch available pages',
+      details: error.message
+    });
+  }
+});
+
+// Get all admin users
+app.get('/api/admin-users', authenticateAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const adminUsersSnapshot = await db.collection('adminUsers').get();
+    const adminUsers = [];
+    
+    adminUsersSnapshot.forEach(doc => {
+      const data = doc.data();
+      // Don't send password hash
+      adminUsers.push({
+        id: doc.id,
+        email: data.email,
+        name: data.name,
+        pages: data.pages || [],
+        role: data.role || null,
+        isActive: data.isActive,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        lastLoginAt: data.lastLoginAt
+      });
+    });
+    
+    res.json({
+      success: true,
+      data: adminUsers,
+      count: adminUsers.length
+    });
+  } catch (error) {
+    console.error('Error fetching admin users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch admin users',
+      details: error.message
+    });
+  }
+});
+
+// Create admin user
+app.post('/api/admin-users', [
+  authenticateAdmin,
+  requireSuperAdmin,
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('name').notEmpty().withMessage('Name is required'),
+  body('pages').isArray().withMessage('Pages must be an array'),
+  body('pages.*').isIn(AVAILABLE_PAGES).withMessage('Invalid page in pages array'),
+  validateInput
+], async (req, res) => {
+  try {
+    const { email, password, name, pages, isActive = true } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Validate pages
+    if (!pages || !Array.isArray(pages) || pages.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one page must be selected'
+      });
+    }
+    
+    // Validate all pages are in available pages list
+    const invalidPages = pages.filter(page => !AVAILABLE_PAGES.includes(page));
+    if (invalidPages.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid pages: ${invalidPages.join(', ')}`
+      });
+    }
+    
+    // Check if admin user already exists
+    const adminUsersRef = db.collection('adminUsers');
+    const existingAdmin = await adminUsersRef.where('email', '==', normalizedEmail).limit(1).get();
+    
+    if (!existingAdmin.empty) {
+      return res.status(400).json({
+        success: false,
+        error: 'Admin user with this email already exists'
+      });
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Determine role for backward compatibility (if all pages = super_admin, else admin)
+    const role = pages.includes('admin-users') && pages.length === AVAILABLE_PAGES.length ? 'super_admin' : 'admin';
+    
+    // Create admin user
+    const newAdminRef = await adminUsersRef.add({
+      email: normalizedEmail,
+      password: hashedPassword,
+      name: name.trim(),
+      pages: pages,
+      role: role, // Keep for backward compatibility
+      isActive: isActive,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: null
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: 'Admin user created successfully',
+      data: {
+        id: newAdminRef.id,
+        email: normalizedEmail,
+        name: name.trim(),
+        pages: pages,
+        role: role,
+        isActive: isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error creating admin user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create admin user',
+      details: error.message
+    });
+  }
+});
+
+// Update admin user
+app.put('/api/admin-users/:id', [
+  authenticateAdmin,
+  requireSuperAdmin,
+  body('name').optional().notEmpty().withMessage('Name cannot be empty'),
+  body('pages').optional().isArray().withMessage('Pages must be an array'),
+  body('pages.*').optional().isIn(AVAILABLE_PAGES).withMessage('Invalid page in pages array'),
+  body('isActive').optional().isBoolean().withMessage('isActive must be a boolean'),
+  validateInput
+], async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, pages, isActive, password } = req.body;
+    
+    const adminDoc = await db.collection('adminUsers').doc(id).get();
+    
+    if (!adminDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Admin user not found'
+      });
+    }
+    
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    if (name !== undefined) {
+      updateData.name = name.trim();
+    }
+    
+    if (pages !== undefined) {
+      if (!Array.isArray(pages) || pages.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'At least one page must be selected'
+        });
+      }
+      
+      // Validate all pages are in available pages list
+      const invalidPages = pages.filter(page => !AVAILABLE_PAGES.includes(page));
+      if (invalidPages.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid pages: ${invalidPages.join(', ')}`
+        });
+      }
+      
+      updateData.pages = pages;
+      // Update role for backward compatibility
+      updateData.role = pages.includes('admin-users') && pages.length === AVAILABLE_PAGES.length ? 'super_admin' : 'admin';
+    }
+    
+    if (isActive !== undefined) {
+      updateData.isActive = isActive;
+    }
+    
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: 'Password must be at least 6 characters'
+        });
+      }
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+    
+    await adminDoc.ref.update(updateData);
+    
+    const updatedData = adminDoc.data();
+    res.json({
+      success: true,
+      message: 'Admin user updated successfully',
+      data: {
+        id: id,
+        email: updatedData.email,
+        name: updateData.name || updatedData.name,
+        pages: updateData.pages || updatedData.pages || [],
+        role: updateData.role || updatedData.role || null,
+        isActive: updateData.isActive !== undefined ? updateData.isActive : updatedData.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error updating admin user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update admin user',
+      details: error.message
+    });
+  }
+});
+
+// Delete admin user
+app.delete('/api/admin-users/:id', authenticateAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Prevent deleting yourself
+    if (req.admin.id === id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot delete your own account'
+      });
+    }
+    
+    const adminDoc = await db.collection('adminUsers').doc(id).get();
+    
+    if (!adminDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Admin user not found'
+      });
+    }
+    
+    await adminDoc.ref.delete();
+    
+    res.json({
+      success: true,
+      message: 'Admin user deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting admin user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete admin user',
+      details: error.message
+    });
+  }
+});
+
 // Get all users
-app.get('/api/users', authenticateAdmin, async (req, res) => {
+app.get('/api/users', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_USERS), async (req, res) => {
   try {
     const usersSnapshot = await db.collection('users').get();
     const users = [];
@@ -504,7 +1245,7 @@ app.get('/api/users', authenticateAdmin, async (req, res) => {
 });
 
 // Get all tax forms
-app.get('/api/tax-forms', authenticateAdmin, async (req, res) => {
+app.get('/api/tax-forms', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_APPLICATIONS), async (req, res) => {
   try {
     const formsSnapshot = await db.collection('taxForms').get();
     const forms = [];
@@ -552,7 +1293,7 @@ app.get('/api/tax-forms', authenticateAdmin, async (req, res) => {
 });
 
 // Get detailed tax form by ID
-app.get('/api/tax-forms/:id', authenticateAdmin, async (req, res) => {
+app.get('/api/tax-forms/:id', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_APPLICATIONS), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -615,7 +1356,7 @@ app.get('/api/tax-forms/:id', authenticateAdmin, async (req, res) => {
 });
 
 // Update tax form status and expected return
-app.put('/api/tax-forms/:id/status', authenticateAdmin, async (req, res) => {
+app.put('/api/tax-forms/:id/status', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_APPLICATIONS), async (req, res) => {
   try {
     const { id } = req.params;
     const { status, expectedReturn, paymentAmount, adminNotes } = req.body;
@@ -700,7 +1441,7 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, async (req, res) => {
 });
 
 // Get all appointments with enhanced filtering and pagination
-app.get('/api/appointments', authenticateAdmin, async (req, res) => {
+app.get('/api/appointments', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_APPOINTMENTS), async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search, dateFrom, dateTo } = req.query;
     const pageNum = parseInt(page);
@@ -783,7 +1524,7 @@ app.get('/api/appointments', authenticateAdmin, async (req, res) => {
 });
 
 // Update appointment status
-app.put('/api/appointments/status', authenticateAdmin, async (req, res) => {
+app.put('/api/appointments/status', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_APPOINTMENTS), async (req, res) => {
   try {
     const { appointmentId, status, adminNotes } = req.body;
 
@@ -852,7 +1593,7 @@ app.put('/api/appointments/status', authenticateAdmin, async (req, res) => {
 });
 
 // Reschedule appointment with new date and time
-app.put('/api/appointments/reschedule', authenticateAdmin, async (req, res) => {
+app.put('/api/appointments/reschedule', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_APPOINTMENTS), async (req, res) => {
   try {
     const { appointmentId, newDate, newTime, adminNotes } = req.body;
 
@@ -960,7 +1701,7 @@ app.put('/api/appointments/reschedule', authenticateAdmin, async (req, res) => {
 });
 
 // Update admin notes for appointment
-app.put('/api/appointments/notes', authenticateAdmin, async (req, res) => {
+app.put('/api/appointments/notes', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_APPOINTMENTS), async (req, res) => {
   try {
     const { appointmentId, adminNotes } = req.body;
 
@@ -1023,7 +1764,7 @@ app.put('/api/appointments/notes', authenticateAdmin, async (req, res) => {
 });
 
 // Delete appointment
-app.delete('/api/appointments/:id', authenticateAdmin, async (req, res) => {
+app.delete('/api/appointments/:id', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_APPOINTMENTS), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1117,7 +1858,7 @@ app.get('/api/appointments/stats', authenticateAdmin, async (req, res) => {
 });
 
 // Get all payments
-app.get('/api/payments', authenticateAdmin, async (req, res) => {
+app.get('/api/payments', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_PAYMENTS), async (req, res) => {
   try {
     const paymentsSnapshot = await db.collection('payments').get();
     const payments = [];
@@ -1145,7 +1886,7 @@ app.get('/api/payments', authenticateAdmin, async (req, res) => {
 });
 
 // Get all support requests
-app.get('/api/support-requests', authenticateAdmin, async (req, res) => {
+app.get('/api/support-requests', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_SUPPORT), async (req, res) => {
   try {
     const requestsSnapshot = await db.collection('supportRequests').get();
     const requests = [];
@@ -1173,7 +1914,7 @@ app.get('/api/support-requests', authenticateAdmin, async (req, res) => {
 });
 
 // Get all feedback with proper formatting
-app.get('/api/feedback', authenticateAdmin, async (req, res) => {
+app.get('/api/feedback', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_FEEDBACK), async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search } = req.query;
     const pageNum = parseInt(page);
@@ -1250,7 +1991,7 @@ app.get('/api/feedback', authenticateAdmin, async (req, res) => {
 });
 
 // Reply to feedback
-app.post('/api/feedback/reply', authenticateAdmin, async (req, res) => {
+app.post('/api/feedback/reply', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_FEEDBACK), async (req, res) => {
   try {
     const { feedbackId, reply, adminName = 'Admin' } = req.body;
 
@@ -1314,7 +2055,7 @@ app.post('/api/feedback/reply', authenticateAdmin, async (req, res) => {
 });
 
 // Update feedback status
-app.put('/api/feedback/status', authenticateAdmin, async (req, res) => {
+app.put('/api/feedback/status', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_FEEDBACK), async (req, res) => {
   try {
     const { feedbackId, status } = req.body;
 
@@ -1367,7 +2108,7 @@ app.put('/api/feedback/status', authenticateAdmin, async (req, res) => {
 });
 
 // Delete feedback
-app.delete('/api/feedback/:id', authenticateAdmin, async (req, res) => {
+app.delete('/api/feedback/:id', authenticateAdmin, checkPermission(PERMISSIONS.EDIT_FEEDBACK), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1405,7 +2146,7 @@ app.delete('/api/feedback/:id', authenticateAdmin, async (req, res) => {
 });
 
 // Get dashboard stats
-app.get('/api/dashboard-stats', authenticateAdmin, async (req, res) => {
+app.get('/api/dashboard-stats', authenticateAdmin, checkPermission(PERMISSIONS.VIEW_DASHBOARD), async (req, res) => {
   try {
     const [usersSnapshot, formsSnapshot, appointmentsSnapshot, paymentsSnapshot, requestsSnapshot, feedbackSnapshot] = await Promise.all([
       db.collection('users').get(),
@@ -1504,7 +2245,7 @@ app.delete('/api/users/:userId', authenticateAdmin, async (req, res) => {
 });
 
 // Delete tax form application
-app.delete('/api/tax-forms/:id', authenticateAdmin, async (req, res) => {
+app.delete('/api/tax-forms/:id', authenticateAdmin, checkPermission(PERMISSIONS.DELETE_APPLICATIONS), async (req, res) => {
   try {
     const { id } = req.params;
     

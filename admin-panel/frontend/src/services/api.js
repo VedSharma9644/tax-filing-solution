@@ -388,6 +388,35 @@ class AdminApiService {
   async downloadReturn(applicationId, returnType) {
     return this.makeRequest(`/admin/returns/${applicationId}/${returnType}`);
   }
+
+  // Admin user management endpoints
+  async getAvailablePages() {
+    return this.makeRequest('/api/admin/available-pages');
+  }
+
+  async getAdminUsers() {
+    return this.makeRequest('/api/admin-users');
+  }
+
+  async createAdminUser(userData) {
+    return this.makeRequest('/api/admin-users', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  }
+
+  async updateAdminUser(userId, userData) {
+    return this.makeRequest(`/api/admin-users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+  }
+
+  async deleteAdminUser(userId) {
+    return this.makeRequest(`/api/admin-users/${userId}`, {
+      method: 'DELETE'
+    });
+  }
 }
 
 export default new AdminApiService();
