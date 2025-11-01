@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ProfileService from '../services/profileService';
 
 export const useProfile = () => {
-  const { user, token, isAuthenticated } = useAuth();
+  const { user, token, isAuthenticated, updateUser } = useAuth();
   const [profile, setProfile] = useState({
     firstName: '',
     lastName: '',
@@ -66,7 +66,29 @@ export const useProfile = () => {
     try {
       const response = await ProfileService.updateProfile(token, profileData);
       if (response.success) {
+        // Update local profile state
         setProfile(prev => ({ ...prev, ...profileData }));
+        
+        // Update AuthContext user so header and other components reflect changes immediately
+        if (response.user) {
+          await updateUser({
+            ...user,
+            ...response.user,
+            // Preserve profileComplete to prevent unwanted redirects
+            profileComplete: user.profileComplete !== undefined ? user.profileComplete : true
+          });
+        } else {
+          // If response doesn't include full user object, update with profile data
+          await updateUser({
+            ...user,
+            ...profileData,
+            profileComplete: user.profileComplete !== undefined ? user.profileComplete : true
+          });
+        }
+        
+        // Reload profile from server to ensure we have the latest data
+        await loadProfile();
+        
         Alert.alert('Success', 'Profile updated successfully');
         return true;
       } else {
@@ -108,16 +130,9 @@ export const useProfile = () => {
     }
   };
 
-  const resetProfile = () => {
-    if (user) {
-      setProfile({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        profilePicture: user.profilePicture || null,
-      });
-    }
+  const resetProfile = async () => {
+    // Reload profile from server to get latest data
+    await loadProfile();
     setErrors({});
   };
 

@@ -618,7 +618,7 @@ app.get('/api/tax-forms/:id', authenticateAdmin, async (req, res) => {
 app.put('/api/tax-forms/:id/status', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, expectedReturn, adminNotes } = req.body;
+    const { status, expectedReturn, paymentAmount, adminNotes } = req.body;
     
     if (!id) {
       return res.status(400).json({
@@ -658,6 +658,10 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, async (req, res) => {
       updateData.expectedReturn = parseFloat(expectedReturn) || 0;
     }
     
+    if (paymentAmount !== undefined) {
+      updateData.paymentAmount = parseFloat(paymentAmount) || 0;
+    }
+    
     if (adminNotes) {
       // Sanitize admin notes
       const sanitizedNotes = adminNotes
@@ -681,6 +685,7 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, async (req, res) => {
         id: id,
         status: status || taxFormDoc.data().status,
         expectedReturn: expectedReturn !== undefined ? updateData.expectedReturn : taxFormDoc.data().expectedReturn,
+        paymentAmount: paymentAmount !== undefined ? updateData.paymentAmount : taxFormDoc.data().paymentAmount,
         adminNotes: updateData.adminNotes || taxFormDoc.data().adminNotes
       }
     });

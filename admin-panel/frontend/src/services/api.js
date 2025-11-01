@@ -118,12 +118,13 @@ class AdminApiService {
   }
 
   // Update tax form status and expected return
-  async updateTaxFormStatus(formId, status, expectedReturn, adminNotes) {
+  async updateTaxFormStatus(formId, status, expectedReturn, paymentAmount, adminNotes) {
     return this.makeRequest(`/api/tax-forms/${formId}/status`, {
       method: 'PUT',
       body: JSON.stringify({
         status,
         expectedReturn,
+        paymentAmount,
         adminNotes
       })
     });

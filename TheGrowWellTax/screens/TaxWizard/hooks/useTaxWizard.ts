@@ -25,6 +25,7 @@ export const useTaxWizard = () => {
     w2Forms: [],
     hasAdditionalIncome: false,
     additionalIncomeSources: [],
+    additionalIncomeGeneralDocuments: [],
     medicalDocuments: [],
     educationDocuments: [],
     dependentChildrenDocuments: [],
@@ -56,7 +57,23 @@ export const useTaxWizard = () => {
         const savedData = await loadAllFormData(user.id);
         
         if (savedData.formData) {
-          setFormData(savedData.formData);
+          // Merge saved data with default values to ensure all fields exist
+          setFormData({
+            socialSecurityNumber: '',
+            previousYearTaxDocuments: [],
+            w2Forms: [],
+            hasAdditionalIncome: false,
+            additionalIncomeSources: [],
+            additionalIncomeGeneralDocuments: [],
+            medicalDocuments: [],
+            educationDocuments: [],
+            dependentChildrenDocuments: [],
+            homeownerDeductionDocuments: [],
+            personalIdDocuments: [],
+            ...savedData.formData, // Spread saved data to override defaults
+            // Ensure new fields are initialized if missing
+            additionalIncomeGeneralDocuments: savedData.formData.additionalIncomeGeneralDocuments || [],
+          });
         }
         if (savedData.dependents) {
           setDependents(savedData.dependents);
@@ -341,6 +358,8 @@ export const useTaxWizard = () => {
           return { ...prev, previousYearTaxDocuments: updateFunction(prev.previousYearTaxDocuments) };
         case 'w2Forms':
           return { ...prev, w2Forms: updateFunction(prev.w2Forms) };
+        case 'additionalIncomeGeneral':
+          return { ...prev, additionalIncomeGeneralDocuments: updateFunction(prev.additionalIncomeGeneralDocuments) };
         case 'medical':
           return { ...prev, medicalDocuments: updateFunction(prev.medicalDocuments) };
         case 'education':
@@ -373,6 +392,8 @@ export const useTaxWizard = () => {
               return { ...prev, previousYearTaxDocuments: updateProgress(prev.previousYearTaxDocuments) };
             case 'w2Forms':
               return { ...prev, w2Forms: updateProgress(prev.w2Forms) };
+            case 'additionalIncomeGeneral':
+              return { ...prev, additionalIncomeGeneralDocuments: updateProgress(prev.additionalIncomeGeneralDocuments) };
             case 'medical':
               return { ...prev, medicalDocuments: updateProgress(prev.medicalDocuments) };
             case 'education':
@@ -406,6 +427,8 @@ export const useTaxWizard = () => {
             return { ...prev, previousYearTaxDocuments: markCompleted(prev.previousYearTaxDocuments) };
           case 'w2Forms':
             return { ...prev, w2Forms: markCompleted(prev.w2Forms) };
+          case 'additionalIncomeGeneral':
+            return { ...prev, additionalIncomeGeneralDocuments: markCompleted(prev.additionalIncomeGeneralDocuments) };
           case 'medical':
             return { ...prev, medicalDocuments: markCompleted(prev.medicalDocuments) };
           case 'education':
@@ -447,6 +470,8 @@ export const useTaxWizard = () => {
             return { ...prev, previousYearTaxDocuments: markError(prev.previousYearTaxDocuments) };
           case 'w2Forms':
             return { ...prev, w2Forms: markError(prev.w2Forms) };
+          case 'additionalIncomeGeneral':
+            return { ...prev, additionalIncomeGeneralDocuments: markError(prev.additionalIncomeGeneralDocuments) };
           case 'medical':
             return { ...prev, medicalDocuments: markError(prev.medicalDocuments) };
           case 'education':
@@ -476,6 +501,9 @@ export const useTaxWizard = () => {
         break;
       case 'w2Forms':
         documentToDelete = (formData.w2Forms || []).find(doc => doc.id === id);
+        break;
+      case 'additionalIncomeGeneral':
+        documentToDelete = (formData.additionalIncomeGeneralDocuments || []).find(doc => doc.id === id);
         break;
       case 'medical':
         documentToDelete = (formData.medicalDocuments || []).find(doc => doc.id === id);
@@ -514,6 +542,8 @@ export const useTaxWizard = () => {
           return { ...prev, previousYearTaxDocuments: removeFunction(prev.previousYearTaxDocuments) };
         case 'w2Forms':
           return { ...prev, w2Forms: removeFunction(prev.w2Forms) };
+        case 'additionalIncomeGeneral':
+          return { ...prev, additionalIncomeGeneralDocuments: removeFunction(prev.additionalIncomeGeneralDocuments) };
         case 'medical':
           return { ...prev, medicalDocuments: removeFunction(prev.medicalDocuments) };
         case 'education':

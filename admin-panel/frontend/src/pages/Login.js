@@ -109,9 +109,11 @@ const Login = ({ onLogin }) => {
       <div className="login-card">
         <div className="login-header">
           <div className="logo-container">
-            <div className="logo-placeholder">
-              <span className="logo-text">T</span>
-            </div>
+            <img 
+              src="/logo.jpg" 
+              alt="logo"
+              className="login-logo"
+            />
           </div>
           <h1>Admin Login</h1>
           <p>Tax Filing System Administration</p>

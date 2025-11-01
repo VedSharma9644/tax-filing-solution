@@ -2133,7 +2133,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 8,
-    color: '#ffffff',
+    color: '#333',
     fontSize: 14,
   },
   errorText: {
@@ -2142,7 +2142,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   noDataText: {
-    color: '#ffffff',
+    color: '#333',
     textAlign: 'center',
     padding: 20,
     fontStyle: 'italic',

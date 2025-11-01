@@ -13,6 +13,7 @@ import ApiService from '../services/api';
 import ImageCacheService from '../services/imageCacheService';
 import { BackgroundColors } from '../utils/colors';
 import NotificationTestPanel from '../components/NotificationTestPanel';
+import Toast from '../components/Toast';
 
 const Dashboard = () => {
   const navigation = useNavigation<any>();
@@ -25,6 +26,8 @@ const Dashboard = () => {
   const [isPreloadingImages, setIsPreloadingImages] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
   const [showTestPanel, setShowTestPanel] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Get user's display name
   const getUserDisplayName = () => {
@@ -243,6 +246,12 @@ const Dashboard = () => {
     return submittedStatuses.includes(currentYearForm.status);
   };
 
+  // Show toast notification
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  };
+
 
   return (
     <SafeAreaWrapper>
@@ -333,17 +342,53 @@ const Dashboard = () => {
                 {hasSubmittedApplication() ? 'Application Submitted' : 'Start New Return'}
               </Text>
             </Button>
-            <Button style={styles.actionButton} onPress={() => navigation.navigate('DocumentReviewNew')}>
-              <Feather name="file-text" size={20} color="#fff" />
-              <Text style={styles.actionButtonText}>Review Documents</Text>
+            <Button 
+              style={{
+                ...styles.actionButton,
+                ...(!hasSubmittedApplication() ? styles.disabledButton : {})
+              }} 
+              onPress={() => {
+                if (!hasSubmittedApplication()) {
+                  showToast('Please submit the application first');
+                } else {
+                  navigation.navigate('DocumentReviewNew');
+                }
+              }}
+              disabled={!hasSubmittedApplication()}
+            >
+              <Feather name="file-text" size={20} color={!hasSubmittedApplication() ? "#666" : "#fff"} />
+              <Text style={[
+                styles.actionButtonText,
+                !hasSubmittedApplication() && styles.disabledButtonText
+              ]}>
+                Review Documents
+              </Text>
             </Button>
           </View>
           
           {/* Admin Review Button */}
           <View style={styles.adminReviewRow}>
-            <Button style={styles.adminReviewButton} onPress={() => navigation.navigate('DocumentReview')}>
-              <FontAwesome name="eye" size={18} color="#fff" />
-              <Text style={styles.adminReviewButtonText}>Review Draft Document</Text>
+            <Button 
+              style={{
+                ...styles.adminReviewButton,
+                ...(!hasSubmittedApplication() ? styles.disabledButton : {})
+              }} 
+              onPress={() => {
+                if (!hasSubmittedApplication()) {
+                  showToast('Please submit the application first');
+                } else {
+                  navigation.navigate('DocumentReview');
+                }
+              }}
+              disabled={!hasSubmittedApplication()}
+            >
+              <FontAwesome name="eye" size={18} color={!hasSubmittedApplication() ? "#666" : "#fff"} />
+              <Text style={[
+                styles.adminReviewButtonText,
+                !hasSubmittedApplication() && styles.disabledButtonText
+              ]}>
+                Review Draft Document
+              </Text>
             </Button>
           </View>
         </View>
@@ -425,6 +470,13 @@ const Dashboard = () => {
       <NotificationTestPanel 
         visible={showTestPanel} 
         onClose={() => setShowTestPanel(false)} 
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
       />
     </SafeAreaWrapper>
   );

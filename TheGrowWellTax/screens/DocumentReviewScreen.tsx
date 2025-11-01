@@ -160,6 +160,8 @@ const DocumentReviewScreen = () => {
       case 'homeownerDeduction': return 'home';
       case 'personalId': return 'id-card';
       case 'previousYearTax': return 'file-text-o';
+      case 'additional_income':
+      case 'additionalIncomeGeneral': return 'dollar-sign';
       default: return 'file';
     }
   };
@@ -173,6 +175,8 @@ const DocumentReviewScreen = () => {
       case 'homeownerDeduction': return 'Homeowner Deductions';
       case 'personalId': return 'Personal Documents (ID)';
       case 'previousYearTax': return 'Previous Year Tax Documents';
+      case 'additional_income':
+      case 'additionalIncomeGeneral': return 'Additional Income Documents';
       default: return 'Other Documents';
     }
   };
@@ -180,10 +184,16 @@ const DocumentReviewScreen = () => {
   const groupDocumentsByCategory = () => {
     const grouped: { [key: string]: Document[] } = {};
     documents.forEach(doc => {
-      if (!grouped[doc.category]) {
-        grouped[doc.category] = [];
+      // Normalize category names - treat additionalIncomeGeneral as additional_income
+      let normalizedCategory = doc.category;
+      if (doc.category === 'additionalIncomeGeneral') {
+        normalizedCategory = 'additional_income';
       }
-      grouped[doc.category].push(doc);
+      
+      if (!grouped[normalizedCategory]) {
+        grouped[normalizedCategory] = [];
+      }
+      grouped[normalizedCategory].push(doc);
     });
     return grouped;
   };

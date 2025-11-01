@@ -18,8 +18,6 @@ import FeedbackScreen from '../screens/FeedbackScreen';
 import SupportRequestScreen from '../screens/SupportRequestScreen';
 import AppointmentScreen from '../screens/AppointmentScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
-import FAQHelpCenterScreen from '../screens/FAQHelpCenter';
-import TaxFilingGuideScreen from '../screens/TaxFilingGuide';
 import CacheManagementScreen from '../screens/CacheManagementScreen';
 
 const Stack = createNativeStackNavigator();
@@ -111,8 +109,6 @@ const AppNavigator = () => {
             <Stack.Screen name="SupportRequest" component={SupportRequestScreen} />
             <Stack.Screen name="Appointment" component={AppointmentScreen} />
             <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
-            <Stack.Screen name="FAQHelpCenter" component={FAQHelpCenterScreen} />
-            <Stack.Screen name="TaxFilingGuide" component={TaxFilingGuideScreen} />
             <Stack.Screen name="CacheManagement" component={CacheManagementScreen} />
           </>
         ) : (

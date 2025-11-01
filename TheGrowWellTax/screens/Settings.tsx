@@ -19,17 +19,11 @@ const Settings = () => {
     refundUpdates: true,
     marketingEmails: false,
   });
-  const [security, setSecurity] = useState({
-    twoFactorAuth: false,
-    biometricLogin: true,
-    autoLogout: true,
-  });
-  const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation<any>();
   const scrollY = useRef(new Animated.Value(0)).current;
   
   // Profile management
-  const { profile, loading, saving, errors, updateProfile, resetProfile } = useProfile();
+  const { profile, loading, saving, errors, updateProfile, resetProfile, loadProfile } = useProfile();
   const { user, logout } = useAuth();
   const [profileChanges, setProfileChanges] = useState({});
 
@@ -103,61 +97,8 @@ const Settings = () => {
                   loading={saving}
                   onSave={handleProfileSave}
                   onReset={handleProfileReset}
+                  onProfilePictureUpdated={loadProfile}
                 />
-              </CardContent>
-            </Card>
-          </View>
-          
-          {/* Security & Privacy Section */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="shield-checkmark" size={20} color="#D7B04C" />
-              <Text style={styles.sectionTitle}>Security & Privacy</Text>
-            </View>
-            <Card style={styles.card}>
-              <CardContent>
-                {/* Current Password */}
-                <Text style={styles.label}>Current Password</Text>
-                <View style={styles.inputWithIcon}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-                  <TextInput 
-                    style={styles.inputWithIconText} 
-                    placeholder="Enter current password" 
-                    secureTextEntry={!showPassword}
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons 
-                      name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                      size={20} 
-                      color="#666" 
-                    />
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Security Features */}
-                <View style={styles.securityRow}>
-                  <View style={styles.securityContent}>
-                    <Text style={styles.securityTitle}>Two-Factor Authentication</Text>
-                    <Text style={styles.securitySubtitle}>Add an extra layer of security</Text>
-                  </View>
-                  <Switch value={security.twoFactorAuth} onValueChange={val => setSecurity(prev => ({ ...prev, twoFactorAuth: val }))} />
-                </View>
-                
-                <View style={styles.securityRow}>
-                  <View style={styles.securityContent}>
-                    <Text style={styles.securityTitle}>Biometric Login</Text>
-                    <Text style={styles.securitySubtitle}>Use fingerprint or face ID</Text>
-                  </View>
-                  <Switch value={security.biometricLogin} onValueChange={val => setSecurity(prev => ({ ...prev, biometricLogin: val }))} />
-                </View>
-                
-                <View style={styles.securityRow}>
-                  <View style={styles.securityContent}>
-                    <Text style={styles.securityTitle}>Auto-Logout</Text>
-                    <Text style={styles.securitySubtitle}>Logout after 30 minutes of inactivity</Text>
-                  </View>
-                  <Switch value={security.autoLogout} onValueChange={val => setSecurity(prev => ({ ...prev, autoLogout: val }))} />
-                </View>
               </CardContent>
             </Card>
           </View>
@@ -234,10 +175,6 @@ const Settings = () => {
                   <Text style={styles.supportButtonText}>View Payment History</Text>
                   <Ionicons name="chevron-forward" size={20} color="#666" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.supportButton}>
-                  <Text style={styles.supportButtonText}>Download Receipts</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
               </CardContent>
             </Card>
           </View>
@@ -260,41 +197,6 @@ const Settings = () => {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('Feedback')}>
                   <Text style={styles.supportButtonText}>Submit Feedback</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('FAQHelpCenter')}>
-                  <Text style={styles.supportButtonText}>FAQ & Help Center</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('TaxFilingGuide')}>
-                  <Text style={styles.supportButtonText}>Tax Filing Guide</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-              </CardContent>
-            </Card>
-          </View>
-          
-          {/* Data & Privacy Section */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="shield-outline" size={20} color="#D7B04C" />
-              <Text style={styles.sectionTitle}>Data & Privacy</Text>
-            </View>
-            <Card style={styles.card}>
-              <CardContent>
-                <TouchableOpacity style={styles.privacyButton}>
-                  <Ionicons name="download-outline" size={20} color="#666" />
-                  <Text style={styles.privacyButtonText}>Download My Data</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.privacyButton} onPress={() => navigation.navigate('CacheManagement')}>
-                  <Ionicons name="folder-outline" size={20} color="#666" />
-                  <Text style={styles.privacyButtonText}>Manage Image Cache</Text>
-                  <Ionicons name="chevron-forward" size={20} color="#666" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.privacyButton}>
-                  <Ionicons name="help-circle-outline" size={20} color="#666" />
-                  <Text style={styles.privacyButtonText}>Privacy Policy</Text>
                   <Ionicons name="chevron-forward" size={20} color="#666" />
                 </TouchableOpacity>
               </CardContent>

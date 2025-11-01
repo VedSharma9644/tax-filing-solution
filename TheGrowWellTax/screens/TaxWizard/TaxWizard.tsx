@@ -171,6 +171,8 @@ const TaxWizard: React.FC = () => {
             onUpdateFormData={updateFormData}
             onUploadIncomeSourceDocument={uploadIncomeSourceDocument}
             onDeleteIncomeSourceDocument={deleteIncomeSourceDocument}
+            onUploadDocument={uploadDocument}
+            onDeleteDocument={deleteDocument}
             isUploading={isUploading}
           />
         );

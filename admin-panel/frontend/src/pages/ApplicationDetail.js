@@ -11,6 +11,7 @@ const ApplicationDetail = () => {
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(false);
   const [expectedReturn, setExpectedReturn] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -37,6 +38,7 @@ const ApplicationDetail = () => {
       if (response.success) {
         setApplication(response.data);
         setExpectedReturn(response.data.expectedReturn || '');
+        setPaymentAmount(response.data.paymentAmount || '');
         setAdminNotes(response.data.adminNotes || '');
       } else {
         setError('Failed to fetch application details');
@@ -56,6 +58,7 @@ const ApplicationDetail = () => {
         id,
         status,
         parseFloat(expectedReturn) || 0,
+        parseFloat(paymentAmount) || 0,
         adminNotes
       );
       
@@ -64,6 +67,7 @@ const ApplicationDetail = () => {
           ...prev,
           status: response.data.status,
           expectedReturn: response.data.expectedReturn,
+          paymentAmount: response.data.paymentAmount,
           adminNotes: response.data.adminNotes
         }));
         setShowStatusModal(false);
@@ -636,7 +640,7 @@ const ApplicationDetail = () => {
         <h3>Admin Actions</h3>
         <div className="admin-form">
           <div className="form-group">
-            <label htmlFor="expectedReturn"></label>
+            <label htmlFor="expectedReturn">Expected Return ($):</label>
             <input
               type="number"
               id="expectedReturn"
@@ -644,6 +648,18 @@ const ApplicationDetail = () => {
               onChange={(e) => setExpectedReturn(e.target.value)}
               placeholder="0.00"
               step="0.01"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="paymentAmount">Payment Amount ($):</label>
+            <input
+              type="number"
+              id="paymentAmount"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              placeholder="0.00"
+              step="0.01"
+              min="0"
             />
           </div>
           <div className="form-group">

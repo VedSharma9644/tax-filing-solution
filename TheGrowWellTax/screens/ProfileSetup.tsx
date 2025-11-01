@@ -75,16 +75,31 @@ const ProfileSetup = () => {
       // Save to backend
       const response = await ProfileService.updateProfile(token, profileData);
       
-      // Update user data in context (this will mark profile as complete)
-      if (response && response.user) {
-        await updateUser(response.user);
+      if (response.success) {
+        // Update AuthContext user immediately so changes are reflected throughout the app
+        if (response.user) {
+          await updateUser({
+            ...user,
+            ...response.user,
+            profileComplete: true
+          });
+        } else {
+          // If response doesn't include full user object, update with form data
+          await updateUser({
+            ...user,
+            ...profileData,
+            profileComplete: true
+          });
+        }
+        
+        Alert.alert('Success', 'Profile saved successfully!');
+        navigation.navigate('Dashboard');
+      } else {
+        Alert.alert('Error', response.error || 'Failed to save profile');
       }
-      
-      // Navigate to home
-      navigation.navigate('Home');
     } catch (error) {
       console.error('Error saving profile:', error);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
     }

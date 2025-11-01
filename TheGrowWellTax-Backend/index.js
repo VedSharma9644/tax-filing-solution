@@ -832,6 +832,7 @@ app.post('/auth/verify-otp', authLimiter, async (req, res) => {
         phone: user.phone,
         firstName: user.firstName,
         lastName: user.lastName,
+        profilePicture: user.profilePicture || null,
         name: `${user.firstName} ${user.lastName}`.trim(),
         role: user.role,
         status: user.status,
@@ -873,6 +874,7 @@ app.get('/auth/me', authenticateToken, async (req, res) => {
         lastName: userData.lastName,
         email: userData.email,
         phone: userData.phone,
+        profilePicture: userData.profilePicture || null,
         role: userData.role,
         status: userData.status,
         createdAt: userData.createdAt,
@@ -928,6 +930,7 @@ app.post('/auth/validate-token', async (req, res) => {
         phone: userData.phone,
         firstName: userData.firstName,
         lastName: userData.lastName,
+        profilePicture: userData.profilePicture || null,
         name: `${userData.firstName} ${userData.lastName}`.trim(),
         profileComplete: !!(userData.firstName && userData.lastName && userData.email)
       }
@@ -1500,6 +1503,7 @@ app.put('/profile/update', authenticateToken, async (req, res) => {
         lastName: userData.lastName,
         email: userData.email,
         phone: userData.phone,
+        profilePicture: userData.profilePicture || null,
         dateOfBirth: userData.dateOfBirth,
         address: userData.address,
         city: userData.city,
@@ -2628,29 +2632,43 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
       // Keep files private - only accessible through admin endpoints
     };
     
-    // Encrypt the file using DEK approach
-    console.log('🔐 Encrypting mobile app file with DEK approach...');
-    const encryptedFileData = await encryptFileWithDEK(req.file.buffer);
-    console.log('✅ Mobile app file encrypted successfully with DEK');
-    console.log('🔍 Encrypted data structure:', {
-      hasEncryptedData: !!encryptedFileData.encryptedData,
-      hasEncryptedKey: !!encryptedFileData.encryptedKey,
-      hasIv: !!encryptedFileData.iv,
-      algorithm: encryptedFileData.algorithm
-    });
+    // For profile images, skip encryption so they can be displayed directly
+    // For other documents, encrypt them using DEK approach
+    let fileBuffer;
+    let shouldEncrypt = category !== 'profile_images';
+    
+    if (shouldEncrypt) {
+      // Encrypt the file using DEK approach
+      console.log('🔐 Encrypting mobile app file with DEK approach...');
+      const encryptedFileData = await encryptFileWithDEK(req.file.buffer);
+      console.log('✅ Mobile app file encrypted successfully with DEK');
+      console.log('🔍 Encrypted data structure:', {
+        hasEncryptedData: !!encryptedFileData.encryptedData,
+        hasEncryptedKey: !!encryptedFileData.encryptedKey,
+        hasIv: !!encryptedFileData.iv,
+        algorithm: encryptedFileData.algorithm
+      });
 
-    // Convert encrypted data to a single buffer for storage
-    const encryptedBuffer = Buffer.concat([
-      Buffer.from(JSON.stringify({
-        encryptedData: encryptedFileData.encryptedData ? encryptedFileData.encryptedData.toString('base64') : '',
-        encryptedKey: encryptedFileData.encryptedKey ? encryptedFileData.encryptedKey.toString('base64') : '',
-        iv: encryptedFileData.iv ? encryptedFileData.iv.toString('base64') : '',
-        algorithm: encryptedFileData.algorithm || 'aes-256-cbc'
-      }))
-    ]);
+      // Convert encrypted data to a single buffer for storage
+      fileBuffer = Buffer.concat([
+        Buffer.from(JSON.stringify({
+          encryptedData: encryptedFileData.encryptedData ? encryptedFileData.encryptedData.toString('base64') : '',
+          encryptedKey: encryptedFileData.encryptedKey ? encryptedFileData.encryptedKey.toString('base64') : '',
+          iv: encryptedFileData.iv ? encryptedFileData.iv.toString('base64') : '',
+          algorithm: encryptedFileData.algorithm || 'aes-256-cbc'
+        }))
+      ]);
+    } else {
+      // Profile images: store unencrypted for direct access
+      console.log('📸 Storing profile image without encryption for direct access');
+      fileBuffer = req.file.buffer;
+    }
 
-    // Upload encrypted file to GCS
+    // Upload file to GCS
     const stream = fileRef.createWriteStream(uploadOptions);
+    
+    // Store shouldEncrypt in a variable accessible in the Promise
+    const isEncrypted = shouldEncrypt;
     
     return new Promise((resolve, reject) => {
       stream.on('error', (error) => {
@@ -2665,13 +2683,40 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
       
       stream.on('finish', async () => {
         try {
-          console.log(`✅ Encrypted file uploaded successfully to GCS: ${fileName}`);
+          console.log(`✅ File uploaded successfully to GCS: ${fileName} (encrypted: ${isEncrypted})`);
           
-          // TEMPORARY: Skip signed URL generation to avoid permission issues
-          console.log('⚠️ TEMPORARY: Skipping signed URL generation');
-          const signedUrl = `gs://${BUCKET_NAME}/${fileName}`;
+          // Generate proper URL for the file
+          let publicUrl;
           
-          console.log(`✅ Using GCS path instead of signed URL: ${fileName}`);
+          // For profile images, generate signed URLs so they can be accessed directly
+          if (category === 'profile_images') {
+            try {
+              const [signedUrl] = await fileRef.getSignedUrl({
+                action: 'read',
+                expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year validity for profile images
+              });
+              publicUrl = signedUrl;
+              console.log(`✅ Generated signed URL for profile image: ${fileName}`);
+            } catch (urlError) {
+              console.error('❌ Error generating signed URL for profile image:', urlError);
+              // Fallback to making it publicly readable if signed URL fails
+              try {
+                await fileRef.acl.add({
+                  entity: 'allUsers',
+                  role: 'READER'
+                });
+                publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${fileName}`;
+                console.log(`✅ Made profile image publicly readable: ${fileName}`);
+              } catch (aclError) {
+                console.error('❌ Error making profile image public:', aclError);
+                publicUrl = `gs://${BUCKET_NAME}/${fileName}`;
+              }
+            }
+          } else {
+            // For other documents, use GCS path (they're accessed via decryption endpoint)
+            console.log('⚠️ Using GCS path for non-profile image document');
+            publicUrl = `gs://${BUCKET_NAME}/${fileName}`;
+          }
           
           console.log(`🔍 Starting database update process...`);
           
@@ -2686,7 +2731,7 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
             size: req.file.size,
             category: category,
             gcsPath: fileName,
-            publicUrl: signedUrl,
+            publicUrl: publicUrl,
             uploadedAt: new Date().toISOString() // Use regular Date, not FieldValue.serverTimestamp()
           };
           
@@ -2712,15 +2757,17 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
             // Still return success since file was uploaded to GCS
             res.json({
               success: true,
-              message: 'File uploaded and encrypted successfully with AES-256-CBC + KMS',
+              message: isEncrypted 
+                ? 'File uploaded and encrypted successfully with AES-256-CBC + KMS'
+                : 'Profile image uploaded successfully',
               fileName: fileName,
               gcsPath: fileName,
-              publicUrl: signedUrl,
+              publicUrl: publicUrl,
               size: req.file.size,
               contentType: req.file.mimetype,
               uploadedAt: new Date().toISOString(),
-              encrypted: true,
-              encryptionMethod: 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS',
+              encrypted: isEncrypted,
+              encryptionMethod: isEncrypted ? 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS' : 'None (profile image)',
               warning: 'Document uploaded but no tax form found to link it to'
             });
             resolve();
@@ -2756,15 +2803,17 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
           
           res.json({
             success: true,
-            message: 'File uploaded and encrypted successfully with AES-256-CBC + KMS',
+            message: isEncrypted 
+              ? 'File uploaded and encrypted successfully with AES-256-CBC + KMS'
+              : 'Profile image uploaded successfully',
             fileName: fileName,
             gcsPath: fileName,
-            publicUrl: signedUrl,
+            publicUrl: publicUrl,
             size: req.file.size,
             contentType: req.file.mimetype,
             uploadedAt: new Date().toISOString(),
-            encrypted: true,
-            encryptionMethod: 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS',
+            encrypted: isEncrypted,
+            encryptionMethod: isEncrypted ? 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS' : 'None (profile image)',
             documentId: documentId,
             taxFormId: taxFormId,
             totalDocuments: updatedDocuments.length
@@ -2781,8 +2830,8 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
         }
       });
       
-      // Write the encrypted buffer to the stream
-      stream.end(encryptedBuffer);
+      // Write the file buffer to the stream
+      stream.end(fileBuffer);
     });
     
   } catch (error) {
@@ -2911,7 +2960,7 @@ app.get('/documents', authenticateToken, async (req, res) => {
     });
     
     // Also check other categories
-    const categories = ['w2Forms', 'medical', 'education', 'dependentChildren', 'homeownerDeduction', 'personalId', 'previousYearTax'];
+    const categories = ['w2Forms', 'medical', 'education', 'dependentChildren', 'homeownerDeduction', 'personalId', 'previousYearTax', 'additional_income'];
     const allFiles = [];
     
     for (const category of categories) {
@@ -2960,6 +3009,66 @@ app.get('/documents', authenticateToken, async (req, res) => {
       } catch (error) {
         console.warn(`Warning: Could not process file ${file.name}:`, error.message);
       }
+    }
+    
+    // Also fetch documents from additionalIncomeSources in tax forms
+    try {
+      const taxFormsSnapshot = await db.collection('taxForms')
+        .where('userId', '==', userId)
+        .get();
+      
+      for (const taxFormDoc of taxFormsSnapshot.docs) {
+        const taxFormData = taxFormDoc.data();
+        const additionalIncomeSources = taxFormData.additionalIncomeSources || [];
+        
+        for (const incomeSource of additionalIncomeSources) {
+          const incomeDocuments = incomeSource.documents || [];
+          for (const doc of incomeDocuments) {
+            // Add documents from additionalIncomeSources if they have a gcsPath
+            if (doc.gcsPath && doc.category) {
+              // Check if file exists in GCS
+              try {
+                const fileRef = bucket.file(doc.gcsPath);
+                const [exists] = await fileRef.exists();
+                if (exists) {
+                  const [metadata] = await fileRef.getMetadata();
+                  const decryptionUrl = `${req.protocol}://${req.get('host')}/upload/view/${encodeURIComponent(doc.gcsPath)}`;
+                  
+                  // Convert Firestore Timestamp to ISO string if needed
+                  let uploadedAt;
+                  if (doc.uploadedAt) {
+                    if (doc.uploadedAt.toDate) {
+                      uploadedAt = doc.uploadedAt.toDate().toISOString();
+                    } else if (typeof doc.uploadedAt === 'string') {
+                      uploadedAt = doc.uploadedAt;
+                    } else {
+                      uploadedAt = new Date(doc.uploadedAt).toISOString();
+                    }
+                  } else {
+                    uploadedAt = metadata.timeCreated || new Date().toISOString();
+                  }
+                  
+                  documents.push({
+                    id: doc.id || doc.gcsPath,
+                    name: doc.name || metadata.metadata?.originalName || doc.gcsPath.split('/').pop() || 'Unknown Document',
+                    type: doc.type || metadata.contentType || 'application/octet-stream',
+                    size: doc.size || parseInt(metadata.size) || 0,
+                    gcsPath: doc.gcsPath,
+                    publicUrl: decryptionUrl,
+                    category: doc.category || 'additional_income',
+                    uploadedAt: uploadedAt,
+                    status: doc.status || 'completed'
+                  });
+                }
+              } catch (fileError) {
+                console.warn(`Warning: Could not process additional income document ${doc.gcsPath}:`, fileError.message);
+              }
+            }
+          }
+        }
+      }
+    } catch (taxFormError) {
+      console.warn('Warning: Could not fetch documents from tax forms:', taxFormError.message);
     }
     
     // Sort by upload date (newest first)

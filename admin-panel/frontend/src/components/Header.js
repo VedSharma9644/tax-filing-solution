@@ -27,7 +27,7 @@ const Header = ({ toggleSidebar, admin }) => {
     <nav className="dashboard-navbar">
       <div className="dashboard-navbar-logo">
         <img 
-          src="https://res.cloudinary.com/dyqpzx80s/image/upload/v1732188260/dev2_wfe58e.png" 
+          src="/logo.jpg" 
           alt="logo"
         />
       </div>

@@ -13,13 +13,14 @@ const ProfileForm = ({
   errors = {}, 
   loading = false, 
   onSave, 
-  onReset 
+  onReset,
+  onProfilePictureUpdated // New callback to reload profile
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(profile);
   const [profileImage, setProfileImage] = useState(profile?.profilePicture || null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const { user, token } = useAuth();
+  const { user, token, updateUser } = useAuth();
 
   // Update form data when profile changes
   React.useEffect(() => {
@@ -94,7 +95,7 @@ const ProfileForm = ({
       
       // Save to database via API
       try {
-        const data = await ApiService.makeRequest('/profile/update-image', {
+        const response = await ApiService.makeRequest('/profile/update-image', {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -105,7 +106,26 @@ const ProfileForm = ({
           })
         });
 
-        console.log('✅ Profile picture saved to database:', data);
+        console.log('✅ Profile picture saved to database:', response);
+
+        // If API returns updated user data, use it
+        if (response.success && response.user) {
+          // Update AuthContext user so header shows new picture
+          // Preserve profileComplete status to prevent redirect
+          await updateUser({
+            ...user,
+            ...response.user,
+            profileComplete: user.profileComplete !== undefined ? user.profileComplete : true
+          });
+        } else if (response.success) {
+          // If only success flag, update user with new profile picture
+          // Preserve profileComplete status to prevent redirect
+          await updateUser({
+            ...user,
+            profilePicture: result.publicUrl,
+            profileComplete: user.profileComplete !== undefined ? user.profileComplete : true
+          });
+        }
       } catch (apiError) {
         console.error('❌ Database update failed:', apiError);
         Alert.alert('Warning', 'Profile picture uploaded but failed to save to database. Please try again.');
@@ -114,8 +134,17 @@ const ProfileForm = ({
       
       // Notify parent component of the change
       onProfileChange('profilePicture', result.publicUrl);
+      
+      // Update local form data to reflect the new image immediately
+      setFormData(prev => ({ ...prev, profilePicture: result.publicUrl }));
 
-      Alert.alert('Success', 'Profile picture updated successfully!');
+      // Reload profile from server if callback provided
+      if (onProfilePictureUpdated) {
+        onProfilePictureUpdated();
+      }
+
+      // Don't show alert here - it will be shown after save
+      // Alert.alert('Success', 'Profile picture updated successfully!');
     } catch (error) {
       console.error('Profile image upload error:', error);
       Alert.alert('Upload Failed', 'Failed to upload profile picture. Please try again.');
@@ -135,9 +164,16 @@ const ProfileForm = ({
       return;
     }
 
-    const success = await onSave(formData);
+    const success = await onSave({
+      ...formData,
+      profilePicture: profileImage || formData.profilePicture // Ensure profile image is included
+    });
     if (success) {
       setIsEditing(false);
+      // Reload profile to sync with latest data
+      if (onProfilePictureUpdated) {
+        onProfilePictureUpdated();
+      }
     }
   };
 
@@ -414,6 +450,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+    color: '#000',
   },
   inputWithIcon: {
     flexDirection: 'row',
@@ -431,6 +468,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
+    color: '#000',
   },
   inputError: {
     borderColor: '#dc3545',

@@ -8,6 +8,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { BackgroundColors } from '../../../utils/colors';
 import { TaxWizardStyles, ContainerStyles, ButtonStyles, InputStyles } from '../../../utils/taxWizardStyles';
 import { UploadedDocument } from '../types';
+import { pickDocument } from '../utils/documentUtils';
+import DocumentPreview from './DocumentPreview';
 
 interface AdditionalIncomeSource {
   id: string;
@@ -21,10 +23,13 @@ interface Step2AdditionalIncomeProps {
   formData: {
     hasAdditionalIncome: boolean;
     additionalIncomeSources: AdditionalIncomeSource[];
+    additionalIncomeGeneralDocuments?: UploadedDocument[];
   };
   onUpdateFormData: (field: string, value: any) => void;
   onUploadIncomeSourceDocument: (file: any, incomeSourceId: string) => void;
   onDeleteIncomeSourceDocument: (documentId: string, incomeSourceId: string) => void;
+  onUploadDocument: (file: any, category: string) => void;
+  onDeleteDocument: (documentId: string, category: string) => void;
   isUploading?: boolean;
 }
 
@@ -33,6 +38,8 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
   onUpdateFormData,
   onUploadIncomeSourceDocument,
   onDeleteIncomeSourceDocument,
+  onUploadDocument,
+  onDeleteDocument,
   isUploading = false,
 }) => {
   const [newIncomeSource, setNewIncomeSource] = useState('');
@@ -124,6 +131,18 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
     }
   };
 
+  const handlePickGeneralDocument = async () => {
+    try {
+      const result = await pickDocument();
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        onUploadDocument(file, 'additionalIncomeGeneral');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick document. Please try again.');
+    }
+  };
+
   const handleDeleteDocument = (documentId: string, incomeSourceId: string) => {
     Alert.alert(
       'Delete Document',
@@ -205,6 +224,45 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
           {/* Additional Income Sources */}
           {formData.hasAdditionalIncome && (
             <View style={styles.sourcesContainer}>
+              {/* Direct Document Upload Section */}
+              <View style={styles.documentUploadSection}>
+                <Text style={styles.documentUploadTitle}>Upload Additional Income Documents</Text>
+                <Text style={styles.documentDescription}>
+                  Upload receipts, statements, or other documents related to your additional income sources.
+                </Text>
+                <View style={styles.categoryActions}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={handlePickGeneralDocument}
+                    style={[styles.actionButton, { borderColor: '#16A34A' }] as any}
+                  >
+                    <Ionicons name="document-outline" size={16} color="#16A34A" />
+                    <Text style={[styles.actionButtonText, { color: '#16A34A' }]}>Select File</Text>
+                  </Button>
+                </View>
+
+                {/* Uploaded Documents */}
+                {formData?.additionalIncomeGeneralDocuments && formData.additionalIncomeGeneralDocuments.length > 0 && (
+                  <View style={styles.documentsList}>
+                    <Text style={styles.documentsTitle}>Uploaded Documents ({formData.additionalIncomeGeneralDocuments.length})</Text>
+                    {formData.additionalIncomeGeneralDocuments.map((doc) => (
+                      doc && doc.id ? (
+                        <DocumentPreview
+                          key={doc.id}
+                          document={doc}
+                          onDelete={() => onDeleteDocument(doc.id, 'additionalIncomeGeneral')}
+                          onReplace={() => {
+                            handlePickGeneralDocument();
+                          }}
+                          showActions={true}
+                        />
+                      ) : null
+                    ))}
+                  </View>
+                )}
+              </View>
+
               <Text style={styles.sectionTitle}>Your Additional Income Sources</Text>
               
               {/* Existing Sources */}
@@ -252,53 +310,6 @@ const Step2AdditionalIncome: React.FC<Step2AdditionalIncomeProps> = ({
                         multiline
                         numberOfLines={2}
                       />
-                    </View>
-
-                    {/* Document Upload Section */}
-                    <View style={styles.documentSection}>
-                      <Text style={styles.fieldLabel}>Supporting Documents (Optional)</Text>
-                      <Text style={styles.documentDescription}>
-                        Upload receipts, statements, or other documents related to this income source.
-                      </Text>
-                      
-                      {/* Upload Button */}
-                      <TouchableOpacity
-                        style={styles.uploadButton}
-                        onPress={() => handlePickDocument(source.id)}
-                        disabled={isUploading}
-                      >
-                        <Ionicons name="cloud-upload-outline" size={20} color="#007bff" />
-                        <Text style={styles.uploadButtonText}>
-                          {isUploading ? 'Uploading...' : 'Upload Document'}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Document List */}
-                      {source.documents && source.documents.length > 0 && (
-                        <View style={styles.documentList}>
-                          {source.documents.map((doc) => (
-                            <View key={doc.id} style={styles.documentItem}>
-                              <View style={styles.documentInfo}>
-                                <FontAwesome name="file-text-o" size={16} color="#007bff" />
-                                <Text style={styles.documentName} numberOfLines={1}>
-                                  {doc.name}
-                                </Text>
-                                <Text style={styles.documentStatus}>
-                                  {doc.status === 'uploading' ? `Uploading... ${doc.progress}%` :
-                                   doc.status === 'completed' ? 'Uploaded' :
-                                   doc.status === 'error' ? 'Upload Failed' : ''}
-                                </Text>
-                              </View>
-                              <TouchableOpacity
-                                style={styles.deleteDocumentButton}
-                                onPress={() => handleDeleteDocument(doc.id, source.id)}
-                              >
-                                <Ionicons name="trash-outline" size={16} color="#dc3545" />
-                              </TouchableOpacity>
-                            </View>
-                          ))}
-                        </View>
-                      )}
                     </View>
                   </CardContent>
                 </Card>
@@ -640,6 +651,30 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
+  // Direct document upload section styles (similar to dependents)
+  documentUploadSection: {
+    marginBottom: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  documentUploadTitle: TaxWizardStyles.cardTitle,
+  categoryActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  actionButton: {
+    padding: 8,
+  },
+  actionButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  documentsList: {
+    marginTop: 16,
+  },
+  documentsTitle: TaxWizardStyles.cardTitle,
 });
 
 export default Step2AdditionalIncome;

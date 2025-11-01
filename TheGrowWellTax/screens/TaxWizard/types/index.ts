@@ -40,6 +40,7 @@ export interface TaxFormData {
   // Additional Income (Step 2)
   hasAdditionalIncome: boolean;
   additionalIncomeSources: AdditionalIncomeSource[];
+  additionalIncomeGeneralDocuments: UploadedDocument[]; // Documents not tied to specific income sources
   
   // Deduction Documents (Step 3)
   medicalDocuments: UploadedDocument[];
