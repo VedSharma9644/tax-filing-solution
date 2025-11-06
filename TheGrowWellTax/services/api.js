@@ -341,6 +341,30 @@ class ApiService {
     }
   }
 
+  // Get public URL for final document (for browser download)
+  async getFinalDocumentUrl(applicationId, token) {
+    try {
+      const response = await fetch(`${this.baseURL}/user/final-document-url/${applicationId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('❌ API Error:', data.error || `HTTP error! status: ${response.status}`);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Get tax form history
   async getTaxFormHistory(token) {
     try {

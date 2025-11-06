@@ -2856,6 +2856,86 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
       });
     }
 
+    console.log(`🔓 Viewing file: ${gcsPath}`);
+    
+    // Check if this is an admin-returns file (not encrypted) or a mobile app document (encrypted)
+    const isAdminReturnsFile = gcsPath.includes('admin-returns');
+    
+    if (isAdminReturnsFile) {
+      // Admin-returns files: check if encrypted (admin panel encrypts them) or unencrypted (mobile backend doesn't)
+      console.log(`📄 Viewing admin-returns file`);
+      
+      const fileRef = bucket.file(gcsPath);
+      
+      // Check if file exists
+      const [exists] = await fileRef.exists();
+      if (!exists) {
+        return res.status(404).json({
+          success: false,
+          error: 'File not found'
+        });
+      }
+      
+      // Download file to check if it's encrypted
+      console.log(`📥 Downloading admin-returns file to check encryption...`);
+      const [fileBuffer] = await fileRef.download();
+      console.log(`✅ Downloaded file buffer, size: ${fileBuffer.length} bytes`);
+      
+      // Try to parse as encrypted JSON, if successful then decrypt, otherwise send as-is
+      let finalBuffer;
+      let contentType = 'application/pdf';
+      let originalName = 'document.pdf';
+      
+      try {
+        const fileString = fileBuffer.toString();
+        const parsedData = JSON.parse(fileString);
+        
+        // Check if it's encrypted JSON structure
+        if (parsedData.encryptedData && parsedData.encryptedKey && parsedData.iv) {
+          console.log(`🔓 Admin-returns file is encrypted, decrypting...`);
+          
+          // Decrypt the file
+          const encryptedData = {
+            encryptedData: Buffer.from(parsedData.encryptedData, 'base64'),
+            encryptedKey: Buffer.from(parsedData.encryptedKey, 'base64'),
+            iv: Buffer.from(parsedData.iv, 'base64'),
+            algorithm: parsedData.algorithm || 'aes-256-cbc'
+          };
+          
+          finalBuffer = await decryptFileWithDEK(encryptedData);
+          console.log(`✅ Decrypted admin-returns file, size: ${finalBuffer.length} bytes`);
+        } else {
+          // Not encrypted, use as-is
+          console.log(`📄 Admin-returns file is not encrypted, using as-is`);
+          finalBuffer = fileBuffer;
+        }
+      } catch (parseError) {
+        // Not JSON, so it's unencrypted binary file
+        console.log(`📄 Admin-returns file is not encrypted (not JSON), using as-is`);
+        finalBuffer = fileBuffer;
+      }
+      
+      // Get file metadata
+      const [metadata] = await fileRef.getMetadata();
+      contentType = metadata.contentType || 'application/pdf';
+      originalName = metadata.metadata?.originalName || 'document.pdf';
+      
+      // Set headers for browser download - use attachment to force download
+      res.set({
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${originalName}"`, // Force download instead of inline
+        'Content-Length': finalBuffer.length, // Explicit content length
+        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
+        'Access-Control-Allow-Origin': '*', // Allow cross-origin access for browsers
+      });
+      
+      // Send the buffer directly (more reliable than streaming for binary files)
+      res.send(finalBuffer);
+      
+      return;
+    }
+    
+    // For mobile app documents, handle encryption/decryption
     console.log(`🔓 Mobile app viewing encrypted file: ${gcsPath}`);
     
     // Extract user ID from the GCS path for validation
@@ -2937,7 +3017,7 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
     res.send(decryptedBuffer);
 
   } catch (error) {
-    console.error('Error viewing mobile app document:', error);
+    console.error('Error viewing document:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to view document',
@@ -3135,6 +3215,61 @@ app.delete('/documents/:documentId', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete document',
+      details: error.message
+    });
+  }
+});
+
+// Generate temporary public URL for final document (for browser download)
+app.get('/user/final-document-url/:applicationId', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { applicationId } = req.params;
+    
+    console.log(`🔗 Generating public URL for final document: ${applicationId}`);
+    
+    // Get tax form document
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    const taxFormDoc = await taxFormRef.get();
+    
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+    
+    const taxFormData = taxFormDoc.data();
+    
+    // Verify this belongs to the user
+    if (taxFormData.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+    
+    if (!taxFormData.finalReturn) {
+      return res.status(404).json({
+        success: false,
+        error: 'Final return not found'
+      });
+    }
+    
+    // Generate public URL that doesn't require authentication
+    const publicUrl = `${req.protocol}://${req.get('host')}/upload/view/${encodeURIComponent(taxFormData.finalReturn.gcsPath)}`;
+    
+    res.json({
+      success: true,
+      url: publicUrl,
+      fileName: taxFormData.finalReturn.originalName,
+      expiresAt: null // URL is always accessible via the endpoint
+    });
+  } catch (error) {
+    console.error('Error generating public URL:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate URL',
       details: error.message
     });
   }

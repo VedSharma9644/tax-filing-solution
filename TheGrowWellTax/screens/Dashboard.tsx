@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -28,6 +30,7 @@ const Dashboard = () => {
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [adminDocuments, setAdminDocuments] = useState([]);
 
   // Get user's display name
   const getUserDisplayName = () => {
@@ -89,7 +92,7 @@ const Dashboard = () => {
     }
   };
 
-  // Fetch tax forms data
+  // Fetch tax forms data and admin documents
   useEffect(() => {
     const fetchTaxForms = async () => {
       if (!token) {
@@ -125,6 +128,35 @@ const Dashboard = () => {
       startAdminPolling(token);
     }
   }, [token]);
+
+  // Fetch admin documents when application is submitted
+  useEffect(() => {
+    const fetchAdminDocuments = async () => {
+      if (!token) return;
+      
+      // Check if application is submitted
+      if (taxForms.length === 0) return;
+      
+      const currentYear = new Date().getFullYear();
+      const currentYearForm = taxForms.find(form => form.taxYear === currentYear);
+      if (!currentYearForm) return;
+      
+      const submittedStatuses = ['submitted', 'under_review', 'processing', 'approved', 'completed'];
+      if (!submittedStatuses.includes(currentYearForm.status)) return;
+      
+      try {
+        const response = await ApiService.getAdminDocuments(token);
+        if (response.success) {
+          setAdminDocuments(response.data || []);
+          console.log('✅ Admin documents loaded:', response.data?.length || 0, 'documents');
+        }
+      } catch (err) {
+        console.error('❌ Error fetching admin documents:', err);
+      }
+    };
+
+    fetchAdminDocuments();
+  }, [token, taxForms]);
 
   // Cleanup admin polling when component unmounts
   useEffect(() => {
@@ -252,6 +284,209 @@ const Dashboard = () => {
     setToastVisible(true);
   };
 
+  // Check if draft document exists
+  const hasDraftDocument = () => {
+    if (!adminDocuments || adminDocuments.length === 0) return false;
+    return adminDocuments.some(doc => doc.type === 'draft_return');
+  };
+
+  // Check if final document exists
+  const hasFinalDocument = () => {
+    if (!adminDocuments || adminDocuments.length === 0) return false;
+    return adminDocuments.some(doc => doc.type === 'final_return');
+  };
+
+  // Get final document
+  const getFinalDocument = () => {
+    if (!adminDocuments || adminDocuments.length === 0) return null;
+    return adminDocuments.find(doc => doc.type === 'final_return') || null;
+  };
+
+  // Download final document
+  const handleDownloadFinalDocument = async () => {
+    console.log('🔘 [Download Final Document] Button clicked');
+    
+    if (!hasSubmittedApplication()) {
+      console.log('❌ [Download Final Document] Application not submitted yet');
+      showToast('Please submit the application first');
+      return;
+    }
+
+    console.log('✅ [Download Final Document] Application submitted, checking for final document...');
+
+    const finalDoc = getFinalDocument();
+    if (!finalDoc) {
+      console.log('❌ [Download Final Document] No final document found in admin documents');
+      Alert.alert('Not Available', 'Final document has not been uploaded yet. Please wait for the admin to upload it.');
+      return;
+    }
+
+    console.log('✅ [Download Final Document] Final document found:', {
+      id: finalDoc.id,
+      name: finalDoc.name,
+      type: finalDoc.type,
+      hasPublicUrl: !!finalDoc.publicUrl,
+      hasGcsPath: !!finalDoc.gcsPath
+    });
+
+    try {
+      // Get the application ID from the final document or tax forms
+      const currentYear = new Date().getFullYear();
+      const currentYearForm = taxForms.find(form => form.taxYear === currentYear);
+      const applicationId = currentYearForm?.id;
+      
+      if (!applicationId) {
+        Alert.alert('Error', 'Could not find application ID');
+        return;
+      }
+
+      console.log('📥 [Download Final Document] Getting public URL for browser download...');
+      showToast('Preparing document...');
+
+      // Get public URL from backend (this doesn't require auth in browser)
+      const urlResponse = await ApiService.getFinalDocumentUrl(applicationId, token);
+      if (!urlResponse.success || !urlResponse.url) {
+        throw new Error('Could not get download URL');
+      }
+
+      const publicUrl = urlResponse.url;
+      console.log('✅ [Download Final Document] Got public URL:', publicUrl);
+      
+      console.log('🔍 [Download Final Document] Platform:', Platform.OS);
+      
+      if (Platform.OS === 'android') {
+        // Android: Open PDF in Chrome where user can download it directly to Downloads
+        console.log('🌐 [Download Final Document] Opening PDF in Chrome for download...');
+        
+        try {
+          // Open the public URL directly in browser
+          // Browser can download directly to Downloads folder
+          const canOpen = await Linking.canOpenURL(publicUrl);
+          if (canOpen) {
+            Alert.alert(
+              'Opening in Browser',
+              'Opening the PDF in Chrome. Tap the download button in the browser to save it to your Downloads folder.',
+              [
+                {
+                  text: 'Open in Chrome',
+                  onPress: async () => {
+                    try {
+                      await Linking.openURL(publicUrl);
+                      showToast('Open in Chrome - tap download to save to Downloads');
+                    } catch (linkError) {
+                      console.error('❌ [Download Final Document] Error opening URL:', linkError);
+                      Alert.alert('Error', 'Could not open browser. Please try again.');
+                    }
+                  }
+                },
+                { text: 'Cancel', style: 'cancel' }
+              ]
+            );
+          } else {
+            throw new Error('Cannot open URL in browser');
+          }
+        } catch (error) {
+          console.error('❌ [Download Final Document] Error opening in browser:', error);
+          
+          // Fallback: Try to download and share
+          Alert.alert(
+            'Browser Not Available',
+            'Could not open browser. Would you like to download and share the file instead?',
+            [
+              {
+                text: 'Download & Share',
+                onPress: async () => {
+                  try {
+                    const fileName = finalDoc.name?.replace(/[^a-zA-Z0-9.-]/g, '_') || `Final_Tax_Return_${new Date().getFullYear()}.pdf`;
+                    const tempDir = FileSystem.cacheDirectory || FileSystem.documentDirectory || '';
+                    const tempFileUri = `${tempDir}${fileName}`;
+                    
+                    showToast('Downloading...');
+                    const downloadResult = await FileSystem.downloadAsync(publicUrl, tempFileUri);
+                    
+                    const isAvailable = await Sharing.isAvailableAsync();
+                    if (isAvailable) {
+                      await Sharing.shareAsync(downloadResult.uri, {
+                        mimeType: 'application/pdf',
+                        dialogTitle: 'Save Final Tax Document',
+                      });
+                    } else {
+                      Alert.alert('Error', 'Sharing is not available on this device.');
+                    }
+                  } catch (fallbackError) {
+                    console.error('❌ [Download Final Document] Fallback error:', fallbackError);
+                    Alert.alert('Error', 'Could not download file. Please try again.');
+                  }
+                }
+              },
+              { text: 'Cancel', style: 'cancel' }
+            ]
+          );
+        }
+      } else {
+        // iOS: Open in browser or Safari
+        console.log('📱 [Download Final Document] iOS: Opening PDF in Safari...');
+        
+        try {
+          const canOpen = await Linking.canOpenURL(publicUrl);
+          if (canOpen) {
+            Alert.alert(
+              'Opening in Safari',
+              'Opening the PDF in Safari. Tap the share button and select "Save to Files" to save it to your Downloads folder.',
+              [
+                {
+                  text: 'Open in Safari',
+                  onPress: async () => {
+                    try {
+                      await Linking.openURL(publicUrl);
+                      showToast('Open in Safari - tap share to save to Files');
+                    } catch (linkError) {
+                      console.error('❌ [Download Final Document] Error opening URL:', linkError);
+                      Alert.alert('Error', 'Could not open Safari. Please try again.');
+                    }
+                  }
+                },
+                { text: 'Cancel', style: 'cancel' }
+              ]
+            );
+          } else {
+            throw new Error('Cannot open URL in Safari');
+          }
+        } catch (error) {
+          console.error('❌ [Download Final Document] Error opening in Safari:', error);
+          Alert.alert('Error', 'Could not open Safari. Please try again.');
+        }
+      }
+      
+      console.log('✅ [Download Final Document] Download process completed');
+    } catch (error) {
+      console.error('❌ [Download Final Document] Error occurred:', error);
+      console.error('❌ [Download Final Document] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Fallback: try opening URL directly
+      console.log('🔄 [Download Final Document] Attempting fallback: opening URL directly...');
+      try {
+        const url = finalDoc.publicUrl || finalDoc.gcsPath;
+        if (url) {
+          console.log('🔄 [Download Final Document] Fallback: Opening URL in browser:', url);
+          await Linking.openURL(url);
+          showToast('Document opened in browser');
+          console.log('✅ [Download Final Document] Fallback successful: URL opened');
+        } else {
+          console.error('❌ [Download Final Document] Fallback failed: No URL available');
+          Alert.alert('Error', `Could not download final document: ${error.message}`);
+        }
+      } catch (fallbackError) {
+        console.error('❌ [Download Final Document] Fallback also failed:', fallbackError);
+        Alert.alert('Error', `Could not download final document: ${error.message}`);
+      }
+    }
+  };
+
 
   return (
     <SafeAreaWrapper>
@@ -366,30 +601,53 @@ const Dashboard = () => {
             </Button>
           </View>
           
-          {/* Admin Review Button */}
+          {/* Admin Review Buttons */}
           <View style={styles.adminReviewRow}>
-            <Button 
-              style={{
-                ...styles.adminReviewButton,
-                ...(!hasSubmittedApplication() ? styles.disabledButton : {})
-              }} 
-              onPress={() => {
-                if (!hasSubmittedApplication()) {
-                  showToast('Please submit the application first');
-                } else {
-                  navigation.navigate('DocumentReview');
-                }
-              }}
-              disabled={!hasSubmittedApplication()}
-            >
-              <FontAwesome name="eye" size={18} color={!hasSubmittedApplication() ? "#666" : "#fff"} />
-              <Text style={[
-                styles.adminReviewButtonText,
-                !hasSubmittedApplication() && styles.disabledButtonText
-              ]}>
-                Review Draft Document
-              </Text>
-            </Button>
+            {/* Show Review Draft Document button only if draft exists and final doesn't exist */}
+            {hasDraftDocument() && !hasFinalDocument() && (
+              <Button 
+                style={{
+                  ...styles.adminReviewButton,
+                  ...(!hasSubmittedApplication() ? styles.disabledButton : {})
+                }} 
+                onPress={() => {
+                  if (!hasSubmittedApplication()) {
+                    showToast('Please submit the application first');
+                  } else {
+                    navigation.navigate('DocumentReview');
+                  }
+                }}
+                disabled={!hasSubmittedApplication()}
+              >
+                <FontAwesome name="eye" size={18} color={!hasSubmittedApplication() ? "#666" : "#fff"} />
+                <Text style={[
+                  styles.adminReviewButtonText,
+                  !hasSubmittedApplication() && styles.disabledButtonText
+                ]}>
+                  Review Draft Document
+                </Text>
+              </Button>
+            )}
+            
+            {/* Show Download Final Document button only if final document exists */}
+            {hasFinalDocument() && (
+              <Button 
+                style={{
+                  ...styles.adminReviewButton,
+                  ...(!hasSubmittedApplication() ? styles.disabledButton : {})
+                }} 
+                onPress={handleDownloadFinalDocument}
+                disabled={!hasSubmittedApplication()}
+              >
+                <Feather name="download" size={18} color={!hasSubmittedApplication() ? "#666" : "#fff"} />
+                <Text style={[
+                  styles.adminReviewButtonText,
+                  !hasSubmittedApplication() && styles.disabledButtonText
+                ]}>
+                  Download Final Document
+                </Text>
+              </Button>
+            )}
           </View>
         </View>
 
@@ -530,8 +788,8 @@ const styles = StyleSheet.create({
   actionButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },
   disabledButton: { backgroundColor: '#e9ecef', borderColor: '#dee2e6', borderWidth: 1 },
   disabledButtonText: { color: '#6c757d' },
-  adminReviewRow: { marginTop: 8 },
-  adminReviewButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6c757d', borderRadius: 8, padding: 12 },
+  adminReviewRow: { marginTop: 8, flexDirection: 'row', gap: 8 },
+  adminReviewButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6c757d', borderRadius: 8, padding: 12 },
   adminReviewButtonText: { color: '#fff', fontWeight: 'bold', marginLeft: 8 },
   loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16 },
   loadingText: { marginLeft: 8, color: '#666', fontSize: 14 },
