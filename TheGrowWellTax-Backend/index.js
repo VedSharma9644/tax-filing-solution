@@ -2181,6 +2181,26 @@ app.post('/appointments/cancel', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper function to add history entry to application (same as admin panel)
+const addApplicationHistory = async (applicationId, action, details, performedBy = null, performedByType = 'user') => {
+  try {
+    const historyEntry = {
+      action: action,
+      details: details,
+      performedBy: performedBy,
+      performedByType: performedByType,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('taxForms').doc(applicationId).collection('history').add(historyEntry);
+    return true;
+  } catch (error) {
+    console.error('Error adding application history:', error);
+    return false;
+  }
+};
+
 // Tax Form Submission endpoints
 
 // Submit tax form data
@@ -2289,6 +2309,18 @@ app.post('/tax-forms/submit', authenticateToken, async (req, res) => {
 
     // Save to Firestore
     const taxFormRef = await db.collection('taxForms').add(taxFormData);
+
+    // Add history entry for application creation
+    const userName = userData.firstName && userData.lastName 
+      ? `${userData.firstName} ${userData.lastName}` 
+      : userData.firstName || userData.email.split('@')[0];
+    await addApplicationHistory(taxFormRef.id, 'application_created', {
+      status: taxFormData.status,
+      formType: formType,
+      taxYear: parseInt(taxYear),
+      documentCount: sanitizedDocuments.length,
+      dependentCount: sanitizedDependents.length
+    }, `${userName} (${userId})`, 'user');
 
     // Create notification for user
     await db.collection('notifications').add({
@@ -2793,6 +2825,24 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
               documents: updatedDocuments,
               updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
+            
+            // Add history entry for document upload
+            const userDoc = await db.collection('users').doc(userId).get();
+            let userName = 'Unknown User';
+            if (userDoc.exists) {
+              const userData = userDoc.data();
+              userName = userData.firstName && userData.lastName 
+                ? `${userData.firstName} ${userData.lastName}` 
+                : userData.firstName || userData.email?.split('@')[0] || 'Unknown User';
+            }
+            
+            await addApplicationHistory(taxFormId, 'document_uploaded', {
+              documentName: req.file.originalname,
+              documentCategory: category,
+              documentSize: req.file.size,
+              documentType: req.file.mimetype,
+              totalDocuments: updatedDocuments.length
+            }, `${userName} (${userId})`, 'user');
             
             console.log(`✅ Document metadata saved to tax form: ${taxFormId}`);
             console.log(`📊 Total documents in form: ${updatedDocuments.length}`);

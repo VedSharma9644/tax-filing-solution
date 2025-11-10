@@ -310,6 +310,39 @@ const ApplicationDetail = () => {
       .join(' ');
   };
 
+  const formatHistoryAction = (action) => {
+    const actionMap = {
+      'application_created': 'Application Created',
+      'status_changed': 'Status Changed',
+      'notes_updated': 'Admin Notes Updated',
+      'document_uploaded': 'Document Uploaded',
+      'expected_return_updated': 'Expected Return Updated',
+      'payment_amount_updated': 'Payment Amount Updated'
+    };
+    return actionMap[action] || action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  const getHistoryDescription = (historyEntry) => {
+    const { action, details } = historyEntry;
+    
+    switch (action) {
+      case 'application_created':
+        return `Application submitted with ${details.documentCount || 0} document(s) for tax year ${details.taxYear || 'N/A'}`;
+      case 'status_changed':
+        return `Status changed from "${formatStatusName(details.oldStatus)}" to "${formatStatusName(details.newStatus)}"`;
+      case 'notes_updated':
+        return details.hasNotes ? `Admin notes updated (${details.notesLength} characters)` : 'Admin notes cleared';
+      case 'document_uploaded':
+        return `Document "${details.documentName}" uploaded in category "${details.documentCategory}" (${(details.documentSize / 1024).toFixed(2)} KB)`;
+      case 'expected_return_updated':
+        return `Expected return updated from $${details.oldValue.toFixed(2)} to $${details.newValue.toFixed(2)}`;
+      case 'payment_amount_updated':
+        return `Payment amount updated from $${details.oldValue.toFixed(2)} to $${details.newValue.toFixed(2)}`;
+      default:
+        return 'Action performed';
+    }
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       // New states
@@ -918,6 +951,44 @@ const ApplicationDetail = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Application History */}
+      <div className="info-card">
+        <h3>Application History</h3>
+        <p className="history-description">
+          Complete audit trail of all changes and activities for this application.
+        </p>
+        {application.history && application.history.length > 0 ? (
+          <div className="history-timeline">
+            {application.history.map((entry, index) => (
+              <div key={entry.id || index} className="history-entry">
+                <div className="history-icon">
+                  {entry.performedByType === 'admin' ? '👤' : entry.performedByType === 'user' ? '👤' : '🤖'}
+                </div>
+                <div className="history-content">
+                  <div className="history-header">
+                    <span className="history-action">{formatHistoryAction(entry.action)}</span>
+                    <span className="history-time">{formatDate(entry.timestamp || entry.createdAt)}</span>
+                  </div>
+                  <div className="history-description-text">
+                    {getHistoryDescription(entry)}
+                  </div>
+                  <div className="history-performed-by">
+                    {entry.performedByType === 'admin' && '👨‍💼 Admin: '}
+                    {entry.performedByType === 'user' && '👤 User: '}
+                    {entry.performedByType === 'system' && '🤖 System: '}
+                    {entry.performedBy || 'Unknown'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="no-history">
+            <p>No history available for this application yet.</p>
+          </div>
+        )}
       </div>
 
       {/* Status Update Modal */}

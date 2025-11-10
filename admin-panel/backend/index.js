@@ -549,6 +549,27 @@ const authenticateAdmin = (req, res, next) => {
   });
 };
 
+// Helper function to add history entry to application
+const addApplicationHistory = async (applicationId, action, details, performedBy = null, performedByType = 'admin') => {
+  try {
+    const historyEntry = {
+      action: action, // e.g., 'status_changed', 'notes_updated', 'document_uploaded', 'application_created'
+      details: details, // Object with relevant details
+      performedBy: performedBy, // Admin name/ID or 'system' or user info
+      performedByType: performedByType, // 'admin', 'user', 'system'
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Add history entry to the application's history subcollection
+    await db.collection('taxForms').doc(applicationId).collection('history').add(historyEntry);
+    return true;
+  } catch (error) {
+    console.error('Error adding application history:', error);
+    return false;
+  }
+};
+
 // Permission checking middleware
 const checkPermission = (permission) => {
   return (req, res, next) => {
@@ -1316,6 +1337,21 @@ app.get('/api/tax-forms/:id', authenticateAdmin, checkPermission(PERMISSIONS.VIE
     
     const taxFormData = taxFormDoc.data();
     
+    // Get history entries
+    let history = [];
+    try {
+      const historySnapshot = await db.collection('taxForms').doc(id).collection('history')
+        .orderBy('timestamp', 'desc')
+        .get();
+      history = historySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      // Continue without history if there's an error
+    }
+    
     // Get user information
     let userData = null;
     if (taxFormData.userId) {
@@ -1333,6 +1369,7 @@ app.get('/api/tax-forms/:id', authenticateAdmin, checkPermission(PERMISSIONS.VIE
       id: taxFormDoc.id,
       ...taxFormData,
       user: userData,
+      history: history,
       // Ensure documents have proper structure
       documents: taxFormData.documents || [],
       // Ensure dependents have proper structure
@@ -1430,8 +1467,44 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, checkPermission(PERMISSI
       updateData.adminNotesUpdatedAt = admin.firestore.FieldValue.serverTimestamp();
     }
     
+    // Get old data for history tracking
+    const oldData = taxFormDoc.data();
+    
     // Update tax form
     await db.collection('taxForms').doc(id).update(updateData);
+    
+    // Add history entries for changes
+    const adminName = req.admin?.name || req.admin?.email || 'Unknown Admin';
+    const adminId = req.admin?.id || 'unknown';
+    
+    if (status && status !== oldData.status) {
+      await addApplicationHistory(id, 'status_changed', {
+        oldStatus: oldData.status,
+        newStatus: status,
+        statusDisplayName: status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      }, `${adminName} (${adminId})`, 'admin');
+    }
+    
+    if (adminNotes && adminNotes !== oldData.adminNotes) {
+      await addApplicationHistory(id, 'notes_updated', {
+        notesLength: adminNotes.length,
+        hasNotes: adminNotes.length > 0
+      }, `${adminName} (${adminId})`, 'admin');
+    }
+    
+    if (expectedReturn !== undefined && expectedReturn !== oldData.expectedReturn) {
+      await addApplicationHistory(id, 'expected_return_updated', {
+        oldValue: oldData.expectedReturn || 0,
+        newValue: expectedReturn
+      }, `${adminName} (${adminId})`, 'admin');
+    }
+    
+    if (paymentAmount !== undefined && paymentAmount !== oldData.paymentAmount) {
+      await addApplicationHistory(id, 'payment_amount_updated', {
+        oldValue: oldData.paymentAmount || 0,
+        newValue: paymentAmount
+      }, `${adminName} (${adminId})`, 'admin');
+    }
     
     // Get updated document to return latest data including timestamp
     const updatedDoc = await db.collection('taxForms').doc(id).get();
