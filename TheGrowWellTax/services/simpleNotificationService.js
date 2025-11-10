@@ -1,68 +1,154 @@
-import { Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Configure how notifications are handled when app is in foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 class SimpleNotificationService {
   constructor() {
     this.notificationListener = null;
     this.responseListener = null;
+    this.expoPushToken = null;
   }
 
   /**
-   * Initialize notification service (simple fallback for Expo Go SDK 53+)
+   * Initialize notification service with proper expo-notifications
    */
   async initialize() {
     try {
-      console.log('🚀 Initializing simple notification service (no expo-notifications)...');
+      console.log('🚀 Initializing notification service with expo-notifications...');
       
-      // Request permissions (simplified - just log for now)
-      console.log('✅ Simple notification service initialized (using Alert fallback)');
+      // Request permissions
+      const permissionStatus = await this.requestPermissions();
+      if (permissionStatus !== 'granted') {
+        console.warn('⚠️ Notification permissions not granted');
+        return false;
+      }
+
+      // Set up Android notification channel
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          sound: 'default',
+        });
+
+        // Status update channel
+        await Notifications.setNotificationChannelAsync('status-updates', {
+          name: 'Status Updates',
+          description: 'Notifications about your tax application status',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+          sound: 'default',
+        });
+      }
+
+      // Get or generate push token
+      try {
+        const token = await Notifications.getExpoPushTokenAsync({
+          projectId: 'efcd0532-f8ed-47ab-95a8-50f7765d984e', // From app.json
+        });
+        this.expoPushToken = token.data;
+        await AsyncStorage.setItem('expoPushToken', this.expoPushToken);
+        console.log('✅ Expo push token:', this.expoPushToken);
+      } catch (error) {
+        console.warn('⚠️ Could not get Expo push token (may need physical device):', error.message);
+        // Continue without push token - local notifications will still work
+      }
+
+      // Set up notification listeners
+      this.setupNotificationListeners();
+
+      console.log('✅ Notification service initialized successfully');
       return true;
     } catch (error) {
-      console.error('❌ Failed to initialize simple notification service:', error);
+      console.error('❌ Failed to initialize notification service:', error);
       return false;
     }
   }
 
   /**
-   * Send local notification (using Alert as fallback)
+   * Set up notification listeners
+   */
+  setupNotificationListeners() {
+    // Listener for notifications received while app is foregrounded
+    this.notificationListener = Notifications.addNotificationReceivedListener(notification => {
+      console.log('📬 Notification received:', notification);
+    });
+
+    // Listener for when user taps on notification
+    this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('👆 Notification tapped:', response);
+      const data = response.notification.request.content.data;
+      if (data && data.screen) {
+        console.log('🧭 Would navigate to screen:', data.screen);
+        // Navigation will be handled by the app's navigation system
+      }
+    });
+  }
+
+  /**
+   * Send local notification (works on Android when app is installed)
    */
   async sendLocalNotification(title, body, data = {}) {
     try {
-      console.log(`📤 Sending simple notification: "${title}" - "${body}"`);
-      console.log(`📤 Notification data:`, data);
+      console.log(`📤 Sending notification: "${title}" - "${body}"`);
       
-      // Use Alert as a simple notification fallback
-      Alert.alert(title, body, [
-        {
-          text: 'OK',
-          onPress: () => {
-            console.log('👆 Notification tapped:', title);
-            if (data.screen) {
-              console.log('🧭 Would navigate to screen:', data.screen);
-              // You can implement navigation logic here
-            }
-          }
-        }
-      ]);
+      // Determine channel for Android
+      const channelId = data.type === 'admin_status_change' ? 'status-updates' : 'default';
       
-      console.log(`✅ Simple notification sent successfully`);
+      // Send notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: title,
+          body: body,
+          data: data,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: null, // null means show immediately
+      });
+
+      console.log(`✅ Notification sent successfully`);
       return true;
     } catch (error) {
-      console.error('❌ Failed to send simple notification:', error);
+      console.error('❌ Failed to send notification:', error);
       return false;
     }
   }
 
   /**
-   * Schedule notification for later (simplified - just log for now)
+   * Schedule notification for later
    */
   async scheduleNotification(title, body, triggerDate, data = {}) {
     try {
-      console.log(`⏰ Would schedule notification: "${title}" for ${triggerDate}`);
-      console.log(`⏰ Notification data:`, data);
+      console.log(`⏰ Scheduling notification: "${title}" for ${triggerDate}`);
       
-      // For now, just log - you could implement a simple timer-based system here
-      console.log('⚠️ Scheduled notifications not implemented in simple mode');
+      const channelId = data.type === 'admin_status_change' ? 'status-updates' : 'default';
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: title,
+          body: body,
+          data: data,
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: triggerDate, // Date object or trigger config
+      });
+
+      console.log('✅ Notification scheduled successfully');
       return true;
     } catch (error) {
       console.error('❌ Failed to schedule notification:', error);
@@ -71,12 +157,12 @@ class SimpleNotificationService {
   }
 
   /**
-   * Cancel all scheduled notifications (simplified)
+   * Cancel all scheduled notifications
    */
   async cancelAllNotifications() {
     try {
-      console.log('🗑️ Would cancel all scheduled notifications');
-      console.log('⚠️ Cancel notifications not implemented in simple mode');
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      console.log('✅ All scheduled notifications cancelled');
       return true;
     } catch (error) {
       console.error('❌ Failed to cancel notifications:', error);
@@ -85,13 +171,12 @@ class SimpleNotificationService {
   }
 
   /**
-   * Get scheduled notifications (simplified)
+   * Get scheduled notifications
    */
   async getScheduledNotifications() {
     try {
-      console.log('📋 Would get scheduled notifications');
-      console.log('⚠️ Get scheduled notifications not implemented in simple mode');
-      return [];
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      return scheduled;
     } catch (error) {
       console.error('❌ Failed to get scheduled notifications:', error);
       return [];
@@ -99,12 +184,32 @@ class SimpleNotificationService {
   }
 
   /**
-   * Get stored push token (always null in simple mode)
+   * Get stored push token
    */
   async getStoredPushToken() {
     try {
-      console.log('📱 No push token in simple mode');
-      return null;
+      if (this.expoPushToken) {
+        return this.expoPushToken;
+      }
+      
+      const stored = await AsyncStorage.getItem('expoPushToken');
+      if (stored) {
+        this.expoPushToken = stored;
+        return stored;
+      }
+      
+      // Try to get new token
+      try {
+        const token = await Notifications.getExpoPushTokenAsync({
+          projectId: 'efcd0532-f8ed-47ab-95a8-50f7765d984e',
+        });
+        this.expoPushToken = token.data;
+        await AsyncStorage.setItem('expoPushToken', this.expoPushToken);
+        return this.expoPushToken;
+      } catch (error) {
+        console.warn('⚠️ Could not get push token:', error.message);
+        return null;
+      }
     } catch (error) {
       console.error('❌ Failed to get stored push token:', error);
       return null;
@@ -112,12 +217,12 @@ class SimpleNotificationService {
   }
 
   /**
-   * Get notification permissions status (simplified)
+   * Get notification permissions status
    */
   async getPermissionsStatus() {
     try {
-      console.log('🔐 Permissions status: granted (simple mode)');
-      return 'granted';
+      const settings = await Notifications.getPermissionsAsync();
+      return settings.status;
     } catch (error) {
       console.error('❌ Failed to get permissions status:', error);
       return 'undetermined';
@@ -125,24 +230,51 @@ class SimpleNotificationService {
   }
 
   /**
-   * Request permissions (simplified)
+   * Request permissions
    */
   async requestPermissions() {
     try {
-      console.log('🔐 Requesting permissions: granted (simple mode)');
-      return { status: 'granted' };
+      // Check if device is physical (required for push notifications)
+      if (!Device.isDevice) {
+        console.warn('⚠️ Push notifications only work on physical devices');
+        // Still return granted for local notifications
+        return 'granted';
+      }
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        console.warn('⚠️ Permission not granted for notifications');
+        return finalStatus;
+      }
+
+      console.log('✅ Notification permissions granted');
+      return finalStatus;
     } catch (error) {
       console.error('❌ Failed to request permissions:', error);
-      return { status: 'denied' };
+      return 'denied';
     }
   }
 
   /**
-   * Clean up listeners (simplified)
+   * Clean up listeners
    */
   cleanup() {
-    console.log('🧹 Cleaning up simple notification service');
-    // No listeners to clean up in simple mode
+    console.log('🧹 Cleaning up notification service');
+    if (this.notificationListener) {
+      Notifications.removeNotificationSubscription(this.notificationListener);
+      this.notificationListener = null;
+    }
+    if (this.responseListener) {
+      Notifications.removeNotificationSubscription(this.responseListener);
+      this.responseListener = null;
+    }
   }
 }
 

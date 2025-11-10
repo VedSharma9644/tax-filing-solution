@@ -1,0 +1,33 @@
+<html>
+<head><title>Privacy Policy</title></head>
+<body>
+  <h1>Privacy Policy for The Grow Well Tax</h1>
+  <p>The Grow Well Tax app respects your privacy...</p>
+
+The Grow Well Tax app respects your privacy. This policy explains how we handle your information.
+
+Information We Collect
+We only collect documents and information that you choose to upload through the app.
+
+We do not access, collect, or store any other data from your mobile device (such as contacts, photos, or location).
+
+How We Use Your Information
+Uploaded documents are used solely for the purpose of connecting you with tax consultants and assisting in tax filing.
+
+Your information is not shared with third parties except as required to provide tax consultation services.
+
+Permissions
+The app requests Camera permission only to allow you to capture and upload documents directly.
+
+We do not use the camera for any other purpose.
+
+Data Security
+We take reasonable measures to protect your uploaded documents and personal information from unauthorized access or disclosure.
+
+Changes to This Policy
+We may update this Privacy Policy from time to time. Any changes will be posted within the app or on our website.
+
+Contact Us
+If you have questions about this Privacy Policy, please contact us at: support@vtechstudio.com
+</body>
+</html>

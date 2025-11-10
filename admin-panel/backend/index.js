@@ -1378,11 +1378,25 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, checkPermission(PERMISSI
     }
     
     // Validate status
-    const validStatuses = ['submitted', 'under_review', 'processing', 'approved', 'rejected', 'completed'];
+    const validStatuses = [
+      'submitted', // Legacy - kept for backward compatibility
+      'new_application_submitted', // Initial state when user submits application
+      'processing', // Admin reviewing application and documents
+      'awaiting_for_documents', // Admin requesting additional/reuploaded documents
+      'new_documents_submitted', // Auto-set when user uploads new documents
+      'draft_uploaded', // Admin uploads draft document
+      'draft_rejected', // User cancels/rejects from mobile app
+      'payment_completed', // Auto-set when user makes payment
+      'close_application', // Admin sets when user uploads final document
+      'under_review', // Legacy - kept for backward compatibility
+      'approved', // Legacy - kept for backward compatibility
+      'rejected', // Legacy - kept for backward compatibility
+      'completed' // Legacy - kept for backward compatibility
+    ];
     if (status && !validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid status. Must be one of: submitted, under_review, processing, approved, rejected, completed'
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
       });
     }
     
@@ -1419,15 +1433,20 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, checkPermission(PERMISSI
     // Update tax form
     await db.collection('taxForms').doc(id).update(updateData);
     
+    // Get updated document to return latest data including timestamp
+    const updatedDoc = await db.collection('taxForms').doc(id).get();
+    const updatedData = updatedDoc.data();
+    
     res.json({
       success: true,
       message: 'Tax form updated successfully',
       data: {
         id: id,
-        status: status || taxFormDoc.data().status,
-        expectedReturn: expectedReturn !== undefined ? updateData.expectedReturn : taxFormDoc.data().expectedReturn,
-        paymentAmount: paymentAmount !== undefined ? updateData.paymentAmount : taxFormDoc.data().paymentAmount,
-        adminNotes: updateData.adminNotes || taxFormDoc.data().adminNotes
+        status: status || updatedData.status,
+        expectedReturn: expectedReturn !== undefined ? updateData.expectedReturn : updatedData.expectedReturn,
+        paymentAmount: paymentAmount !== undefined ? updateData.paymentAmount : updatedData.paymentAmount,
+        adminNotes: updateData.adminNotes || updatedData.adminNotes,
+        adminNotesUpdatedAt: updatedData.adminNotesUpdatedAt || null
       }
     });
   } catch (error) {

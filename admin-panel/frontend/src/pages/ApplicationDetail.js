@@ -10,6 +10,7 @@ const ApplicationDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
   const [expectedReturn, setExpectedReturn] = useState('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
@@ -71,15 +72,73 @@ const ApplicationDetail = () => {
           adminNotes: response.data.adminNotes
         }));
         setShowStatusModal(false);
-        alert(`Application ${status} successfully!`);
+        setSelectedStatus(''); // Reset selected status
+        // Update select value to new status
+        const select = document.getElementById('status-select');
+        if (select) {
+          select.value = response.data.status || '';
+        }
+        alert(`Application status updated to ${formatStatusName(status)} successfully!`);
       } else {
         alert('Failed to update application status');
+        // Reset select on error
+        const select = document.getElementById('status-select');
+        if (select && application) {
+          select.value = application.status || '';
+        }
       }
     } catch (err) {
       console.error('Error updating status:', err);
       alert('Error updating application status');
+      // Reset select on error
+      const select = document.getElementById('status-select');
+      if (select && application) {
+        select.value = application.status || '';
+      }
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleStatusSelectChange = (e) => {
+    const newStatus = e.target.value;
+    if (newStatus && newStatus !== application.status) {
+      setSelectedStatus(newStatus);
+      setShowStatusModal(true);
+      // Reset select to current status immediately (will update after confirmation)
+      setTimeout(() => {
+        e.target.value = application.status || '';
+      }, 0);
+    }
+  };
+
+  const handleSaveAdminNotes = async () => {
+    try {
+      setSavingNotes(true);
+      // Update notes using the status endpoint with current status (no status change)
+      const response = await AdminApiService.updateTaxFormStatus(
+        id,
+        application.status, // Keep current status
+        parseFloat(expectedReturn) || 0,
+        parseFloat(paymentAmount) || 0,
+        adminNotes
+      );
+      
+      if (response.success) {
+        setApplication(prev => ({
+          ...prev,
+          adminNotes: response.data.adminNotes,
+          adminNotesUpdatedAt: response.data.adminNotesUpdatedAt
+        }));
+        alert('Admin notes saved successfully!');
+      } else {
+        alert('Failed to save admin notes');
+      }
+    } catch (err) {
+      console.error('Error saving admin notes:', err);
+      alert('Error saving admin notes');
+    } finally {
+      setSavingNotes(false);
     }
   };
 
@@ -241,8 +300,28 @@ const ApplicationDetail = () => {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
+  const formatStatusName = (status) => {
+    if (!status) return 'UNKNOWN';
+    // Replace all underscores with spaces and capitalize each word
+    return status
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const getStatusColor = (status) => {
     const colors = {
+      // New states
+      new_application_submitted: '#3498db', // Blue - new application
+      processing: '#f39c12', // Orange - admin reviewing
+      awaiting_for_documents: '#e67e22', // Dark orange - waiting for docs
+      new_documents_submitted: '#3498db', // Blue - new docs uploaded
+      draft_uploaded: '#9b59b6', // Purple - draft ready
+      draft_rejected: '#e74c3c', // Red - draft rejected
+      payment_completed: '#27ae60', // Green - payment done
+      close_application: '#2ecc71', // Green - application closed
+      // Legacy states (for backward compatibility)
       submitted: '#3498db',
       under_review: '#f39c12',
       approved: '#27ae60',
@@ -439,7 +518,7 @@ const ApplicationDetail = () => {
             className="status-badge"
             style={{ backgroundColor: getStatusColor(application.status) }}
           >
-            {application.status?.replace('_', ' ').toUpperCase()}
+            {formatStatusName(application.status)}
           </div>
         </div>
       </div>
@@ -663,14 +742,28 @@ const ApplicationDetail = () => {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="adminNotes">Admin Notes:</label>
+            <label htmlFor="adminNotes">Admin Notes (Visible to all admins):</label>
             <textarea
               id="adminNotes"
               value={adminNotes}
               onChange={(e) => setAdminNotes(e.target.value)}
-              placeholder="Add notes about this application..."
-              rows="3"
+              placeholder="Add personal notes about this application that other admins can see..."
+              rows="5"
+              disabled={savingNotes}
             />
+            <button
+              type="button"
+              className="action-button save-notes-button"
+              onClick={handleSaveAdminNotes}
+              disabled={savingNotes || !application}
+            >
+              {savingNotes ? '💾 Saving...' : '💾 Save Notes'}
+            </button>
+            {application?.adminNotesUpdatedAt && (
+              <div className="notes-timestamp">
+                Last updated: {formatDate(application.adminNotesUpdatedAt)}
+              </div>
+            )}
           </div>
           
           {/* File Upload Fields */}
@@ -786,46 +879,36 @@ const ApplicationDetail = () => {
             )}
           </div>
           <div className="action-buttons">
-            <button 
-              className="action-button approve-button"
-              onClick={() => {
-                setSelectedStatus('approved');
-                setShowStatusModal(true);
-              }}
-              disabled={updating}
-            >
-              Approve
-            </button>
-            <button 
-              className="action-button reject-button"
-              onClick={() => {
-                setSelectedStatus('rejected');
-                setShowStatusModal(true);
-              }}
-              disabled={updating}
-            >
-              Reject
-            </button>
-            <button 
-              className="action-button review-button"
-              onClick={() => {
-                setSelectedStatus('under_review');
-                setShowStatusModal(true);
-              }}
-              disabled={updating}
-            >
-              Mark Under Review
-            </button>
-            <button 
-              className="action-button processing-button"
-              onClick={() => {
-                setSelectedStatus('processing');
-                setShowStatusModal(true);
-              }}
-              disabled={updating}
-            >
-              Processing
-            </button>
+            <div className="status-update-container">
+              <label htmlFor="status-select" className="status-label">Update Status:</label>
+              <select
+                id="status-select"
+                className="status-select"
+                value={application.status || ''}
+                onChange={handleStatusSelectChange}
+                disabled={updating}
+                style={{ 
+                  backgroundColor: getStatusColor(application.status),
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: updating ? 'not-allowed' : 'pointer',
+                  minWidth: '200px'
+                }}
+              >
+                <option value={application.status || ''} disabled>
+                  {formatStatusName(application.status) || 'Current Status'}
+                </option>
+                <option value="processing">Processing</option>
+                <option value="awaiting_for_documents">Awaiting for Documents</option>
+                <option value="draft_uploaded">Draft Uploaded</option>
+                <option value="close_application">Close Application</option>
+                <option value="rejected">Reject</option>
+              </select>
+            </div>
             <button 
               className="action-button delete-button"
               onClick={handleDeleteApplication}
@@ -842,7 +925,7 @@ const ApplicationDetail = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <h3>Confirm Status Update</h3>
-            <p>Are you sure you want to {selectedStatus.replace('_', ' ')} this application?</p>
+            <p>Are you sure you want to set status to "{formatStatusName(selectedStatus)}" for this application?</p>
             <div className="modal-actions">
               <button 
                 className="action-button confirm-button"
@@ -853,7 +936,15 @@ const ApplicationDetail = () => {
               </button>
               <button 
                 className="action-button cancel-button"
-                onClick={() => setShowStatusModal(false)}
+                onClick={() => {
+                  setShowStatusModal(false);
+                  setSelectedStatus('');
+                  // Force re-render of select to reset value
+                  const select = document.getElementById('status-select');
+                  if (select && application) {
+                    select.value = application.status || '';
+                  }
+                }}
                 disabled={updating}
               >
                 Cancel

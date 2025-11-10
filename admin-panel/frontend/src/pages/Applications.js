@@ -80,10 +80,29 @@ const Applications = () => {
     }
   };
 
-  // Get unique values for filter options
-  const getUniqueStatuses = () => {
-    const statuses = [...new Set(applications.map(app => app.status).filter(Boolean))];
-    return statuses;
+  // Get all available statuses for filter options
+  const getAllAvailableStatuses = () => {
+    // All available statuses (new and legacy)
+    const allStatuses = [
+      'new_application_submitted',
+      'processing',
+      'awaiting_for_documents',
+      'new_documents_submitted',
+      'draft_uploaded',
+      'draft_rejected',
+      'payment_completed',
+      'close_application',
+      // Legacy statuses (kept for backward compatibility with existing applications)
+      'submitted',
+      'rejected',
+      'completed'
+    ];
+    
+    // Also include any statuses from existing applications that might not be in the list
+    const existingStatuses = [...new Set(applications.map(app => app.status).filter(Boolean))];
+    const combinedStatuses = [...new Set([...allStatuses, ...existingStatuses])];
+    
+    return combinedStatuses;
   };
 
   const getUniqueTaxYears = () => {
@@ -198,8 +217,28 @@ const Applications = () => {
     return date.toLocaleDateString();
   };
 
+  const formatStatusName = (status) => {
+    if (!status) return 'UNKNOWN';
+    // Replace all underscores with spaces and capitalize each word
+    return status
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   const getStatusColor = (status) => {
     const colors = {
+      // New states
+      new_application_submitted: '#3498db', // Blue - new application
+      processing: '#f39c12', // Orange - admin reviewing
+      awaiting_for_documents: '#e67e22', // Dark orange - waiting for docs
+      new_documents_submitted: '#3498db', // Blue - new docs uploaded
+      draft_uploaded: '#9b59b6', // Purple - draft ready
+      draft_rejected: '#e74c3c', // Red - draft rejected
+      payment_completed: '#27ae60', // Green - payment done
+      close_application: '#2ecc71', // Green - application closed
+      // Legacy states (for backward compatibility)
       submitted: '#3498db',
       under_review: '#f39c12',
       approved: '#27ae60',
@@ -263,9 +302,9 @@ const Applications = () => {
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
                   <option value="all">All Statuses</option>
-                  {getUniqueStatuses().map(status => (
+                  {getAllAvailableStatuses().map(status => (
                     <option key={status} value={status}>
-                      {status.replace('_', ' ').toUpperCase()}
+                      {formatStatusName(status)}
                     </option>
                   ))}
                 </select>
@@ -352,7 +391,7 @@ const Applications = () => {
                             className="status-badge"
                             style={{ backgroundColor: getStatusColor(app.status) }}
                           >
-                            {app.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                            {formatStatusName(app.status)}
                           </span>
                         </td>
                         <td>{formatDate(app.submittedAt)}</td>
