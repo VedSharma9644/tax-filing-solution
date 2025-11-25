@@ -1199,6 +1199,172 @@ app.post('/auth/firebase-phone-login', authLimiter, async (req, res) => {
   }
 });
 
+// Firebase Email/Password Auth Login
+app.post('/auth/firebase-email-login', authLimiter, async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Firebase ID token is required'
+      });
+    }
+
+    // Verify Firebase ID token
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+    } catch (error) {
+      console.error('❌ Error verifying Firebase ID token:', error);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid Firebase ID token',
+        details: error.message
+      });
+    }
+
+    const { uid, email, email_verified } = decodedToken;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    // Note: Email verification is optional - we allow unverified emails for demo/testing purposes
+
+    // Check if user exists in our database
+    let userQuery = await db.collection('users').where('uid', '==', uid).limit(1).get();
+    let userDoc, userData;
+
+    if (userQuery.empty) {
+      // Check if user exists by email
+      const emailQuery = await db.collection('users').where('email', '==', email).limit(1).get();
+      
+      if (!emailQuery.empty) {
+        // User exists by email, update with uid
+        userDoc = emailQuery.docs[0];
+        userData = userDoc.data();
+        
+        await db.collection('users').doc(userDoc.id).update({
+          uid: uid,
+          lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          emailVerified: email_verified
+        });
+        
+        userData.id = userDoc.id;
+        userData.uid = uid;
+        userData.emailVerified = email_verified;
+      } else {
+        // Create new user
+        console.log('Creating new Firebase Email/Password Auth user');
+        const newUserData = {
+          uid: uid,
+          email: email,
+          firstName: '',
+          lastName: '',
+          phone: '',
+          emailVerified: email_verified,
+          firebaseEmailAuth: true,
+          role: 'user',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        const userRef = await db.collection('users').add(newUserData);
+        userData = { id: userRef.id, ...newUserData };
+        console.log('New user created with ID:', userRef.id);
+      }
+    } else {
+      // Update existing user
+      console.log('Updating existing Firebase Email/Password Auth user');
+      userDoc = userQuery.docs[0];
+      userData = userDoc.data();
+      
+      await db.collection('users').doc(userDoc.id).update({
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        email: email || userData.email,
+        emailVerified: email_verified
+      });
+      
+      userData.id = userDoc.id;
+      userData.email = email || userData.email;
+      userData.emailVerified = email_verified;
+    }
+
+    // Generate backend JWT tokens
+    const accessToken = jwt.sign(
+      { 
+        userId: userData.id, 
+        uid: uid,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email, 
+        phone: userData.phone,
+        role: userData.role,
+        type: 'access'
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Generate refresh token with unique ID
+    const refreshTokenId = require('crypto').randomUUID();
+    const refreshToken = jwt.sign(
+      { 
+        userId: userData.id,
+        type: 'refresh',
+        jti: refreshTokenId
+      },
+      JWT_REFRESH_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRES_IN }
+    );
+
+    // Store refresh token in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    
+    await db.collection('refreshTokens').doc(refreshTokenId).set({
+      userId: userData.id,
+      token: refreshToken,
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Determine profile completion status
+    const profileComplete = !!(userData.firstName && userData.lastName && userData.email);
+
+    res.json({
+      success: true,
+      message: 'Email/password authentication successful!',
+      accessToken,
+      refreshToken,
+      user: {
+        id: userData.id,
+        uid: userData.uid,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        email: userData.email,
+        phone: userData.phone || '',
+        role: userData.role,
+        profileComplete: profileComplete
+      }
+    });
+  } catch (error) {
+    console.error('❌ Firebase Email/Password Auth Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed',
+      details: error.message
+    });
+  }
+});
+
 // Google OAuth Login
 app.post('/auth/google-login', authLimiter, async (req, res) => {
   try {

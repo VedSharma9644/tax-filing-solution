@@ -116,6 +116,65 @@ class ApiService {
     }
   }
 
+  // Firebase Email/Password Auth Login
+  async firebaseEmailLogin(idToken) {
+    try {
+      const url = `${this.baseURL}/auth/firebase-email-login`;
+      if (__DEV__) {
+        console.log('🔍 Calling backend endpoint:', url);
+      }
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (__DEV__) {
+        console.log('🔍 Response status:', response.status);
+      }
+
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('❌ Non-JSON response received. Status:', response.status);
+        console.error('❌ Response preview:', text.substring(0, 500));
+        
+        // Provide specific error message based on status code
+        if (response.status === 404) {
+          throw new Error('Backend endpoint /auth/firebase-email-login not found. Please deploy the backend with the latest changes.');
+        } else if (response.status >= 500) {
+          throw new Error(`Backend server error (${response.status}). Please check backend logs.`);
+        } else {
+          throw new Error(`Server returned non-JSON response (${response.status}). The endpoint may not exist or there's a server error.`);
+        }
+      }
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return data;
+    } catch (error) {
+      // If it's already our custom error, rethrow it
+      if (error.message && (error.message.includes('non-JSON') || error.message.includes('endpoint') || error.message.includes('Backend'))) {
+        throw error;
+      }
+      // If it's a JSON parse error, provide better message
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        const url = `${this.baseURL}/auth/firebase-email-login`;
+        throw new Error(`Server returned an invalid response. The endpoint ${url} may not exist. Please deploy the backend with the latest changes.`);
+      }
+      throw error;
+    }
+  }
+
   // Google Sign-In Login
   async googleLogin(authCode, idToken) {
     try {

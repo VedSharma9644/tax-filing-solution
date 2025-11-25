@@ -271,6 +271,212 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const emailPasswordSignup = async (email, password) => {
+    try {
+      // Validate email format
+      if (!email || !email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate password
+      if (!password || password.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+      }
+
+      console.log('Creating Firebase Email/Password account for:', email);
+      
+      // Use React Native Firebase to create user with email/password
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+      
+      if (userCredential.user) {
+        // Send email verification
+        try {
+          await userCredential.user.sendEmailVerification();
+        } catch (verificationError) {
+          console.log('Email verification send failed (non-critical):', verificationError);
+        }
+
+        // Get Firebase ID token
+        const idToken = await userCredential.user.getIdToken();
+        console.log('Firebase ID Token obtained:', idToken ? 'Yes' : 'No');
+
+        // Call backend to create user and get backend JWT
+        try {
+          console.log('Calling backend for Firebase Email/Password Signup...');
+          const backendResponse = await ApiService.firebaseEmailLogin(idToken);
+          
+          if (backendResponse.success) {
+            console.log('Backend signup successful');
+            
+            // Store backend JWT token and user data
+            await secureStorage.setAuthTokens(backendResponse.accessToken, backendResponse.refreshToken);
+            await secureStorage.setUserData(backendResponse.user);
+            
+            setUser(backendResponse.user);
+            setToken(backendResponse.accessToken);
+            
+            return {
+              success: true,
+              message: 'Account created successfully! Please verify your email.',
+              user: backendResponse.user
+            };
+          } else {
+            throw new Error(backendResponse.error || 'Backend signup failed');
+          }
+        } catch (backendError) {
+          console.error('Backend signup error:', backendError);
+          console.error('Backend error details:', {
+            message: backendError.message,
+            name: backendError.name,
+            stack: backendError.stack
+          });
+          
+          // Sign out from Firebase since backend integration failed
+          try {
+            await auth().signOut();
+          } catch (signOutError) {
+            console.error('Error signing out from Firebase:', signOutError);
+          }
+          
+          // Provide more helpful error messages
+          let errorMessage = 'Account creation failed.';
+          if (backendError.message && backendError.message.includes('404') || backendError.message.includes('endpoint not found')) {
+            errorMessage = 'Backend endpoint not deployed. Please deploy the backend with /auth/firebase-email-login endpoint before using email/password authentication.';
+          } else if (backendError.message && backendError.message.includes('non-JSON')) {
+            errorMessage = 'Backend endpoint may not be available. Please contact support.';
+          } else if (backendError.message && backendError.message.includes('endpoint')) {
+            errorMessage = backendError.message;
+          } else {
+            errorMessage = `Backend error: ${backendError.message}. Please ensure the backend is deployed and running.`;
+          }
+          
+          // Don't proceed if backend fails - user needs backend integration for full functionality
+          throw new Error(errorMessage);
+        }
+      } else {
+        throw new Error('Failed to create user account');
+      }
+    } catch (error) {
+      console.error('Email/Password Signup Error:', error);
+      
+      // Handle specific Firebase Auth errors
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('This email is already registered. Please use login instead.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('Invalid email address. Please check and try again.');
+      } else if (error.code === 'auth/weak-password') {
+        throw new Error('Password is too weak. Please use a stronger password.');
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network error. Please check your internet connection.');
+      } else {
+        throw new Error(error.message || 'Failed to create account. Please try again.');
+      }
+    }
+  };
+
+  const emailPasswordLogin = async (email, password) => {
+    try {
+      // Validate email format
+      if (!email || !email.includes('@')) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate password
+      if (!password) {
+        throw new Error('Please enter your password');
+      }
+
+      console.log('Logging in with Email/Password for:', email);
+      
+      // Use React Native Firebase to sign in with email/password
+      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      
+      if (userCredential.user) {
+        // Get Firebase ID token
+        const idToken = await userCredential.user.getIdToken();
+        console.log('Firebase ID Token obtained:', idToken ? 'Yes' : 'No');
+
+        // Call backend to create/update user and get backend JWT
+        try {
+          console.log('Calling backend for Firebase Email/Password Login...');
+          const backendResponse = await ApiService.firebaseEmailLogin(idToken);
+          
+          if (backendResponse.success) {
+            console.log('Backend login successful');
+            
+            // Store backend JWT token and user data
+            await secureStorage.setAuthTokens(backendResponse.accessToken, backendResponse.refreshToken);
+            await secureStorage.setUserData(backendResponse.user);
+            
+            setUser(backendResponse.user);
+            setToken(backendResponse.accessToken);
+            
+            return {
+              success: true,
+              message: 'Login successful!',
+              user: backendResponse.user
+            };
+          } else {
+            throw new Error(backendResponse.error || 'Backend login failed');
+          }
+        } catch (backendError) {
+          console.error('Backend login error:', backendError);
+          console.error('Backend error details:', {
+            message: backendError.message,
+            name: backendError.name,
+            stack: backendError.stack
+          });
+          
+          // Sign out from Firebase since backend integration failed
+          try {
+            await auth().signOut();
+          } catch (signOutError) {
+            console.error('Error signing out from Firebase:', signOutError);
+          }
+          
+          // Provide more helpful error messages
+          let errorMessage = 'Login failed.';
+          if (backendError.message && (backendError.message.includes('404') || backendError.message.includes('endpoint not found'))) {
+            errorMessage = 'Backend endpoint not deployed. Please deploy the backend with /auth/firebase-email-login endpoint before using email/password authentication.';
+          } else if (backendError.message && backendError.message.includes('non-JSON')) {
+            errorMessage = 'Backend endpoint may not be available. Please contact support.';
+          } else if (backendError.message && backendError.message.includes('endpoint')) {
+            errorMessage = backendError.message;
+          } else {
+            errorMessage = `Backend error: ${backendError.message}. Please ensure the backend is deployed and running.`;
+          }
+          
+          // Don't proceed if backend fails - user needs backend integration for full functionality
+          throw new Error(errorMessage);
+        }
+      } else {
+        throw new Error('Failed to sign in');
+      }
+    } catch (error) {
+      console.error('Email/Password Login Error:', error);
+      
+      // Handle specific Firebase Auth errors
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email. Please sign up first.');
+      } else if (error.code === 'auth/wrong-password') {
+        throw new Error('Incorrect password. Please try again.');
+      } else if (error.code === 'auth/invalid-credential') {
+        // This error can mean wrong password OR user doesn't exist
+        throw new Error('Invalid email or password. Please check your credentials or sign up if you don\'t have an account.');
+      } else if (error.code === 'auth/invalid-email') {
+        throw new Error('Invalid email address. Please check and try again.');
+      } else if (error.code === 'auth/user-disabled') {
+        throw new Error('This account has been disabled. Please contact support.');
+      } else if (error.code === 'auth/network-request-failed') {
+        throw new Error('Network error. Please check your internet connection.');
+      } else if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many failed attempts. Please try again later.');
+      } else {
+        throw new Error(error.message || 'Failed to sign in. Please try again.');
+      }
+    }
+  };
+
   const logout = async (navigation = null) => {
     try {
       await secureStorage.clear();
@@ -326,6 +532,8 @@ export const AuthProvider = ({ children }) => {
     sendPhoneOTP,
     verifyPhoneOTP,
     googleLogin,
+    emailPasswordSignup,
+    emailPasswordLogin,
     logout,
     isAuthenticated,
     updateUser,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Alert, ActivityIndicator, Keyboard } from 'react-native';
+import { View, Text, Image, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput, Alert, ActivityIndicator, Keyboard, TouchableOpacity } from 'react-native';
 import { Button } from './ui/button';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +17,16 @@ const AuthScreen = () => {
   const [loading, setLoading] = useState(false);
   const [otpData, setOtpData] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  
+  // Email/Password states
+  const [authMode, setAuthMode] = useState<'phone' | 'email'>('email'); // Default to email
+  const [isSignup, setIsSignup] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
   const navigation = useNavigation<any>();
-  const { sendPhoneOTP, verifyPhoneOTP } = useAuth();
+  const { sendPhoneOTP, verifyPhoneOTP, emailPasswordSignup, emailPasswordLogin } = useAuth();
   
   // Refs for keyboard handling
   const scrollViewRef = useRef<ScrollView>(null);
@@ -252,6 +260,53 @@ const AuthScreen = () => {
     Alert.alert('Error', 'Google login failed. Please try again.');
   };
 
+  const handleEmailPasswordAuth = async () => {
+    // Validate email
+    if (!email || !email.includes('@')) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    // Validate password
+    if (!password || password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    // Validate confirm password for signup
+    if (isSignup && password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let response;
+      if (isSignup) {
+        response = await emailPasswordSignup(email, password);
+      } else {
+        response = await emailPasswordLogin(email, password);
+      }
+
+      if (response && response.success) {
+        Alert.alert('Success', response.message || (isSignup ? 'Account created successfully!' : 'Login successful!'), [
+          {
+            text: 'Continue',
+            onPress: () => {
+              // Navigation happens automatically when user state changes
+              console.log('Email/password auth successful, user state updated automatically');
+            }
+          }
+        ]);
+      }
+    } catch (error: any) {
+      console.error('Email/Password Auth Error:', error);
+      Alert.alert('Error', error.message || (isSignup ? 'Failed to create account. Please try again.' : 'Failed to sign in. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaWrapper>
       <KeyboardAvoidingView
@@ -292,8 +347,119 @@ const AuthScreen = () => {
               </Text>
             </View>
 
+            {/* Auth Mode Tabs */}
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                onPress={() => {
+                  setAuthMode('email');
+                  setShowOtp(false);
+                }}
+                style={[styles.tabButton, authMode === 'email' && styles.tabButtonActive]}
+              >
+                <Text style={[styles.tabButtonText, authMode === 'email' && styles.tabButtonTextActive]}>
+                  Email
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setAuthMode('phone');
+                  setShowOtp(false);
+                }}
+                style={[styles.tabButton, authMode === 'phone' && styles.tabButtonActive]}
+              >
+                <Text style={[styles.tabButtonText, authMode === 'phone' && styles.tabButtonTextActive]}>
+                  Phone
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Email/Password Authentication */}
+            {authMode === 'email' && (
+              <View style={styles.tabContent}>
+                {/* Signup/Login Toggle */}
+                <View style={styles.toggleContainer}>
+                  <TouchableOpacity
+                    onPress={() => setIsSignup(false)}
+                    style={[styles.toggleButton, !isSignup && styles.toggleButtonActive]}
+                  >
+                    <Text style={[styles.toggleButtonText, !isSignup && styles.toggleButtonTextActive]}>
+                      Login
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setIsSignup(true)}
+                    style={[styles.toggleButton, isSignup && styles.toggleButtonActive]}
+                  >
+                    <Text style={[styles.toggleButtonText, isSignup && styles.toggleButtonTextActive]}>
+                      Sign Up
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.label}>Email Address</Text>
+                <TextInput
+                  placeholder="your.email@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onFocus={scrollToInput}
+                />
+
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  placeholder="Enter your password"
+                  value={password}
+                  onChangeText={setPassword}
+                  style={styles.input}
+                  secureTextEntry
+                  onFocus={scrollToInput}
+                />
+
+                {isSignup && (
+                  <>
+                    <Text style={styles.label}>Confirm Password</Text>
+                    <TextInput
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      style={styles.input}
+                      secureTextEntry
+                      onFocus={scrollToInput}
+                    />
+                  </>
+                )}
+
+                <View style={styles.button}>
+                  <Button onPress={handleEmailPasswordAuth} disabled={loading}>
+                    {loading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.buttonText}>
+                        {isSignup ? 'Create Account' : 'Sign In'}
+                      </Text>
+                    )}
+                  </Button>
+                </View>
+
+                {/* Demo Account Info */}
+                {!isSignup && (
+                  <View style={styles.demoAccountContainer}>
+                    <Text style={styles.demoAccountTitle}>Demo Account for Reviewers</Text>
+                    <Text style={styles.demoAccountText}>Email: demo@growwelltax.com</Text>
+                    <Text style={styles.demoAccountText}>Password: Demo123!</Text>
+                    <Text style={styles.demoAccountNote}>
+                      Note: If this is your first time, please create the account first by switching to "Sign Up" tab above.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Phone Authentication */}
-            {!showOtp && (
+            {authMode === 'phone' && !showOtp && (
               <View style={styles.tabContent}>
                 <Text style={styles.label}>Phone Number (with country code)</Text>
                 <TextInput
@@ -318,7 +484,7 @@ const AuthScreen = () => {
             )}
 
             {/* OTP Input */}
-            {showOtp && (
+            {authMode === 'phone' && showOtp && (
               <View style={styles.tabContent}>
                 <View style={styles.otpHeader}>
                   <Ionicons name="lock-closed" size={40} color="#007bff" />
@@ -522,6 +688,81 @@ const styles = StyleSheet.create({
     color: '#666', 
     marginTop: 4, 
     marginBottom: 8 
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: '#0E502B',
+  },
+  tabButtonText: {
+    color: '#666',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  tabButtonTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#007bff',
+  },
+  toggleButtonText: {
+    color: '#666',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  toggleButtonTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  demoAccountContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4caf50',
+  },
+  demoAccountTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginBottom: 8,
+  },
+  demoAccountText: {
+    fontSize: 12,
+    color: '#2e7d32',
+    marginBottom: 4,
+  },
+  demoAccountNote: {
+    fontSize: 11,
+    color: '#2e7d32',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });
 
