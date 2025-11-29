@@ -1,0 +1,137 @@
+/* TaxWizard.css */
+
+.tax-wizard-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.tax-wizard-container {
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Header */
+.tax-wizard-header {
+  background-color: #001826;
+  padding: 20px;
+  border-radius: 12px;
+  color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tax-wizard-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tax-wizard-back-button {
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+.tax-wizard-back-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tax-wizard-step-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffffff;
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.tax-wizard-header-spacer {
+  width: 40px;
+}
+
+/* Content */
+.tax-wizard-content {
+  flex: 1;
+  min-height: 400px;
+}
+
+.tax-wizard-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.tax-wizard-placeholder-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.tax-wizard-placeholder-description {
+  font-size: 16px;
+  color: #666;
+  line-height: 24px;
+}
+
+/* Navigation */
+.tax-wizard-navigation {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tax-wizard-nav-button {
+  flex: 1;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tax-wizard-nav-button-previous {
+  background-color: #ffffff;
+  color: #001826;
+  border: 2px solid #001826;
+}
+
+.tax-wizard-nav-button-previous:hover:not(:disabled) {
+  background-color: #f0f0f0;
+}
+
+.tax-wizard-nav-button-next {
+  background-color: #0E502B;
+  color: #ffffff;
+}
+
+.tax-wizard-nav-button-next:hover:not(:disabled) {
+  background-color: #16A34A;
+}
+
+.tax-wizard-nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+

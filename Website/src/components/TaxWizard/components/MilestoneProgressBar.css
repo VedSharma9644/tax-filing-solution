@@ -1,0 +1,93 @@
+/* MilestoneProgressBar.css */
+
+.milestone-progress-bar-container {
+  background-color: #1F2937;
+  padding: 20px 16px;
+  border-radius: 12px;
+}
+
+.milestone-progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  margin-bottom: 16px;
+}
+
+.milestone-step-container {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: transform 0.2s ease;
+}
+
+.milestone-step-container:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.milestone-step-container:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.milestone-connector {
+  height: 2px;
+  flex: 1;
+  margin: 0 8px;
+}
+
+.milestone-labels-container {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.milestone-label-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.milestone-icon-container {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.milestone-icon-completed {
+  background-color: #10B981;
+  color: #ffffff;
+}
+
+.milestone-icon-current {
+  background-color: #10B981;
+  color: #ffffff;
+}
+
+.milestone-icon-pending {
+  background-color: transparent;
+  border: 2px solid #6B7280;
+  color: #6B7280;
+}
+
+.milestone-step-text {
+  font-size: 11px;
+  color: #ffffff;
+  text-align: center;
+  font-weight: 400;
+}
+
+.milestone-current-step-text {
+  font-weight: 600;
+}
+

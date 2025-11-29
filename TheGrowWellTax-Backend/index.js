@@ -241,10 +241,11 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// CORS configuration for Expo Go and Android Studio emulator compatibility
+// CORS configuration for Expo Go, Android Studio emulator, and Website compatibility
 app.use(cors({
   origin: [
     'http://localhost:3000', 
+    'http://localhost:3001', // Website development server
     'http://localhost:8081', 
     'http://192.168.1.34:3001',
     // Expo Go origins
@@ -254,10 +255,17 @@ app.use(cors({
     // Additional mobile origins
     'http://192.168.1.34:8081',
     'http://127.0.0.1:8081',
+    'http://127.0.0.1:3001', // Website localhost alternative
     // Android Studio emulator origins
     'http://10.0.2.2:5000',
     'http://10.0.2.2:8081',
     'http://10.0.2.2:3000',
+    'http://10.0.2.2:3001',
+    // Production website (Cloud Run)
+    'https://tax-filing-website-693306869303.us-central1.run.app',
+    // Custom domain
+    'https://tax.thegrowwell.com',
+    'http://tax.thegrowwell.com', // Include HTTP for development/testing
     // Allow all origins in development (for Expo Go and emulator)
     ...(process.env.NODE_ENV === 'development' ? ['*'] : [])
   ],
@@ -515,7 +523,8 @@ const verifyGoogleIdToken = async (idToken) => {
     const tokenInfo = await response.json();
     
     // Validate audience (must match your web client ID)
-    const expectedAudience = '693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com';
+    // Updated after adding Google Play Store SHA-1 keys
+    const expectedAudience = '693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com';
     if (tokenInfo.aud !== expectedAudience) {
       throw new Error(`Invalid audience. Expected: ${expectedAudience}, Got: ${tokenInfo.aud}`);
     }
@@ -1382,7 +1391,7 @@ app.post('/auth/google-login', authLimiter, async (req, res) => {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
-            client_id: process.env.GOOGLE_WEB_CLIENT_ID || '693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com',
+            client_id: process.env.GOOGLE_WEB_CLIENT_ID || '693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com',
             client_secret: process.env.GOOGLE_CLIENT_SECRET || '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',
             code: authCode,
             grant_type: 'authorization_code',
@@ -1556,6 +1565,172 @@ app.post('/auth/google-login', authLimiter, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to process Google login',
+      details: error.message
+    });
+  }
+});
+
+// Firebase Google Auth Login (using Firebase Admin SDK) This is for Website.
+app.post('/auth/firebase-google-login', authLimiter, async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Firebase ID token is required'
+      });
+    }
+
+    // Verify Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    
+    // Extract user info from Firebase token
+    const email = decodedToken.email;
+    const email_verified = decodedToken.email_verified || false;
+    const name = decodedToken.name || '';
+    const picture = decodedToken.picture || '';
+    
+    // Get Google provider data if available
+    const providerData = decodedToken.firebase?.identities?.['google.com'] || [];
+    const googleId = providerData.length > 0 ? providerData[0] : uid;
+
+    console.log('Firebase Google Auth - UID:', uid);
+    console.log('Firebase Google Auth - Email:', email);
+    console.log('Firebase Google Auth - Google ID:', googleId);
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required for Google login'
+      });
+    }
+
+    if (!email_verified) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is not verified'
+      });
+    }
+
+    // Check if user exists by email
+    let userQuery = await db.collection('users').where('email', '==', email).limit(1).get();
+    let userDoc, userData;
+    let userExists = false;
+
+    if (!userQuery.empty) {
+      userDoc = userQuery.docs[0];
+      userData = userDoc.data();
+      userExists = true;
+    }
+
+    if (userExists) {
+      // Update existing user
+      const updateData = {
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        googleId: googleId,
+        profilePicture: picture || userData.profilePicture || '',
+        uid: uid // Store Firebase UID
+      };
+
+      // Update name if not set or if Google name is different
+      if (!userData.firstName || !userData.lastName) {
+        const nameParts = name ? name.split(' ') : ['', ''];
+        updateData.firstName = nameParts[0] || '';
+        updateData.lastName = nameParts.slice(1).join(' ') || '';
+      }
+
+      await db.collection('users').doc(userDoc.id).update(updateData);
+      userData = { ...userData, ...updateData };
+    } else {
+      // Create new user
+      const nameParts = name ? name.split(' ') : ['', ''];
+      const newUserData = {
+        firstName: nameParts[0] || '',
+        lastName: nameParts.slice(1).join(' ') || '',
+        email: email,
+        phone: '',
+        googleId: googleId,
+        uid: uid,
+        profilePicture: picture || '',
+        role: 'taxpayer',
+        status: 'active',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      const newUserRef = await db.collection('users').add(newUserData);
+      userDoc = { id: newUserRef.id };
+      userData = { id: newUserRef.id, ...newUserData };
+    }
+
+    // Generate JWT tokens
+    const accessTokenJWT = jwt.sign(
+      { 
+        userId: userDoc.id, 
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email, 
+        phone: userData.phone || '',
+        role: userData.role,
+        type: 'access'
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    const refreshTokenId = require('crypto').randomUUID();
+    const refreshToken = jwt.sign(
+      { 
+        userId: userDoc.id,
+        type: 'refresh',
+        jti: refreshTokenId
+      },
+      JWT_REFRESH_SECRET,
+      { expiresIn: JWT_REFRESH_EXPIRES_IN }
+    );
+
+    // Store refresh token in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+    
+    await db.collection('refreshTokens').doc(refreshTokenId).set({
+      userId: userDoc.id,
+      tokenHash: require('crypto').createHash('sha256').update(refreshToken).digest('hex'),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      isRevoked: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({
+      success: true,
+      message: userExists ? 'Google login successful' : 'User created and logged in successfully via Google',
+      user: {
+        id: userDoc.id,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        phone: userData.phone || '',
+        role: userData.role,
+        status: userData.status,
+        profilePicture: userData.profilePicture || '',
+        name: `${userData.firstName} ${userData.lastName}`.trim(),
+        profileComplete: !!(userData.firstName && userData.lastName && userData.email && userData.address && userData.occupation)
+      },
+      tokens: {
+        accessToken: accessTokenJWT,
+        refreshToken: refreshToken,
+        expiresIn: 3600 // 1 hour in seconds
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error with Firebase Google login:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process Firebase Google login',
       details: error.message
     });
   }
@@ -2835,27 +3010,76 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
     let fileBuffer;
     let shouldEncrypt = category !== 'profile_images';
     
+    // ============================================
+    // WEBSITE SUPPORT: Detect if request is from website
+    // ============================================
+    // Check Origin header to detect website requests
+    const origin = req.headers.origin || req.headers.referer || '';
+    const isWebsiteRequest = origin.includes('localhost:3001') || origin.includes('localhost:3002') || 
+                             origin.includes('tax-filing-app') || origin.includes('growwelltax') ||
+                             origin.includes('tax-filing-website') || origin.includes('us-central1.run.app') ||
+                             origin.includes('tax.thegrowwell.com');
+    console.log(`🌐 Upload source detection: origin=${origin}, isWebsiteRequest=${isWebsiteRequest}`);
+    // ============================================
+    
+    // ============================================
+    // WEBSITE SUPPORT: Track encryption status
+    // ============================================
+    let encryptionFailed = false; // Declare outside try-catch for scope
+    // ============================================
+    
     if (shouldEncrypt) {
       // Encrypt the file using DEK approach
-      console.log('🔐 Encrypting mobile app file with DEK approach...');
-      const encryptedFileData = await encryptFileWithDEK(req.file.buffer);
-      console.log('✅ Mobile app file encrypted successfully with DEK');
-      console.log('🔍 Encrypted data structure:', {
-        hasEncryptedData: !!encryptedFileData.encryptedData,
-        hasEncryptedKey: !!encryptedFileData.encryptedKey,
-        hasIv: !!encryptedFileData.iv,
-        algorithm: encryptedFileData.algorithm
-      });
-
-      // Convert encrypted data to a single buffer for storage
-      fileBuffer = Buffer.concat([
-        Buffer.from(JSON.stringify({
-          encryptedData: encryptedFileData.encryptedData ? encryptedFileData.encryptedData.toString('base64') : '',
-          encryptedKey: encryptedFileData.encryptedKey ? encryptedFileData.encryptedKey.toString('base64') : '',
-          iv: encryptedFileData.iv ? encryptedFileData.iv.toString('base64') : '',
-          algorithm: encryptedFileData.algorithm || 'aes-256-cbc'
-        }))
-      ]);
+      console.log('🔐 Encrypting file with DEK approach...');
+      
+      // ============================================
+      // WEBSITE SUPPORT: Graceful encryption error handling
+      // ============================================
+      // For website uploads, if encryption fails, we'll store unencrypted
+      // This ensures website uploads work even if KMS has temporary issues
+      // Mobile app uploads will still fail if encryption fails (existing behavior)
+      let encryptedFileData;
+      
+      try {
+        encryptedFileData = await encryptFileWithDEK(req.file.buffer);
+        console.log('✅ File encrypted successfully with DEK');
+        console.log('🔍 Encrypted data structure:', {
+          hasEncryptedData: !!encryptedFileData.encryptedData,
+          hasEncryptedKey: !!encryptedFileData.encryptedKey,
+          hasIv: !!encryptedFileData.iv,
+          algorithm: encryptedFileData.algorithm
+        });
+      } catch (encryptionError) {
+        console.error('❌ Encryption failed:', encryptionError);
+        
+        // For website requests, allow unencrypted storage as fallback
+        // Mobile app requests will still fail (preserving existing behavior)
+        if (isWebsiteRequest) {
+          console.warn('⚠️ WEBSITE REQUEST: Encryption failed, storing unencrypted as fallback');
+          console.warn('⚠️ This is a temporary workaround. KMS should be fixed for production.');
+          encryptionFailed = true;
+          shouldEncrypt = false; // Skip encryption for this file
+        } else {
+          // Mobile app: preserve existing behavior - fail if encryption fails
+          throw encryptionError;
+        }
+      }
+      // ============================================
+      
+      if (!encryptionFailed) {
+        // Convert encrypted data to a single buffer for storage
+        fileBuffer = Buffer.concat([
+          Buffer.from(JSON.stringify({
+            encryptedData: encryptedFileData.encryptedData ? encryptedFileData.encryptedData.toString('base64') : '',
+            encryptedKey: encryptedFileData.encryptedKey ? encryptedFileData.encryptedKey.toString('base64') : '',
+            iv: encryptedFileData.iv ? encryptedFileData.iv.toString('base64') : '',
+            algorithm: encryptedFileData.algorithm || 'aes-256-cbc'
+          }))
+        ]);
+      } else {
+        // Website fallback: store unencrypted
+        fileBuffer = req.file.buffer;
+      }
     } else {
       // Profile images: store unencrypted for direct access
       console.log('📸 Storing profile image without encryption for direct access');
@@ -2865,8 +3089,12 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
     // Upload file to GCS
     const stream = fileRef.createWriteStream(uploadOptions);
     
-    // Store shouldEncrypt in a variable accessible in the Promise
-    const isEncrypted = shouldEncrypt;
+    // Store encryption status in a variable accessible in the Promise
+    // ============================================
+    // WEBSITE SUPPORT: Track encryption status correctly
+    // ============================================
+    const isEncrypted = shouldEncrypt && !encryptionFailed; // Only true if encryption succeeded
+    // ============================================
     
     return new Promise((resolve, reject) => {
       stream.on('error', (error) => {
@@ -2957,7 +3185,9 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
               success: true,
               message: isEncrypted 
                 ? 'File uploaded and encrypted successfully with AES-256-CBC + KMS'
-                : 'Profile image uploaded successfully',
+                : (category === 'profile_images' 
+                    ? 'Profile image uploaded successfully'
+                    : 'File uploaded successfully (unencrypted fallback for website)'),
               fileName: fileName,
               gcsPath: fileName,
               publicUrl: publicUrl,
@@ -3017,23 +3247,27 @@ app.post('/upload/document', upload.single('file'), async (req, res) => {
             throw updateError;
           }
           
-          res.json({
-            success: true,
-            message: isEncrypted 
-              ? 'File uploaded and encrypted successfully with AES-256-CBC + KMS'
-              : 'Profile image uploaded successfully',
-            fileName: fileName,
-            gcsPath: fileName,
-            publicUrl: publicUrl,
-            size: req.file.size,
-            contentType: req.file.mimetype,
-            uploadedAt: new Date().toISOString(),
-            encrypted: isEncrypted,
-            encryptionMethod: isEncrypted ? 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS' : 'None (profile image)',
-            documentId: documentId,
-            taxFormId: taxFormId,
-            totalDocuments: updatedDocuments.length
-          });
+            res.json({
+              success: true,
+              message: isEncrypted 
+                ? 'File uploaded and encrypted successfully with AES-256-CBC + KMS'
+                : (category === 'profile_images' 
+                    ? 'Profile image uploaded successfully'
+                    : 'File uploaded successfully (unencrypted fallback for website)'),
+              fileName: fileName,
+              gcsPath: fileName,
+              publicUrl: publicUrl,
+              size: req.file.size,
+              contentType: req.file.mimetype,
+              uploadedAt: new Date().toISOString(),
+              encrypted: isEncrypted,
+              encryptionMethod: isEncrypted 
+                ? 'DEK (Data Encryption Key) with AES-256-CBC + Google KMS' 
+                : (category === 'profile_images' ? 'None (profile image)' : 'None (website fallback - KMS encryption failed)'),
+              documentId: documentId,
+              taxFormId: taxFormId,
+              totalDocuments: updatedDocuments.length
+            });
           resolve();
         } catch (error) {
           console.error('Error completing upload:', error);
@@ -3133,20 +3367,47 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
       
       // Get file metadata
       const [metadata] = await fileRef.getMetadata();
-      contentType = metadata.contentType || 'application/pdf';
       originalName = metadata.metadata?.originalName || 'document.pdf';
       
-      // Set headers for browser download - use attachment to force download
-      res.set({
+      // Detect content type from file extension if metadata doesn't have it
+      contentType = metadata.contentType;
+      if (!contentType || contentType === 'application/octet-stream') {
+        const fileExt = originalName.split('.').pop()?.toLowerCase();
+        if (fileExt === 'pdf') {
+          contentType = 'application/pdf';
+        } else if (fileExt === 'doc') {
+          contentType = 'application/msword';
+        } else if (fileExt === 'docx') {
+          contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else {
+          contentType = 'application/pdf'; // Default to PDF for admin returns
+        }
+      }
+      
+      // Validate buffer before sending
+      if (!finalBuffer || finalBuffer.length === 0) {
+        console.error('❌ Invalid buffer: buffer is empty or null');
+        return res.status(500).json({
+          success: false,
+          error: 'File buffer is invalid or empty'
+        });
+      }
+      
+      // Properly encode filename for Content-Disposition header (RFC 5987)
+      const encodedFilename = encodeURIComponent(originalName);
+      
+      // Set headers BEFORE sending - critical for proper browser handling
+      res.writeHead(200, {
         'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${originalName}"`, // Force download instead of inline
-        'Content-Length': finalBuffer.length, // Explicit content length
+        'Content-Disposition': `inline; filename="${originalName}"; filename*=UTF-8''${encodedFilename}`, // Use inline to view in browser, with proper UTF-8 encoding
+        'Content-Length': finalBuffer.length.toString(), // Explicit content-length (must be string)
         'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
         'Access-Control-Allow-Origin': '*', // Allow cross-origin access for browsers
+        'X-Content-Type-Options': 'nosniff', // Prevent MIME type sniffing
       });
       
       // Send the buffer directly (more reliable than streaming for binary files)
-      res.send(finalBuffer);
+      res.end(finalBuffer);
       
       return;
     }
@@ -3177,60 +3438,115 @@ app.get('/upload/view/:gcsPath', async (req, res) => {
       });
     }
 
-    // Download the encrypted file from GCS
+    // Download the file from GCS
     const fileRef = bucket.file(gcsPath);
-    const [encryptedBuffer] = await fileRef.download();
+    const [fileBuffer] = await fileRef.download();
     
-    console.log(`✅ Downloaded encrypted file, size: ${encryptedBuffer.length} bytes`);
+    console.log(`✅ Downloaded file, size: ${fileBuffer.length} bytes`);
 
-    // Parse the encrypted data structure
-    const encryptedDataString = encryptedBuffer.toString();
-    const encryptedFileData = JSON.parse(encryptedDataString);
+    // ============================================
+    // WEBSITE SUPPORT: Detect if file is encrypted or unencrypted
+    // ============================================
+    // Website uploads are stored unencrypted (fallback), while mobile app uploads are encrypted
+    // Try to parse as JSON to detect encrypted structure
+    let isEncrypted = false;
+    let encryptedFileData = null;
+    let finalBuffer;
     
-    console.log(`🔍 Parsed encrypted data structure:`, {
-      hasEncryptedData: !!encryptedFileData.encryptedData,
-      hasEncryptedKey: !!encryptedFileData.encryptedKey,
-      hasIv: !!encryptedFileData.iv,
-      algorithm: encryptedFileData.algorithm
-    });
-
-    // Convert base64 strings back to buffers
-    const encryptedData = {
-      encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-      encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-      iv: Buffer.from(encryptedFileData.iv, 'base64'),
-      algorithm: encryptedFileData.algorithm
-    };
-
-    console.log(`🔓 Decrypting mobile app file with DEK approach...`);
-
-    let decryptedBuffer;
+    try {
+      const fileString = fileBuffer.toString();
+      encryptedFileData = JSON.parse(fileString);
+      
+      // Check if it has the encrypted data structure
+      if (encryptedFileData && 
+          encryptedFileData.encryptedData && 
+          encryptedFileData.encryptedKey && 
+          encryptedFileData.iv) {
+        isEncrypted = true;
+        console.log(`✅ File is encrypted (mobile app upload)`);
+      } else {
+        console.log(`⚠️ File parsed as JSON but missing encrypted structure - treating as unencrypted`);
+      }
+    } catch (parseError) {
+      // Not JSON, so it's an unencrypted file (website upload)
+      console.log(`📄 File is unencrypted (website upload or raw file)`);
+      isEncrypted = false;
+    }
+    // ============================================
     
-    // Check if this is a properly encrypted file or a legacy unencrypted file
-    if (encryptedFileData.algorithm === 'none' || encryptedFileData.algorithm === 'test') {
-      console.log('⚠️ Legacy file detected - using raw data without decryption');
-      decryptedBuffer = Buffer.from(encryptedFileData.encryptedData, 'base64');
+    if (isEncrypted) {
+      // Mobile app encrypted file - decrypt it
+      console.log(`🔓 Decrypting encrypted mobile app file with DEK approach...`);
+      
+      // Convert base64 strings back to buffers
+      const encryptedData = {
+        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+        iv: Buffer.from(encryptedFileData.iv, 'base64'),
+        algorithm: encryptedFileData.algorithm
+      };
+
+      // Check if this is a properly encrypted file or a legacy unencrypted file
+      if (encryptedFileData.algorithm === 'none' || encryptedFileData.algorithm === 'test') {
+        console.log('⚠️ Legacy file detected - using raw data without decryption');
+        finalBuffer = Buffer.from(encryptedFileData.encryptedData, 'base64');
+      } else {
+        // Decrypt the file using DEK approach
+        finalBuffer = await decryptFileWithDEK(encryptedData);
+      }
+      
+      console.log(`✅ Mobile app file decrypted successfully, size: ${finalBuffer.length} bytes`);
     } else {
-      // Decrypt the file using DEK approach
-      decryptedBuffer = await decryptFileWithDEK(encryptedData);
+      // Website unencrypted file - use directly
+      console.log(`📄 Using unencrypted file directly (website upload)`);
+      finalBuffer = fileBuffer;
     }
     
-    console.log(`✅ Mobile app file processed successfully, size: ${decryptedBuffer.length} bytes`);
+    console.log(`✅ File processed successfully, size: ${finalBuffer.length} bytes`);
 
     // Get file metadata to determine content type
     const [metadata] = await fileRef.getMetadata();
-    const contentType = metadata.contentType || 'application/octet-stream';
+    const originalName = metadata.metadata?.originalName || 'document';
+    
+    // Detect content type from file extension if metadata doesn't have it
+    let contentType = metadata.contentType;
+    if (!contentType || contentType === 'application/octet-stream') {
+      const fileExt = originalName.split('.').pop()?.toLowerCase();
+      if (fileExt === 'pdf') {
+        contentType = 'application/pdf';
+      } else if (fileExt === 'doc') {
+        contentType = 'application/msword';
+      } else if (fileExt === 'docx') {
+        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else {
+        contentType = 'application/pdf'; // Default to PDF
+      }
+    }
+    
+    // Validate buffer before sending
+    if (!finalBuffer || finalBuffer.length === 0) {
+      console.error('❌ Invalid buffer: buffer is empty or null');
+      return res.status(500).json({
+        success: false,
+        error: 'File buffer is invalid or empty'
+      });
+    }
+    
+    // Properly encode filename for Content-Disposition header (RFC 5987)
+    const encodedFilename = encodeURIComponent(originalName);
 
-    // Set appropriate headers for viewing
-    res.set({
+    // Set headers BEFORE sending - critical for proper browser handling
+    res.writeHead(200, {
       'Content-Type': contentType,
-      'Content-Disposition': `inline; filename="${metadata.metadata?.originalName || 'document'}"`,
+      'Content-Disposition': `inline; filename="${originalName}"; filename*=UTF-8''${encodedFilename}`, // Use inline to view in browser, with proper UTF-8 encoding
       'Cache-Control': 'private, max-age=3600', // Cache for 1 hour
-      'Content-Length': decryptedBuffer.length
+      'Content-Length': finalBuffer.length.toString(),
+      'Access-Control-Allow-Origin': '*', // Allow cross-origin access for browsers
+      'X-Content-Type-Options': 'nosniff', // Prevent MIME type sniffing
     });
 
-    // Send the decrypted file
-    res.send(decryptedBuffer);
+    // Send the file (decrypted or unencrypted) using end() instead of send() for better control
+    res.end(finalBuffer);
 
   } catch (error) {
     console.error('Error viewing document:', error);
@@ -3307,14 +3623,74 @@ app.get('/documents', authenticateToken, async (req, res) => {
       }
     }
     
-    // Also fetch documents from additionalIncomeSources in tax forms
+    // Also fetch documents from tax forms (main documents array and additionalIncomeSources)
     try {
       const taxFormsSnapshot = await db.collection('taxForms')
         .where('userId', '==', userId)
         .get();
       
+      console.log(`📋 Found ${taxFormsSnapshot.docs.length} tax forms for user ${userId}`);
+      
       for (const taxFormDoc of taxFormsSnapshot.docs) {
         const taxFormData = taxFormDoc.data();
+        
+        // ============================================
+        // WEBSITE SUPPORT: Fetch documents from main documents array
+        // ============================================
+        // Fetch documents from the main documents array in tax form
+        const taxFormDocuments = taxFormData.documents || [];
+        console.log(`📄 Processing ${taxFormDocuments.length} documents from tax form ${taxFormDoc.id}`);
+        
+        for (const doc of taxFormDocuments) {
+          if (doc.gcsPath && doc.category) {
+            try {
+              const fileRef = bucket.file(doc.gcsPath);
+              const [exists] = await fileRef.exists();
+              if (exists) {
+                const [metadata] = await fileRef.getMetadata();
+                const decryptionUrl = `${req.protocol}://${req.get('host')}/upload/view/${encodeURIComponent(doc.gcsPath)}`;
+                
+                // Convert Firestore Timestamp to ISO string if needed
+                let uploadedAt;
+                if (doc.uploadedAt) {
+                  if (doc.uploadedAt.toDate) {
+                    uploadedAt = doc.uploadedAt.toDate().toISOString();
+                  } else if (typeof doc.uploadedAt === 'string') {
+                    uploadedAt = doc.uploadedAt;
+                  } else {
+                    uploadedAt = new Date(doc.uploadedAt).toISOString();
+                  }
+                } else {
+                  uploadedAt = metadata.timeCreated || new Date().toISOString();
+                }
+                
+                // Normalize category name (handle both previousYearTaxDocuments and previousYearTax)
+                let normalizedCategory = doc.category;
+                if (normalizedCategory === 'previousYearTaxDocuments') {
+                  normalizedCategory = 'previousYearTax';
+                }
+                
+                documents.push({
+                  id: doc.id || doc.gcsPath,
+                  name: doc.name || metadata.metadata?.originalName || doc.gcsPath.split('/').pop() || 'Unknown Document',
+                  type: doc.type || metadata.contentType || 'application/octet-stream',
+                  size: doc.size || parseInt(metadata.size) || 0,
+                  gcsPath: doc.gcsPath,
+                  publicUrl: decryptionUrl,
+                  category: normalizedCategory,
+                  uploadedAt: uploadedAt,
+                  status: doc.status || 'completed'
+                });
+                console.log(`✅ Added document: ${doc.name} (${normalizedCategory})`);
+              }
+            } catch (fileError) {
+              console.warn(`Warning: Could not process tax form document ${doc.gcsPath}:`, fileError.message);
+            }
+          }
+        }
+        // ============================================
+        
+        // Also fetch documents from additionalIncomeSources
         const additionalIncomeSources = taxFormData.additionalIncomeSources || [];
         
         for (const incomeSource of additionalIncomeSources) {
@@ -3367,15 +3743,43 @@ app.get('/documents', authenticateToken, async (req, res) => {
       console.warn('Warning: Could not fetch documents from tax forms:', taxFormError.message);
     }
     
-    // Sort by upload date (newest first)
-    documents.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    // ============================================
+    // WEBSITE SUPPORT: Remove duplicate documents
+    // ============================================
+    // Deduplicate by gcsPath (since same document can appear in both GCS listing and tax form)
+    // Documents from tax form have more metadata (doc.id), so prefer those over GCS listing
+    const uniqueDocumentsMap = new Map();
+    for (const doc of documents) {
+      const key = doc.gcsPath; // Use gcsPath as unique identifier
+      if (key) {
+        const existing = uniqueDocumentsMap.get(key);
+        if (!existing) {
+          // First time seeing this gcsPath, add it
+          uniqueDocumentsMap.set(key, doc);
+        } else {
+          // Document already exists - prefer tax form version (has doc.id that's different from gcsPath)
+          // GCS listing version has id === gcsPath, tax form version has id !== gcsPath
+          if (doc.id && doc.id !== doc.gcsPath && existing.id === existing.gcsPath) {
+            // Replace GCS listing version with tax form version (has more metadata)
+            uniqueDocumentsMap.set(key, doc);
+            console.log(`🔄 Replaced duplicate document with tax form version: ${key}`);
+          }
+        }
+      }
+    }
+    const uniqueDocuments = Array.from(uniqueDocumentsMap.values());
+    console.log(`📊 Deduplicated: ${documents.length} -> ${uniqueDocuments.length} documents`);
+    // ============================================
     
-    console.log(`✅ Successfully processed ${documents.length} documents`);
+    // Sort by upload date (newest first)
+    uniqueDocuments.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    
+    console.log(`✅ Successfully processed ${uniqueDocuments.length} documents`);
     
     res.json({
       success: true,
-      data: documents,
-      count: documents.length
+      data: uniqueDocuments,
+      count: uniqueDocuments.length
     });
   } catch (error) {
     console.error('❌ Error fetching user documents:', error);
@@ -3388,10 +3792,13 @@ app.get('/documents', authenticateToken, async (req, res) => {
 });
 
 // Delete document from GCS
-app.delete('/documents/:documentId', authenticateToken, async (req, res) => {
+app.delete('/documents/:documentId(*)', authenticateToken, async (req, res) => {
   try {
-    const { documentId } = req.params;
+    // Use (*) to capture the full path including slashes
+    const documentId = decodeURIComponent(req.params.documentId);
     const userId = req.user.userId;
+    
+    console.log(`🗑️ Delete request - documentId: ${documentId}, userId: ${userId}`);
     
     if (!documentId) {
       return res.status(400).json({
@@ -3402,6 +3809,7 @@ app.delete('/documents/:documentId', authenticateToken, async (req, res) => {
     
     // Verify the document belongs to the user
     if (!documentId.includes(`/${userId}/`)) {
+      console.log(`❌ Document path does not contain user ID: ${documentId}`);
       return res.status(403).json({
         success: false,
         error: 'You can only delete your own documents'
@@ -3418,13 +3826,94 @@ app.delete('/documents/:documentId', authenticateToken, async (req, res) => {
       });
     }
     
+    // Delete file from GCS
     await fileRef.delete();
+    console.log(`✅ File deleted from GCS: ${documentId}`);
     
-    console.log(`✅ Document deleted: ${documentId}`);
+    // ============================================
+    // WEBSITE SUPPORT: Remove document from tax forms
+    // ============================================
+    // Find all tax forms for this user and remove the document from documents array
+    let removedFromForms = 0;
+    try {
+      const taxFormsSnapshot = await db.collection('taxForms')
+        .where('userId', '==', userId)
+        .get();
+      
+      console.log(`📋 Found ${taxFormsSnapshot.docs.length} tax forms to check for document removal`);
+      
+      for (const taxFormDoc of taxFormsSnapshot.docs) {
+        const taxFormData = taxFormDoc.data();
+        let updated = false;
+        
+        // Remove from main documents array
+        const documents = taxFormData.documents || [];
+        const updatedDocuments = documents.filter(doc => {
+          // Match by gcsPath (most reliable) or id
+          const matches = doc.gcsPath === documentId || doc.id === documentId;
+          if (matches) {
+            console.log(`🗑️ Removing document from tax form ${taxFormDoc.id}: ${doc.name || doc.gcsPath}`);
+            updated = true;
+            return false; // Remove this document
+          }
+          return true; // Keep this document
+        });
+        
+        // Remove from additionalIncomeSources documents
+        const additionalIncomeSources = taxFormData.additionalIncomeSources || [];
+        const updatedIncomeSources = additionalIncomeSources.map(income => {
+          const incomeDocuments = income.documents || [];
+          const updatedIncomeDocs = incomeDocuments.filter(doc => {
+            const matches = doc.gcsPath === documentId || doc.id === documentId;
+            if (matches) {
+              console.log(`🗑️ Removing document from income source in tax form ${taxFormDoc.id}`);
+              updated = true;
+              return false;
+            }
+            return true;
+          });
+          
+          return {
+            ...income,
+            documents: updatedIncomeDocs
+          };
+        });
+        
+        // Update tax form if documents were removed
+        if (updated) {
+          const updateData = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+          
+          if (updatedDocuments.length !== documents.length) {
+            updateData.documents = updatedDocuments;
+            console.log(`📝 Updating documents array: ${documents.length} -> ${updatedDocuments.length}`);
+          }
+          
+          if (JSON.stringify(updatedIncomeSources) !== JSON.stringify(additionalIncomeSources)) {
+            updateData.additionalIncomeSources = updatedIncomeSources;
+            console.log(`📝 Updating additionalIncomeSources`);
+          }
+          
+          await db.collection('taxForms').doc(taxFormDoc.id).update(updateData);
+          removedFromForms++;
+          console.log(`✅ Updated tax form ${taxFormDoc.id}`);
+        }
+      }
+      
+      console.log(`✅ Removed document from ${removedFromForms} tax form(s)`);
+    } catch (dbError) {
+      console.error('⚠️ Error removing document from tax forms:', dbError);
+      // Don't fail the request if DB update fails - file is already deleted from GCS
+    }
+    // ============================================
+    
+    console.log(`✅ Document deleted successfully: ${documentId}`);
     
     res.json({
       success: true,
-      message: 'Document deleted successfully'
+      message: 'Document deleted successfully',
+      removedFromForms: removedFromForms || 0
     });
   } catch (error) {
     console.error('❌ Delete document error:', error);

@@ -1,0 +1,338 @@
+/* Login Page Styles - Matching Mobile App Design */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #001826;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 500px;
+}
+
+/* Hero Section */
+.hero-section {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 40px 20px;
+}
+
+.hero-content {
+  color: #fff;
+}
+
+.hero-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.hero-subtitle {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Auth Card */
+.auth-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.icon-circle {
+  background-color: #0E502B;
+  border-radius: 50%;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.card-title {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #000;
+}
+
+.card-description {
+  color: #666;
+  text-align: center;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+/* Error Message */
+.error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Tab Container */
+.tab-container {
+  display: flex;
+  margin-bottom: 20px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.tab-button {
+  flex: 1;
+  background-color: transparent;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  color: #666;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button.active {
+  background-color: #0E502B;
+  color: #fff;
+  font-weight: bold;
+}
+
+.tab-button:hover {
+  background-color: rgba(14, 80, 43, 0.1);
+}
+
+.tab-button.active:hover {
+  background-color: #0E502B;
+}
+
+/* Toggle Container */
+.toggle-container {
+  display: flex;
+  margin-bottom: 20px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.toggle-button {
+  flex: 1;
+  background-color: transparent;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  color: #666;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggle-button.active {
+  background-color: #007bff;
+  color: #fff;
+  font-weight: bold;
+}
+
+.toggle-button:hover {
+  background-color: rgba(0, 123, 255, 0.1);
+}
+
+.toggle-button.active:hover {
+  background-color: #007bff;
+}
+
+/* Auth Form */
+.auth-form {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.form-input {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #0E502B;
+}
+
+.help-text {
+  font-size: 12px;
+  color: #666;
+  margin-top: -12px;
+  margin-bottom: 8px;
+}
+
+/* Buttons */
+.btn-primary {
+  width: 100%;
+  background-color: #0E502B;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0a3d20;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  width: 100%;
+  background-color: transparent;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
+
+.btn-google {
+  width: 100%;
+  background-color: #4285F4;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn-google:hover:not(:disabled) {
+  background-color: #357ae8;
+}
+
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* OTP Header */
+.otp-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.otp-text {
+  text-align: center;
+  color: #333;
+  margin-top: 8px;
+}
+
+.otp-text strong {
+  font-weight: bold;
+  color: #0E502B;
+}
+
+/* Trust Indicators */
+.trust-indicators {
+  margin-top: 24px;
+  padding-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Demo Account */
+.demo-account {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #e8f5e9;
+  border-radius: 8px;
+  border: 1px solid #4caf50;
+}
+
+.demo-account h4 {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2e7d32;
+  margin-bottom: 8px;
+}
+
+.demo-account p {
+  font-size: 12px;
+  color: #2e7d32;
+  margin-bottom: 4px;
+}
+
+/* Google Login Section */
+.google-login-section {
+  margin-top: 16px;
+}
+
+/* reCAPTCHA Container */
+#recaptcha-container {
+  margin-bottom: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .auth-card {
+    padding: 24px;
+  }
+}
+

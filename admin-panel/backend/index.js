@@ -337,7 +337,8 @@ app.use(morgan('combined'));
 app.use(cors({
   origin: [
     'http://localhost:3000', 
-    'http://localhost:3001',
+    'http://localhost:3001', // Admin Panel frontend
+    'http://localhost:3002', // Additional Admin panel frontend if port is busy
     'https://admin-panel-frontend-693306869303.us-central1.run.app'
   ],
   credentials: true,
@@ -2484,41 +2485,90 @@ app.get('/admin/files/view/:gcsPath(*)', authenticateAdmin, async (req, res) => 
     const isMobileAppDocument = !gcsPath.includes('admin-returns');
     
     if (isMobileAppDocument) {
-      console.log(`🔐 Viewing encrypted mobile app document`);
+      console.log(`🔐 Viewing mobile app document (checking if encrypted)...`);
       
-      // Download the encrypted file from GCS
-      const [encryptedBuffer] = await fileRef.download();
+      // Download the file from GCS
+      const [fileBuffer] = await fileRef.download();
       
-      // Parse the encrypted data structure
-      const encryptedDataString = encryptedBuffer.toString();
-      const encryptedFileData = JSON.parse(encryptedDataString);
+      // ============================================
+      // WEBSITE SUPPORT: Detect if file is encrypted or unencrypted
+      // ============================================
+      // Website uploads are stored unencrypted (fallback), while mobile app uploads are encrypted
+      // Try to parse as JSON to detect encrypted structure
+      let isEncrypted = false;
+      let encryptedFileData = null;
       
-      // Convert base64 strings back to buffers
-      const encryptedData = {
-        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-        iv: Buffer.from(encryptedFileData.iv, 'base64'),
-        algorithm: encryptedFileData.algorithm
-      };
+      try {
+        const fileString = fileBuffer.toString();
+        encryptedFileData = JSON.parse(fileString);
+        
+        // Check if it has the encrypted data structure
+        if (encryptedFileData && 
+            encryptedFileData.encryptedData && 
+            encryptedFileData.encryptedKey && 
+            encryptedFileData.iv) {
+          isEncrypted = true;
+          console.log(`✅ File is encrypted (mobile app upload)`);
+        } else {
+          console.log(`⚠️ File parsed as JSON but missing encrypted structure - treating as unencrypted`);
+        }
+      } catch (parseError) {
+        // Not JSON, so it's an unencrypted file (website upload)
+        console.log(`📄 File is unencrypted (website upload or raw file)`);
+        isEncrypted = false;
+      }
+      // ============================================
+      
+      if (isEncrypted) {
+        // Mobile app encrypted file - decrypt it
+        console.log(`🔓 Decrypting encrypted mobile app document...`);
+        
+        // Convert base64 strings back to buffers
+        const encryptedData = {
+          encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+          encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+          iv: Buffer.from(encryptedFileData.iv, 'base64'),
+          algorithm: encryptedFileData.algorithm
+        };
 
-      // Decrypt the file using DEK approach
-      const decryptedBuffer = await decryptFileWithDEK(encryptedData);
-      
-      // Get file metadata
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
-      const originalName = metadata.metadata?.originalName || 'document';
+        // Decrypt the file using DEK approach
+        const decryptedBuffer = await decryptFileWithDEK(encryptedData);
+        
+        // Get file metadata
+        const [metadata] = await fileRef.getMetadata();
+        const contentType = metadata.contentType || 'application/octet-stream';
+        const originalName = metadata.metadata?.originalName || 'document';
 
-      // Set headers for viewing
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${originalName}"`,
-        'Content-Length': decryptedBuffer.length,
-        'Cache-Control': 'private, max-age=3600'
-      });
+        // Set headers for viewing
+        res.set({
+          'Content-Type': contentType,
+          'Content-Disposition': `inline; filename="${originalName}"`,
+          'Content-Length': decryptedBuffer.length,
+          'Cache-Control': 'private, max-age=3600'
+        });
 
-      // Send the decrypted file
-      res.send(decryptedBuffer);
+        // Send the decrypted file
+        res.send(decryptedBuffer);
+      } else {
+        // Website unencrypted file - stream directly
+        console.log(`📄 Streaming unencrypted file (website upload)...`);
+        
+        // Get file metadata
+        const [metadata] = await fileRef.getMetadata();
+        const contentType = metadata.contentType || 'application/octet-stream';
+        const originalName = metadata.metadata?.originalName || 'document';
+
+        // Set headers for viewing
+        res.set({
+          'Content-Type': contentType,
+          'Content-Disposition': `inline; filename="${originalName}"`,
+          'Cache-Control': 'private, max-age=3600'
+        });
+
+        // Stream the file directly from GCS (it's already unencrypted)
+        const stream = fileRef.createReadStream();
+        stream.pipe(res);
+      }
       
     } else {
       console.log(`📄 Viewing admin document directly from GCS`);
@@ -2581,41 +2631,90 @@ app.get('/admin/files/download/:gcsPath(*)', authenticateAdmin, async (req, res)
     const isMobileAppDocument = !gcsPath.includes('admin-returns');
     
     if (isMobileAppDocument) {
-      console.log(`🔐 Downloading encrypted mobile app document`);
+      console.log(`🔐 Downloading mobile app document (checking if encrypted)...`);
       
-      // Download the encrypted file from GCS
-      const [encryptedBuffer] = await fileRef.download();
+      // Download the file from GCS
+      const [fileBuffer] = await fileRef.download();
       
-      // Parse the encrypted data structure
-      const encryptedDataString = encryptedBuffer.toString();
-      const encryptedFileData = JSON.parse(encryptedDataString);
+      // ============================================
+      // WEBSITE SUPPORT: Detect if file is encrypted or unencrypted
+      // ============================================
+      // Website uploads are stored unencrypted (fallback), while mobile app uploads are encrypted
+      // Try to parse as JSON to detect encrypted structure
+      let isEncrypted = false;
+      let encryptedFileData = null;
       
-      // Convert base64 strings back to buffers
-      const encryptedData = {
-        encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-        encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-        iv: Buffer.from(encryptedFileData.iv, 'base64'),
-        algorithm: encryptedFileData.algorithm
-      };
+      try {
+        const fileString = fileBuffer.toString();
+        encryptedFileData = JSON.parse(fileString);
+        
+        // Check if it has the encrypted data structure
+        if (encryptedFileData && 
+            encryptedFileData.encryptedData && 
+            encryptedFileData.encryptedKey && 
+            encryptedFileData.iv) {
+          isEncrypted = true;
+          console.log(`✅ File is encrypted (mobile app upload)`);
+        } else {
+          console.log(`⚠️ File parsed as JSON but missing encrypted structure - treating as unencrypted`);
+        }
+      } catch (parseError) {
+        // Not JSON, so it's an unencrypted file (website upload)
+        console.log(`📄 File is unencrypted (website upload or raw file)`);
+        isEncrypted = false;
+      }
+      // ============================================
+      
+      if (isEncrypted) {
+        // Mobile app encrypted file - decrypt it
+        console.log(`🔓 Decrypting encrypted mobile app document...`);
+        
+        // Convert base64 strings back to buffers
+        const encryptedData = {
+          encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+          encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+          iv: Buffer.from(encryptedFileData.iv, 'base64'),
+          algorithm: encryptedFileData.algorithm
+        };
 
-      // Decrypt the file using DEK approach
-      const decryptedBuffer = await decryptFileWithDEK(encryptedData);
-      
-      // Get file metadata
-      const [metadata] = await fileRef.getMetadata();
-      const contentType = metadata.contentType || 'application/octet-stream';
-      const originalName = metadata.metadata?.originalName || 'document';
+        // Decrypt the file using DEK approach
+        const decryptedBuffer = await decryptFileWithDEK(encryptedData);
+        
+        // Get file metadata
+        const [metadata] = await fileRef.getMetadata();
+        const contentType = metadata.contentType || 'application/octet-stream';
+        const originalName = metadata.metadata?.originalName || 'document';
 
-      // Set headers for download
-      res.set({
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${originalName}"`,
-        'Content-Length': decryptedBuffer.length,
-        'Cache-Control': 'private, max-age=3600'
-      });
+        // Set headers for download
+        res.set({
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${originalName}"`,
+          'Content-Length': decryptedBuffer.length,
+          'Cache-Control': 'private, max-age=3600'
+        });
 
-      // Send the decrypted file
-      res.send(decryptedBuffer);
+        // Send the decrypted file
+        res.send(decryptedBuffer);
+      } else {
+        // Website unencrypted file - stream directly
+        console.log(`📄 Streaming unencrypted file for download (website upload)...`);
+        
+        // Get file metadata
+        const [metadata] = await fileRef.getMetadata();
+        const contentType = metadata.contentType || 'application/octet-stream';
+        const originalName = metadata.metadata?.originalName || 'document';
+
+        // Set headers for download
+        res.set({
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${originalName}"`,
+          'Cache-Control': 'private, max-age=3600'
+        });
+
+        // Stream the file directly from GCS (it's already unencrypted)
+        const stream = fileRef.createReadStream();
+        stream.pipe(res);
+      }
       
     } else {
       console.log(`📄 Downloading admin document directly from GCS`);
@@ -2712,19 +2811,46 @@ app.get('/admin/files/download-all/:applicationId', authenticateAdmin, async (re
         let fileBuffer;
         
         if (isMobileAppDocument) {
-          // Download and decrypt mobile app document
-          const [encryptedBuffer] = await fileRef.download();
-          const encryptedDataString = encryptedBuffer.toString();
-          const encryptedFileData = JSON.parse(encryptedDataString);
+          // ============================================
+          // WEBSITE SUPPORT: Detect if file is encrypted or unencrypted
+          // ============================================
+          // Download the file from GCS
+          const [downloadedBuffer] = await fileRef.download();
           
-          const encryptedData = {
-            encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
-            encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
-            iv: Buffer.from(encryptedFileData.iv, 'base64'),
-            algorithm: encryptedFileData.algorithm
-          };
-
-          fileBuffer = await decryptFileWithDEK(encryptedData);
+          // Try to parse as JSON to detect encrypted structure
+          let isEncrypted = false;
+          let encryptedFileData = null;
+          
+          try {
+            const fileString = downloadedBuffer.toString();
+            encryptedFileData = JSON.parse(fileString);
+            
+            // Check if it has the encrypted data structure
+            if (encryptedFileData && 
+                encryptedFileData.encryptedData && 
+                encryptedFileData.encryptedKey && 
+                encryptedFileData.iv) {
+              isEncrypted = true;
+            }
+          } catch (parseError) {
+            // Not JSON, so it's an unencrypted file (website upload)
+            isEncrypted = false;
+          }
+          
+          if (isEncrypted) {
+            // Mobile app encrypted file - decrypt it
+            const encryptedData = {
+              encryptedData: Buffer.from(encryptedFileData.encryptedData, 'base64'),
+              encryptedKey: Buffer.from(encryptedFileData.encryptedKey, 'base64'),
+              iv: Buffer.from(encryptedFileData.iv, 'base64'),
+              algorithm: encryptedFileData.algorithm
+            };
+            fileBuffer = await decryptFileWithDEK(encryptedData);
+          } else {
+            // Website unencrypted file - use directly
+            fileBuffer = downloadedBuffer;
+          }
+          // ============================================
         } else {
           // Download admin document directly
           const [buffer] = await fileRef.download();

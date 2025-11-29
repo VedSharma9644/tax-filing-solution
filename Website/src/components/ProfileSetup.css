@@ -1,0 +1,233 @@
+/* Profile Setup Page Styles - Matching Mobile App Design */
+
+.profile-setup-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #001826;
+}
+
+.profile-setup-container {
+  width: 100%;
+  max-width: 600px;
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress Bar */
+.profile-progress-container {
+  margin-bottom: 32px;
+}
+
+.profile-progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.profile-progress-fill {
+  height: 100%;
+  background-color: #0E502B;
+  transition: width 0.3s ease;
+}
+
+.profile-progress-text {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Error Message */
+.profile-error-message {
+  background-color: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+/* Step Container */
+.profile-step-container {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.profile-icon-circle {
+  background-color: #0E502B;
+  border-radius: 50%;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.profile-step-title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #000;
+}
+
+.profile-step-description {
+  color: #666;
+  margin-bottom: 24px;
+  font-size: 16px;
+}
+
+/* Input Group */
+.profile-input-group {
+  width: 100%;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.profile-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #000;
+}
+
+.profile-input {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #000;
+  background-color: #fff;
+  box-sizing: border-box;
+}
+
+.profile-input:focus {
+  outline: none;
+  border-color: #0E502B;
+  box-shadow: 0 0 0 3px rgba(14, 80, 43, 0.1);
+}
+
+.profile-input::placeholder {
+  color: #999;
+}
+
+/* Info Box */
+.profile-info-box {
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 24px;
+}
+
+.profile-info-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  color: #000;
+}
+
+.profile-info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.profile-info-list li {
+  margin-bottom: 8px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.profile-info-list li:before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #0E502B;
+  font-weight: bold;
+}
+
+/* Button Row */
+.profile-button-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.profile-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 48px;
+}
+
+.profile-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-button-back {
+  background-color: #fff;
+  color: #000;
+  border: 2px solid #ccc;
+}
+
+.profile-button-back:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  border-color: #999;
+}
+
+.profile-button-primary {
+  background-color: #0E502B;
+  color: #fff;
+}
+
+.profile-button-primary:hover:not(:disabled) {
+  background-color: #0a3d22;
+}
+
+.profile-button svg {
+  flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .profile-setup-container {
+    padding: 24px;
+  }
+
+  .profile-step-title {
+    font-size: 20px;
+  }
+
+  .profile-button-row {
+    flex-direction: column;
+  }
+
+  .profile-button {
+    width: 100%;
+  }
+}
+

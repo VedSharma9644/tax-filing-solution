@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "693306869303-5fpv6d4hkqmimgk959mlg6eobkljidc5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.creayaa.thegrowwell",
+            "certificate_hash": "40306943a6f14356e3aa247902855d05078627f4"
+          }
+        },
+        {
           "client_id": "693306869303-ik7msfkav82mi5as2np9epk6ur160uh2.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -30,7 +38,7 @@
           }
         },
         {
-          "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+          "client_id": "693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -43,7 +51,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+              "client_id": "693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
@@ -83,7 +91,7 @@
           }
         },
         {
-          "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+          "client_id": "693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -96,7 +104,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com",
+              "client_id": "693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

@@ -10,7 +10,8 @@ export const GOOGLE_AUTH_CONFIG = {
   iosClientId: '693306869303-3c6quk9783jffvnh4lv7g33o7qimjkf0.apps.googleusercontent.com', // Same for now
   
   // Web client ID (for server-side verification)
-  webClientId: '693306869303-h140tfkqn6re5rfa31jo1aqi98nucqac.apps.googleusercontent.com',
+  // Updated after adding Google Play Store SHA-1 keys
+  webClientId: '693306869303-m2bkqknr160oiqpkdmeqg7mv24pnokk7.apps.googleusercontent.com',
   
   // Scopes for Google Sign-In
   scopes: ['openid', 'profile', 'email'],

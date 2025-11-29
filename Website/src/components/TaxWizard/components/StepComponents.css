@@ -1,0 +1,251 @@
+/* StepComponents.css - Shared styles for all step components */
+
+.step-container {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+}
+
+.step-header {
+  margin-bottom: 24px;
+}
+
+.step-description {
+  font-size: 16px;
+  color: #666666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.step-category-section {
+  margin-bottom: 24px;
+}
+
+.step-category-card {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.step-category-header {
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.step-category-header-content {
+  display: flex;
+  align-items: center;
+}
+
+.step-category-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.step-category-icon-text {
+  font-size: 20px;
+}
+
+.step-category-info {
+  flex: 1;
+}
+
+.step-category-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #001826;
+  margin: 0 0 4px 0;
+}
+
+.step-category-description {
+  font-size: 14px;
+  color: #666666;
+  margin: 0;
+}
+
+.step-category-content {
+  padding: 16px;
+}
+
+.step-category-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.step-action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  border: 2px solid;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.step-action-button:hover:not(:disabled) {
+  background-color: #f8f9fa;
+}
+
+.step-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.step-documents-list {
+  margin-top: 16px;
+}
+
+.step-documents-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #001826;
+  margin-bottom: 12px;
+}
+
+.step-uploading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.step-uploading-text {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* Form inputs */
+.step-input-group {
+  margin-bottom: 20px;
+}
+
+.step-input-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #001826;
+  margin-bottom: 8px;
+}
+
+.step-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+.step-input:focus {
+  outline: none;
+  border-color: #0E502B;
+}
+
+.step-input-error {
+  border-color: #dc3545;
+}
+
+.step-error-message {
+  color: #dc3545;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.step-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+.step-textarea:focus {
+  outline: none;
+  border-color: #0E502B;
+}
+
+/* Toggle switch */
+.step-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.step-toggle-switch {
+  position: relative;
+  width: 50px;
+  height: 26px;
+}
+
+.step-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.step-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 26px;
+}
+
+.step-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+.step-toggle-switch input:checked + .step-toggle-slider {
+  background-color: #0E502B;
+}
+
+.step-toggle-switch input:checked + .step-toggle-slider:before {
+  transform: translateX(24px);
+}
+
+.step-toggle-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #001826;
+}
+
