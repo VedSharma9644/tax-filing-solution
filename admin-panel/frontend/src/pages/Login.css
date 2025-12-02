@@ -34,16 +34,16 @@
 }
 
 .logo-container {
-  margin-bottom: 20px;
+  margin: 0 auto 20px auto;
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 150px;
+  width: 250px;
 }
 
 .login-logo {
-  max-width: 150px;
-  max-height: 80px;
+  max-width: 250px;
+  max-height: 120px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -84,26 +84,55 @@
   border: 2px solid #e1e5e9;
   border-radius: 8px;
   font-size: 16px;
-  color: #333;
-  background-color: #fff;
-  transition: all 0.3s ease;
+  color: #333 !important;
+  background-color: #fff !important;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
   box-sizing: border-box;
+  -webkit-text-fill-color: #333 !important;
+  caret-color: #333 !important;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group input:focus-visible,
+.form-group input:active {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  color: #333 !important;
+  background-color: #fff !important;
+  -webkit-text-fill-color: #333 !important;
+}
+
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus,
+.form-group input:-webkit-autofill:active,
+.form-group input:-webkit-autofill:focus-visible {
+  -webkit-text-fill-color: #333 !important;
+  -webkit-box-shadow: 0 0 0px 1000px #fff inset !important;
+  box-shadow: 0 0 0px 1000px #fff inset !important;
+  color: #333 !important;
+  background-color: #fff !important;
+  caret-color: #333 !important;
 }
 
 .form-group input.error {
   border-color: #e74c3c;
   box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
+}
+
+.form-group input.error:focus {
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
 }
 
 .form-group input:disabled {
-  background-color: #f8f9fa;
+  background-color: #f8f9fa !important;
   cursor: not-allowed;
+  color: #333 !important;
+  -webkit-text-fill-color: #333 !important;
 }
 
 .form-group input::placeholder {

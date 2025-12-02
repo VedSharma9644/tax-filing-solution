@@ -135,7 +135,7 @@ const Login = ({ onLogin }) => {
               value={formData.email}
               onChange={handleChange}
               className={errors.email ? 'error' : ''}
-              placeholder="admin@taxfiling.com"
+              placeholder="tax@growwell.com"
               disabled={isLoading}
             />
             {errors.email && <span className="field-error">{errors.email}</span>}
@@ -164,12 +164,6 @@ const Login = ({ onLogin }) => {
             {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
-        
-        <div className="login-footer">
-          <p>Default credentials:</p>
-          <p><strong>Email:</strong> admin@taxfiling.com</p>
-          <p><strong>Password:</strong> password</p>
-        </div>
       </div>
     </div>
   );

@@ -112,8 +112,8 @@ The following environment variables are automatically set during deployment:
 - `KMS_LOCATION=global`
 - `KMS_KEY_RING=tax-filing-key-ring`
 - `KMS_KEY_NAME=tax-filing-key`
-- `ADMIN_EMAIL=admin@taxfiling.com`
-- `ADMIN_PASSWORD=$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi`
+- `ADMIN_EMAIL=tax@growwell.com`
+- `ADMIN_PASSWORD=$2b$10$vZ.kAm7Y7yCEvLE2yx5xrOSmETMdjZNo28NkdXfcUsgcnpaLFF2ZG`
 - `CORS_ORIGIN=https://admin-panel-frontend-693306869303.us-central1.run.app`
 
 ### Frontend Environment Variables

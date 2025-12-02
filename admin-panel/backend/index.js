@@ -14,6 +14,9 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// Trust proxy (required for Cloud Run and rate limiting)
+app.set('trust proxy', true);
+
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'admin-panel-super-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -22,11 +25,18 @@ const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 // Admin credentials (in production, store in environment variables)
 // This is kept for backward compatibility during migration
 const ADMIN_CREDENTIALS = {
-  email: 'admin@taxfiling.com',
-  password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password: "password"
+  email: process.env.ADMIN_EMAIL || 'tax@growwell.com',
+  password: process.env.ADMIN_PASSWORD || '$2b$10$68GFNxsea9..K0Sadg5v/e20bFQostnl1iNJRpy9ry3DG6h7nGZvm', // password: "admin@Password123"
   name: 'Admin User',
   role: 'super_admin'
 };
+
+// Log admin credentials configuration (for debugging - remove password hash in production logs if needed)
+console.log('🔐 Admin Credentials Configuration:');
+console.log('  - Email:', ADMIN_CREDENTIALS.email);
+console.log('  - Password hash:', ADMIN_CREDENTIALS.password);
+console.log('  - Using env ADMIN_EMAIL:', !!process.env.ADMIN_EMAIL);
+console.log('  - Using env ADMIN_PASSWORD:', !!process.env.ADMIN_PASSWORD);
 
 // Permission definitions
 const PERMISSIONS = {
@@ -334,13 +344,22 @@ app.use(helmet({
 app.use(morgan('combined'));
 
 // CORS middleware
+const corsOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(/[,;]/).map(origin => origin.trim()).filter(origin => origin) // Support both comma and semicolon separators
+  : [
+      'http://localhost:3000', 
+      'http://localhost:3001', // Admin Panel frontend
+      'http://localhost:3002', // Additional Admin panel frontend if port is busy
+      'https://admin-panel-frontend-693306869303.us-central1.run.app', // Cloud Run direct URL
+      'https://admin.thegrowwell.com' // Custom domain URL
+    ];
+
+console.log('🌐 CORS Configuration:');
+console.log('  - CORS_ORIGIN env var:', process.env.CORS_ORIGIN || 'not set');
+console.log('  - Allowed origins:', corsOrigins);
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://localhost:3001', // Admin Panel frontend
-    'http://localhost:3002', // Additional Admin panel frontend if port is busy
-    'https://admin-panel-frontend-693306869303.us-central1.run.app'
-  ],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
@@ -720,29 +739,49 @@ app.post('/api/auth/login', [
   try {
     const { email, password } = req.body;
     
+    console.log('🔐 Login attempt:', { email, passwordLength: password?.length });
+    
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
+    console.log('📧 Normalized email:', normalizedEmail);
+    console.log('📧 ADMIN_CREDENTIALS.email:', ADMIN_CREDENTIALS.email);
+    console.log('🔑 ADMIN_CREDENTIALS.password hash:', ADMIN_CREDENTIALS.password);
+    console.log('🔑 ADMIN_CREDENTIALS.password length:', ADMIN_CREDENTIALS.password?.length);
 
     // Find admin user in Firestore
     const adminUsersRef = db.collection('adminUsers');
     const adminQuery = await adminUsersRef.where('email', '==', normalizedEmail).limit(1).get();
 
+    console.log('🔍 Firestore query result - empty:', adminQuery.empty);
+
     if (adminQuery.empty) {
       // Fallback to legacy credentials for backward compatibility
+      console.log('🔍 Email comparison:', normalizedEmail, '===', ADMIN_CREDENTIALS.email, '?', normalizedEmail === ADMIN_CREDENTIALS.email);
+      
       if (normalizedEmail !== ADMIN_CREDENTIALS.email) {
+        console.log('❌ Email mismatch');
         return res.status(401).json({
           success: false,
           error: 'Invalid credentials'
         });
       }
 
+      console.log('🔐 Comparing password...');
+      console.log('🔐 Input password:', password);
+      console.log('🔐 Stored hash:', ADMIN_CREDENTIALS.password);
+      
       const isValidPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.password);
+      console.log('🔐 Password comparison result:', isValidPassword);
+      
       if (!isValidPassword) {
+        console.log('❌ Password mismatch');
         return res.status(401).json({
           success: false,
           error: 'Invalid credentials'
         });
       }
+      
+      console.log('✅ Password verified successfully');
 
       // Generate JWT tokens for legacy admin
       const accessToken = jwt.sign(
@@ -785,25 +824,67 @@ app.post('/api/auth/login', [
     }
 
     // Admin user found in Firestore
+    console.log('✅ Firestore user found');
     const adminDoc = adminQuery.docs[0];
     const adminData = adminDoc.data();
+    
+    console.log('📋 Firestore user data:', {
+      email: adminData.email,
+      name: adminData.name,
+      role: adminData.role,
+      isActive: adminData.isActive,
+      passwordHash: adminData.password,
+      passwordHashLength: adminData.password?.length
+    });
 
     // Check if admin is active
     if (!adminData.isActive) {
+      console.log('❌ Admin account is inactive');
       return res.status(403).json({
         success: false,
         error: 'Admin account is inactive. Please contact a super admin.'
       });
     }
 
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, adminData.password);
-    if (!isValidPassword) {
+    // Verify password against Firestore hash
+    console.log('🔐 Comparing password against Firestore hash...');
+    console.log('🔐 Input password:', password);
+    console.log('🔐 Firestore hash:', adminData.password);
+    
+    let isValidPassword = await bcrypt.compare(password, adminData.password);
+    console.log('🔐 Firestore password comparison result:', isValidPassword);
+    
+    // If Firestore password doesn't match, try ADMIN_CREDENTIALS as fallback
+    if (!isValidPassword && normalizedEmail === ADMIN_CREDENTIALS.email) {
+      console.log('🔄 Firestore password failed, trying ADMIN_CREDENTIALS fallback...');
+      const isValidLegacyPassword = await bcrypt.compare(password, ADMIN_CREDENTIALS.password);
+      console.log('🔐 ADMIN_CREDENTIALS password comparison result:', isValidLegacyPassword);
+      
+      if (isValidLegacyPassword) {
+        console.log('✅ ADMIN_CREDENTIALS password verified, updating Firestore user...');
+        // Update Firestore user with new password hash
+        await adminDoc.ref.update({
+          password: ADMIN_CREDENTIALS.password,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log('✅ Firestore password updated successfully');
+        isValidPassword = true; // Set to true so authentication continues
+      } else {
+        console.log('❌ Both Firestore and ADMIN_CREDENTIALS passwords failed');
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid credentials'
+        });
+      }
+    } else if (!isValidPassword) {
+      console.log('❌ Password mismatch');
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
       });
     }
+    
+    console.log('✅ Password verified successfully');
 
     // Update last login timestamp
     await adminDoc.ref.update({

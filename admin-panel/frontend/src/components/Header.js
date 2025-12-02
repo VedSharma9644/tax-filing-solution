@@ -53,7 +53,7 @@ const Header = ({ toggleSidebar, admin }) => {
           <div className="dashboard-profile-popup">
             <div className="profile-info">
               <div className="profile-name">{admin?.name || 'Admin User'}</div>
-              <div className="profile-email">{admin?.email || 'admin@taxfiling.com'}</div>
+              <div className="profile-email">{admin?.email || 'tax@growwell.com'}</div>
               <div className="profile-role">{admin?.role || 'Administrator'}</div>
             </div>
             <ul className="dashboard-sidebar-menu">
