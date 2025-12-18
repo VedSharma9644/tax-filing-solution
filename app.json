@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "f290c971-93d3-48bb-a9c1-003fffce5c6d"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.devlopercreayaa.thegrowwelltax",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

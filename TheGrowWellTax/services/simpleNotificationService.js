@@ -57,7 +57,7 @@ class SimpleNotificationService {
       // Get or generate push token
       try {
         const token = await Notifications.getExpoPushTokenAsync({
-          projectId: 'efcd0532-f8ed-47ab-95a8-50f7765d984e', // From app.json
+          projectId: '5d65c201-b77b-4289-a079-46c6e1f2949d', // From app.json
         });
         this.expoPushToken = token.data;
         await AsyncStorage.setItem('expoPushToken', this.expoPushToken);
@@ -201,7 +201,7 @@ class SimpleNotificationService {
       // Try to get new token
       try {
         const token = await Notifications.getExpoPushTokenAsync({
-          projectId: 'efcd0532-f8ed-47ab-95a8-50f7765d984e',
+          projectId: '5d65c201-b77b-4289-a079-46c6e1f2949d',
         });
         this.expoPushToken = token.data;
         await AsyncStorage.setItem('expoPushToken', this.expoPushToken);

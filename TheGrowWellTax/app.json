@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "The GrowWell Tax",
+    "name": "The Growwell Tax",
     "slug": "TheGrowWellTax",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,7 +13,25 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.creayaa.thegrowwellios",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.693306869303-qmb0bk8040v91rd8o5lhpcp8mquia2ek"
+            ]
+          }
+        ],
+        "LSApplicationQueriesSchemes": [
+          "googlegmail",
+          "googleplus",
+          "googlechromes"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -43,12 +61,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": "efcd0532-f8ed-47ab-95a8-50f7765d984e"
+        "projectId": "5d65c201-b77b-4289-a079-46c6e1f2949d"
       }
     },
     "plugins": [
       "expo-font",
-      "@react-native-google-signin/google-signin",
       [
         "expo-notifications",
         {
@@ -56,8 +73,24 @@
           "color": "#ffffff",
           "sounds": []
         }
-      ]
+      ],
+      [
+        "expo-apple-authentication",
+        {
+          "appleTeamId": "AW5J6TS678"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "./plugins/withModularHeaders"
     ],
-    "owner": "vedsharma9644"
+    "owner": "devlopercreayaa"
   }
 }

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Platform, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
@@ -11,9 +11,11 @@ import { BackgroundColors } from '../utils/colors';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileService from '../services/profileService';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { secureStorage } from '../utils/secureStorage';
 
 const ProfileSetup = () => {
-  const { user, token, updateUser } = useAuth();
+  const { user, token, updateUser, loading: authLoading } = useAuth();
+  const [currentToken, setCurrentToken] = useState(token);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -34,6 +36,36 @@ const ProfileSetup = () => {
   const totalSteps = 3;
   const progress = (step / totalSteps) * 100;
 
+  // Ensure we have the token - check both context and storage
+  useEffect(() => {
+    const loadToken = async () => {
+      console.log('ProfileSetup: Loading token...', { token: !!token, authLoading, hasUser: !!user });
+      
+      if (token) {
+        console.log('ProfileSetup: Token found in context');
+        setCurrentToken(token);
+        return;
+      }
+      
+      // If auth finished loading, try to get from storage
+      if (!authLoading) {
+        try {
+          console.log('ProfileSetup: Loading token from storage...');
+          const tokens = await secureStorage.getAuthTokens();
+          if (tokens?.accessToken) {
+            console.log('ProfileSetup: Token loaded from storage');
+            setCurrentToken(tokens.accessToken);
+          } else {
+            console.log('ProfileSetup: No token in storage');
+          }
+        } catch (e) {
+          console.error('ProfileSetup: Error loading token:', e);
+        }
+      }
+    };
+    loadToken();
+  }, [token, authLoading, user]);
+
   const handleNext = async () => {
     if (step < totalSteps) {
       setStep(step + 1);
@@ -44,8 +76,43 @@ const ProfileSetup = () => {
   };
 
   const handleSaveProfile = async () => {
-    if (!token) {
-      Alert.alert('Error', 'Authentication token missing');
+    console.log('ProfileSetup: Saving profile...', { 
+      hasUser: !!user, 
+      currentToken: !!currentToken, 
+      token: !!token,
+      authLoading 
+    });
+
+    // Wait for auth to finish loading if still loading
+    if (authLoading && !user) {
+      Alert.alert('Please wait', 'Authentication is being verified...');
+      return;
+    }
+
+    // Get token - prefer currentToken state, fallback to context token, then storage
+    let authToken = currentToken || token;
+    if (!authToken) {
+      console.log('ProfileSetup: Token not in state/context, loading from storage...');
+      // Try to get token from secure storage as fallback
+      try {
+        const tokens = await secureStorage.getAuthTokens();
+        authToken = tokens?.accessToken;
+        if (authToken) {
+          console.log('ProfileSetup: Token loaded from storage');
+          setCurrentToken(authToken); // Update state for next time
+        } else {
+          console.log('ProfileSetup: No token in storage either');
+        }
+      } catch (e) {
+        console.error('ProfileSetup: Error getting token from storage:', e);
+      }
+    } else {
+      console.log('ProfileSetup: Using token from state/context');
+    }
+
+    if (!authToken) {
+      console.error('ProfileSetup: No token available anywhere!');
+      Alert.alert('Error', 'Authentication token missing. Please log in again.');
       return;
     }
 
@@ -73,7 +140,7 @@ const ProfileSetup = () => {
       };
 
       // Save to backend
-      const response = await ProfileService.updateProfile(token, profileData);
+      const response = await ProfileService.updateProfile(authToken, profileData);
       
       if (response.success) {
         // Update AuthContext user immediately so changes are reflected throughout the app
@@ -273,6 +340,25 @@ const ProfileSetup = () => {
     }
   };
 
+  // Show loading only if auth is still loading AND we don't have a user yet
+  // If we have a user, show the form - we'll get the token when needed
+  if (authLoading && !user) {
+    return (
+      <SafeAreaWrapper style={{ backgroundColor: '#001826' }}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  // If we have a user but no token, log it but still show the form
+  // The token will be retrieved when saving the profile
+  if (user && !currentToken && !token) {
+    console.log('ProfileSetup: User exists but no token yet - will retrieve on save');
+  }
+
   return (
     <SafeAreaWrapper style={{ backgroundColor: '#001826' }}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -329,6 +415,16 @@ const styles = StyleSheet.create({
   },
   infoTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
   infoText: { fontSize: 14, color: '#555' },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#fff',
+    fontSize: 16,
+  },
 });
 
 export default ProfileSetup;

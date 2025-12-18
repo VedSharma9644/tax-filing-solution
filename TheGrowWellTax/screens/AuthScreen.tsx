@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { useAuth } from '../contexts/AuthContext';
 import GoogleLoginButton from '../components/GoogleLoginButton';
+import AppleLoginButton from '../components/AppleLoginButton';
 import Constants from 'expo-constants';
 import { BackgroundColors } from '../utils/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -536,9 +537,13 @@ const AuthScreen = () => {
               </View>
             </View>
 
-            {/* Google Login */}
+            {/* Social Login Buttons */}
             <View style={styles.googleLoginSection}>
               <GoogleLoginButton 
+                onLoginSuccess={handleGoogleLoginSuccess}
+                onLoginError={handleGoogleLoginError}
+              />
+              <AppleLoginButton 
                 onLoginSuccess={handleGoogleLoginSuccess}
                 onLoginError={handleGoogleLoginError}
               />

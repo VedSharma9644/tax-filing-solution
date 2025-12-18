@@ -417,6 +417,25 @@ class AdminApiService {
       method: 'DELETE'
     });
   }
+
+  // Email configuration endpoints
+  async getEmailConfiguration() {
+    return this.makeRequest('/api/email-configuration');
+  }
+
+  async saveEmailConfiguration(configData) {
+    return this.makeRequest('/api/email-configuration', {
+      method: 'PUT',
+      body: JSON.stringify(configData)
+    });
+  }
+
+  async testEmailConfiguration(configData) {
+    return this.makeRequest('/api/email-configuration/test', {
+      method: 'POST',
+      body: JSON.stringify(configData)
+    });
+  }
 }
 
 export default new AdminApiService();

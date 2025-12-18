@@ -6,8 +6,8 @@ export const GOOGLE_AUTH_CONFIG = {
   // Using the correct Android client for com.creayaa.thegrowwell
   androidClientId: '693306869303-3c6quk9783jffvnh4lv7g33o7qimjkf0.apps.googleusercontent.com',
   
-  // iOS client ID (will be added when you build for iOS)
-  iosClientId: '693306869303-3c6quk9783jffvnh4lv7g33o7qimjkf0.apps.googleusercontent.com', // Same for now
+  // iOS client ID from GoogleService-Info.plist
+  iosClientId: '693306869303-qmb0bk8040v91rd8o5lhpcp8mquia2ek.apps.googleusercontent.com',
   
   // Web client ID (for server-side verification)
   // Updated after adding Google Play Store SHA-1 keys

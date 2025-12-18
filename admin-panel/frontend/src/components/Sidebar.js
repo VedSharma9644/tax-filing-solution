@@ -14,7 +14,8 @@ const Sidebar = ({ isExpanded, activePage, toggleSidebar }) => {
     { path: '/admin/scheduled-calls', icon: 'scheduled-calls', label: 'Scheduled Calls', page: 'scheduled-calls' },
     { path: '/admin/feedbacks', icon: 'feedbacks', label: 'FeedBacks', page: 'feedbacks' },
     { path: '/admin/support-requests', icon: 'support-requests', label: 'Support Requests', page: 'support-requests' },
-    { path: '/admin/admin-users', icon: 'admin-users', label: 'Admin Users', page: 'admin-users' }
+    { path: '/admin/admin-users', icon: 'admin-users', label: 'Admin Users', page: 'admin-users' },
+    { path: '/admin/email-configuration', icon: 'email-config', label: 'Email Configuration', page: 'email-configuration' }
   ];
 
   // Filter menu items based on page access
@@ -64,6 +65,11 @@ const Sidebar = ({ isExpanded, activePage, toggleSidebar }) => {
       'admin-users': (
         <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+      ),
+      'email-config': (
+        <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"></path>
         </svg>
       )
     };

@@ -14,7 +14,6 @@ import { useNotifications } from '../contexts/NotificationContext';
 import ApiService from '../services/api';
 import ImageCacheService from '../services/imageCacheService';
 import { BackgroundColors } from '../utils/colors';
-import NotificationTestPanel from '../components/NotificationTestPanel';
 import Toast from '../components/Toast';
 
 const Dashboard = () => {
@@ -27,7 +26,6 @@ const Dashboard = () => {
   const [imagePreloadProgress, setImagePreloadProgress] = useState(null);
   const [isPreloadingImages, setIsPreloadingImages] = useState(false);
   const [userDocuments, setUserDocuments] = useState([]);
-  const [showTestPanel, setShowTestPanel] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [adminDocuments, setAdminDocuments] = useState([]);
@@ -724,12 +722,6 @@ const Dashboard = () => {
 
       </ScrollView>
       
-      {/* Notification Test Panel */}
-      <NotificationTestPanel 
-        visible={showTestPanel} 
-        onClose={() => setShowTestPanel(false)} 
-      />
-
       {/* Toast Notification */}
       <Toast
         message={toastMessage}

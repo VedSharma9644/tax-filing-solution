@@ -94,7 +94,8 @@ export const PermissionProvider = ({ children }) => {
     'scheduled-calls': [PERMISSIONS.VIEW_APPOINTMENTS, PERMISSIONS.EDIT_APPOINTMENTS],
     'feedbacks': [PERMISSIONS.VIEW_FEEDBACK, PERMISSIONS.EDIT_FEEDBACK],
     'support-requests': [PERMISSIONS.VIEW_SUPPORT, PERMISSIONS.EDIT_SUPPORT],
-    'admin-users': [PERMISSIONS.MANAGE_ADMINS]
+    'admin-users': [PERMISSIONS.MANAGE_ADMINS],
+    'email-configuration': [PERMISSIONS.MANAGE_ADMINS]
   };
 
   // Get permissions from pages array
@@ -155,13 +156,24 @@ export const PermissionProvider = ({ children }) => {
   // Helper to check if user has access to a specific page
   const hasPageAccess = (page) => {
     if (!admin) return false;
+    
+    // Check if user is super admin (has admin-users page access)
+    const isSuperAdminUser = admin.pages && Array.isArray(admin.pages) && admin.pages.includes('admin-users');
+    
+    // Super admins have access to all pages
+    if (isSuperAdminUser || admin.role === 'super_admin') {
+      return true;
+    }
+    
+    // Check if user has the specific page in their pages array
     if (admin.pages && Array.isArray(admin.pages)) {
       return admin.pages.includes(page);
     }
+    
     // Fallback: check by role (backward compatibility)
-    if (admin.role === 'super_admin') return true;
     if (admin.role === 'viewer' && page === 'admin-users') return false;
-    return page !== 'admin-users'; // Only super_admin can access admin-users
+    if (admin.role === 'viewer' && page === 'email-configuration') return false;
+    return page !== 'admin-users' && page !== 'email-configuration'; // Only super_admin can access admin-users and email-configuration
   };
 
   // Helper to check if user has any of the provided permissions

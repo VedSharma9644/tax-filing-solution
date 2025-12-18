@@ -127,6 +127,17 @@ jspm_packages/
 tmp/
 temp/
 
+# App-specific temp/build/cache artifacts
+TheGrowWellTax/.temp/
+**/.temp/
+*.apk
+*.aab
+*.ipa
+*.zip
+*.zip.backup
+*.keystore
+**/android/app/debug.keystore
+
 # Sensitive files - DO NOT COMMIT
 firebase-service-account.json
 gcs-service-account.json

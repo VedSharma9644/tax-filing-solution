@@ -60,40 +60,10 @@ export const NotificationProvider = ({ children }) => {
 
   const loadNotifications = async () => {
     try {
-      // In a real app, you would fetch notifications from your backend
-      // For now, we'll use mock data
-      const mockNotifications = [
-        {
-          id: '1',
-          title: 'Welcome to TaxEase!',
-          body: 'Thank you for choosing TaxEase for your tax filing needs.',
-          timestamp: new Date().toISOString(),
-          read: false,
-          type: 'info',
-          data: { screen: 'Dashboard' }
-        },
-        {
-          id: '2',
-          title: 'Document Uploaded',
-          body: 'Your W-2 form has been successfully uploaded.',
-          timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          read: false,
-          type: 'success',
-          data: { screen: 'DocumentReview' }
-        },
-        {
-          id: '3',
-          title: 'Tax Deadline Reminder',
-          body: 'Only 45 days left to file your taxes. Don\'t miss the deadline!',
-          timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-          read: true,
-          type: 'warning',
-          data: { screen: 'TaxWizard' }
-        }
-      ];
-      
-      setNotifications(mockNotifications);
-      updateUnreadCount(mockNotifications);
+      // Load actual notifications from storage or backend
+      // Start with empty array - notifications will be added dynamically
+      setNotifications([]);
+      updateUnreadCount([]);
     } catch (error) {
       console.error('❌ Error loading notifications:', error);
     }

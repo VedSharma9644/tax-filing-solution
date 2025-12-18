@@ -34,10 +34,14 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
         const { idToken, user } = userInfo.data;
         
         if (idToken) {
-          
+          console.log('GoogleLoginButton: Got idToken, calling googleLogin...');
           try {
             // Send ID token to backend for verification
             const response = await googleLogin(null, idToken);
+            console.log('GoogleLoginButton: googleLogin response', { 
+              success: response?.success,
+              hasUser: !!response?.user 
+            });
             
             if (response.success) {
               onLoginSuccess(response.user);
@@ -45,6 +49,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
               onLoginError(new Error(response.error || 'Authentication failed'));
             }
           } catch (error) {
+            console.error('GoogleLoginButton: googleLogin error', error);
             onLoginError(error);
           }
         } else {

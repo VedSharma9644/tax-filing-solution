@@ -178,6 +178,11 @@ class ApiService {
   // Google Sign-In Login
   async googleLogin(authCode, idToken) {
     try {
+      console.log('ApiService: googleLogin called', { 
+        baseURL: this.baseURL,
+        hasIdToken: !!idToken 
+      });
+      
       const response = await fetch(`${this.baseURL}/auth/google-login`, {
         method: 'POST',
         headers: {
@@ -190,14 +195,70 @@ class ApiService {
         }),
       });
 
+      console.log('ApiService: Response status', response.status);
       const data = await response.json();
+      console.log('ApiService: Response data', { 
+        success: data?.success,
+        hasAccessToken: !!data?.accessToken,
+        hasRefreshToken: !!data?.refreshToken,
+        hasUser: !!data?.user,
+        error: data?.error
+      });
       
       if (!response.ok) {
+        console.error('ApiService: Request failed', data);
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       
       return data;
     } catch (error) {
+      console.error('ApiService: googleLogin error', error);
+      throw error;
+    }
+  }
+
+  // Apple Sign-In Login
+  async appleLogin(identityToken, authorizationCode, fullName = null) {
+    try {
+      console.log('ApiService: appleLogin called', { 
+        baseURL: this.baseURL,
+        hasIdentityToken: !!identityToken,
+        hasAuthorizationCode: !!authorizationCode,
+        fullName: fullName
+      });
+      
+      const response = await fetch(`${this.baseURL}/auth/apple-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          identityToken,
+          authorizationCode,
+          fullName, // Only available on first sign-in
+        }),
+      });
+
+      console.log('ApiService: Response status', response.status);
+      const data = await response.json();
+      console.log('ApiService: Response data', { 
+        success: data?.success,
+        hasAccessToken: !!data?.accessToken,
+        hasTokens: !!data?.tokens,
+        hasTokensAccessToken: !!data?.tokens?.accessToken,
+        hasRefreshToken: !!data?.refreshToken,
+        hasUser: !!data?.user,
+        error: data?.error
+      });
+      
+      if (!response.ok) {
+        console.error('ApiService: Request failed', data);
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('ApiService: appleLogin error', error);
       throw error;
     }
   }

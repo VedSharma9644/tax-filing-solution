@@ -15,6 +15,7 @@ import ScheduledCalls from './pages/ScheduledCalls';
 import Feedbacks from './pages/Feedbacks';
 import SupportRequests from './pages/SupportRequests';
 import AdminUsers from './pages/AdminUsers';
+import EmailConfiguration from './pages/EmailConfiguration';
 import Logout from './pages/Logout';
 import Profile from './pages/Profile';
 import './App.css';
@@ -28,7 +29,8 @@ const routeToPage = {
   '/admin/scheduled-calls': 'scheduled-calls',
   '/admin/feedbacks': 'feedbacks',
   '/admin/support-requests': 'support-requests',
-  '/admin/admin-users': 'admin-users'
+  '/admin/admin-users': 'admin-users',
+  '/admin/email-configuration': 'email-configuration'
 };
 
 // Protected Route Component
@@ -144,6 +146,11 @@ function AppContent() {
         <Route path="/admin/admin-users" element={
           <ProtectedRoute requiredPage="admin-users">
             <AdminUsers />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/email-configuration" element={
+          <ProtectedRoute requiredPage="email-configuration">
+            <EmailConfiguration />
           </ProtectedRoute>
         } />
         <Route path="/admin/logout" element={

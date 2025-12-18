@@ -10,6 +10,8 @@ const admin = require('firebase-admin');
 const { Storage } = require('@google-cloud/storage');
 const { KeyManagementServiceClient } = require('@google-cloud/kms');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
+const emailService = require('./emailService');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -418,7 +420,8 @@ const AVAILABLE_PAGES = [
   'scheduled-calls',
   'feedbacks',
   'support-requests',
-  'admin-users'
+  'admin-users',
+  'email-configuration'
 ];
 
 // Map pages to permissions (for API endpoint access)
@@ -430,7 +433,8 @@ const PAGE_TO_PERMISSIONS = {
   'scheduled-calls': [PERMISSIONS.VIEW_APPOINTMENTS, PERMISSIONS.EDIT_APPOINTMENTS],
   'feedbacks': [PERMISSIONS.VIEW_FEEDBACK, PERMISSIONS.EDIT_FEEDBACK],
   'support-requests': [PERMISSIONS.VIEW_SUPPORT, PERMISSIONS.EDIT_SUPPORT],
-  'admin-users': [PERMISSIONS.MANAGE_ADMINS]
+  'admin-users': [PERMISSIONS.MANAGE_ADMINS],
+  'email-configuration': [PERMISSIONS.MANAGE_ADMINS]
 };
 
 // Get permissions from pages array
@@ -1046,7 +1050,8 @@ app.get('/api/admin/available-pages', authenticateAdmin, requireSuperAdmin, asyn
       'scheduled-calls': 'Scheduled Calls',
       'feedbacks': 'Feedbacks',
       'support-requests': 'Support Requests',
-      'admin-users': 'Admin Users'
+      'admin-users': 'Admin Users',
+      'email-configuration': 'Email Configuration'
     };
     
     const pages = AVAILABLE_PAGES.map(page => ({
@@ -1314,6 +1319,424 @@ app.delete('/api/admin-users/:id', authenticateAdmin, requireSuperAdmin, async (
     res.status(500).json({
       success: false,
       error: 'Failed to delete admin user',
+      details: error.message
+    });
+  }
+});
+
+// ============================================
+// Email Configuration Endpoints (Super Admin Only)
+// ============================================
+
+// Get email configuration
+app.get('/api/email-configuration', authenticateAdmin, requireSuperAdmin, async (req, res) => {
+  try {
+    const emailConfigRef = db.collection('emailConfiguration').doc('settings');
+    const emailConfigDoc = await emailConfigRef.get();
+    
+    if (!emailConfigDoc.exists) {
+      // Return default empty configuration
+      return res.json({
+        success: true,
+        data: {
+          smtpHost: '',
+          smtpPort: '',
+          smtpSecure: true,
+          smtpUser: '',
+          smtpPassword: '',
+          fromEmail: '',
+          fromName: '',
+          adminEmails: '',
+          enabled: false
+        }
+      });
+    }
+    
+    const data = emailConfigDoc.data();
+    // Don't send password in response (frontend will handle it separately)
+    res.json({
+      success: true,
+      data: {
+        smtpHost: data.smtpHost || '',
+        smtpPort: data.smtpPort || '',
+        smtpSecure: data.smtpSecure !== undefined ? data.smtpSecure : true,
+        smtpUser: data.smtpUser || '',
+        smtpPassword: '', // Don't send password back
+        fromEmail: data.fromEmail || '',
+        fromName: data.fromName || '',
+        adminEmails: data.adminEmails || '',
+        enabled: data.enabled !== undefined ? data.enabled : false,
+        updatedAt: data.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching email configuration:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch email configuration',
+      details: error.message
+    });
+  }
+});
+
+// Save email configuration
+app.put('/api/email-configuration', 
+  authenticateAdmin,
+  requireSuperAdmin,
+  [
+    body('smtpHost').notEmpty().withMessage('SMTP Host is required'),
+    body('smtpPort').notEmpty().withMessage('SMTP Port is required'),
+    body('smtpPort').isNumeric().withMessage('SMTP Port must be a number'),
+    body('smtpUser').notEmpty().withMessage('SMTP Username is required'),
+    // Password is optional - only required if document doesn't exist yet
+    body('fromEmail').isEmail().withMessage('Valid From Email is required'),
+    body('fromName').notEmpty().withMessage('From Name is required'),
+    body('adminEmails').notEmpty().withMessage('Admin Email(s) is required'),
+    validateInput
+  ],
+  async (req, res) => {
+    try {
+      const {
+        smtpHost,
+        smtpPort,
+        smtpSecure,
+        smtpUser,
+        smtpPassword,
+        fromEmail,
+        fromName,
+        adminEmails,
+        enabled
+      } = req.body;
+      
+      // Validate admin emails format
+      const adminEmailList = adminEmails.split(',').map(email => email.trim()).filter(email => email);
+      const emailRegex = /\S+@\S+\.\S+/;
+      const invalidEmails = adminEmailList.filter(email => !emailRegex.test(email));
+      
+      if (invalidEmails.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid admin email(s): ${invalidEmails.join(', ')}`
+        });
+      }
+      
+      const emailConfigRef = db.collection('emailConfiguration').doc('settings');
+      
+      // Check if document exists
+      const existingDoc = await emailConfigRef.get();
+      const existingData = existingDoc.exists ? existingDoc.data() : null;
+      
+      // Prepare update data
+      const updateData = {
+        smtpHost: smtpHost.trim(),
+        smtpPort: parseInt(smtpPort),
+        smtpSecure: smtpSecure !== undefined ? smtpSecure : true,
+        smtpUser: smtpUser.trim(),
+        fromEmail: fromEmail.trim().toLowerCase(),
+        fromName: fromName.trim(),
+        adminEmails: adminEmailList.join(', '),
+        enabled: enabled !== undefined ? enabled : false,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      // Only update password if a new one is provided
+      // If password is empty and document exists, keep the existing password
+      if (smtpPassword && smtpPassword.trim() !== '') {
+        updateData.smtpPassword = smtpPassword;
+      } else if (!existingDoc.exists) {
+        // If document doesn't exist and no password provided, return error
+        return res.status(400).json({
+          success: false,
+          error: 'SMTP Password is required for initial configuration'
+        });
+      } else {
+        // Keep existing password if not provided
+        updateData.smtpPassword = existingData.smtpPassword;
+      }
+      
+      // Set createdAt only if document doesn't exist
+      if (!existingDoc.exists) {
+        updateData.createdAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+      
+      await emailConfigRef.set(updateData, { merge: true });
+      
+      res.json({
+        success: true,
+        message: 'Email configuration saved successfully',
+        data: {
+          smtpHost: updateData.smtpHost,
+          smtpPort: updateData.smtpPort,
+          smtpSecure: updateData.smtpSecure,
+          smtpUser: updateData.smtpUser,
+          fromEmail: updateData.fromEmail,
+          fromName: updateData.fromName,
+          adminEmails: updateData.adminEmails,
+          enabled: updateData.enabled
+        }
+      });
+    } catch (error) {
+      console.error('Error saving email configuration:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to save email configuration',
+        details: error.message
+      });
+    }
+  }
+);
+
+// Test email configuration
+app.post('/api/email-configuration/test', 
+  authenticateAdmin,
+  requireSuperAdmin,
+  [
+    body('smtpHost').notEmpty().withMessage('SMTP Host is required'),
+    body('smtpPort').notEmpty().withMessage('SMTP Port is required'),
+    body('smtpPort').isNumeric().withMessage('SMTP Port must be a number'),
+    body('smtpUser').notEmpty().withMessage('SMTP Username is required'),
+    // Password is optional - will use stored password if not provided
+    body('fromEmail').isEmail().withMessage('Valid From Email is required'),
+    body('fromName').notEmpty().withMessage('From Name is required'),
+    body('adminEmails').notEmpty().withMessage('Admin Email(s) is required'),
+    validateInput
+  ],
+  async (req, res) => {
+    try {
+      const {
+        smtpHost,
+        smtpPort,
+        smtpSecure,
+        smtpUser,
+        smtpPassword,
+        fromEmail,
+        fromName,
+        adminEmails
+      } = req.body;
+      
+      // Validate admin emails format
+      const adminEmailList = adminEmails.split(',').map(email => email.trim()).filter(email => email);
+      const emailRegex = /\S+@\S+\.\S+/;
+      const invalidEmails = adminEmailList.filter(email => !emailRegex.test(email));
+      
+      if (invalidEmails.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid admin email(s): ${invalidEmails.join(', ')}`
+        });
+      }
+      
+      // Get stored password if not provided
+      let passwordToUse = smtpPassword;
+      if (!passwordToUse || passwordToUse.trim() === '') {
+        const emailConfigRef = db.collection('emailConfiguration').doc('settings');
+        const emailConfigDoc = await emailConfigRef.get();
+        if (!emailConfigDoc.exists || !emailConfigDoc.data().smtpPassword) {
+          return res.status(400).json({
+            success: false,
+            error: 'SMTP Password is required. Please enter your password or save configuration first.'
+          });
+        }
+        passwordToUse = emailConfigDoc.data().smtpPassword;
+      }
+      
+      // Create nodemailer transporter
+      const transporter = nodemailer.createTransport({
+        host: smtpHost.trim(),
+        port: parseInt(smtpPort),
+        secure: smtpSecure !== undefined ? smtpSecure : (parseInt(smtpPort) === 465),
+        auth: {
+          user: smtpUser.trim(),
+          pass: passwordToUse
+        }
+      });
+      
+      // Verify SMTP connection
+      await transporter.verify();
+      
+      // Send test email to first admin email
+      const testEmail = adminEmailList[0];
+      const mailOptions = {
+        from: `"${fromName.trim()}" <${fromEmail.trim()}>`,
+        to: testEmail,
+        subject: 'Test Email - Email Configuration',
+        html: `
+          <h2>Test Email</h2>
+          <p>This is a test email from your email configuration.</p>
+          <p>If you received this email, your SMTP settings are configured correctly!</p>
+          <hr>
+          <p><small>Sent at: ${new Date().toLocaleString()}</small></p>
+        `,
+        text: `Test Email\n\nThis is a test email from your email configuration.\n\nIf you received this email, your SMTP settings are configured correctly!\n\nSent at: ${new Date().toLocaleString()}`
+      };
+      
+      await transporter.sendMail(mailOptions);
+      
+      res.json({
+        success: true,
+        message: `Test email sent successfully to ${testEmail}`,
+        data: {
+          recipient: testEmail,
+          sentAt: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send test email',
+        details: error.message
+      });
+    }
+  }
+);
+
+// ============================================
+// Email Notification Trigger Endpoints
+// These can be called from the main backend to trigger email notifications
+// No authentication required - these are internal API calls
+// ============================================
+
+// Trigger email notification for new user registration
+app.post('/api/notifications/new-user', async (req, res) => {
+  try {
+    const { userData } = req.body;
+    
+    if (!userData) {
+      return res.status(400).json({
+        success: false,
+        error: 'User data is required'
+      });
+    }
+    
+    const result = await emailService.notifyNewUser(db, userData);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Email notification sent' : 'Email notification failed',
+      reason: result.reason
+    });
+  } catch (error) {
+    console.error('Error triggering new user notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger notification',
+      details: error.message
+    });
+  }
+});
+
+// Trigger email notification for new application
+app.post('/api/notifications/new-application', async (req, res) => {
+  try {
+    const { applicationData, userData } = req.body;
+    
+    if (!applicationData || !userData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application data and user data are required'
+      });
+    }
+    
+    const result = await emailService.notifyNewApplication(db, applicationData, userData);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Email notification sent' : 'Email notification failed',
+      reason: result.reason
+    });
+  } catch (error) {
+    console.error('Error triggering new application notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger notification',
+      details: error.message
+    });
+  }
+});
+
+// Trigger email notification for additional document
+app.post('/api/notifications/additional-document', async (req, res) => {
+  try {
+    const { documentData, userData, applicationId } = req.body;
+    
+    if (!documentData || !userData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Document data and user data are required'
+      });
+    }
+    
+    const result = await emailService.notifyAdditionalDocument(db, documentData, userData, applicationId);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Email notification sent' : 'Email notification failed',
+      reason: result.reason
+    });
+  } catch (error) {
+    console.error('Error triggering additional document notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger notification',
+      details: error.message
+    });
+  }
+});
+
+// Trigger email notification for draft approval
+app.post('/api/notifications/draft-approval', async (req, res) => {
+  try {
+    const { applicationData, userData } = req.body;
+    
+    if (!applicationData || !userData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application data and user data are required'
+      });
+    }
+    
+    const result = await emailService.notifyDraftApproval(db, applicationData, userData);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Email notification sent' : 'Email notification failed',
+      reason: result.reason
+    });
+  } catch (error) {
+    console.error('Error triggering draft approval notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger notification',
+      details: error.message
+    });
+  }
+});
+
+// Trigger email notification for payment
+app.post('/api/notifications/payment', async (req, res) => {
+  try {
+    const { paymentData, userData } = req.body;
+    
+    if (!paymentData || !userData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment data and user data are required'
+      });
+    }
+    
+    const result = await emailService.notifyPayment(db, paymentData, userData);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Email notification sent' : 'Email notification failed',
+      reason: result.reason
+    });
+  } catch (error) {
+    console.error('Error triggering payment notification:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to trigger notification',
       details: error.message
     });
   }
@@ -1591,6 +2014,51 @@ app.put('/api/tax-forms/:id/status', authenticateAdmin, checkPermission(PERMISSI
     // Get updated document to return latest data including timestamp
     const updatedDoc = await db.collection('taxForms').doc(id).get();
     const updatedData = updatedDoc.data();
+    
+    // Send email notification for draft approval when status changes to draft_uploaded (non-blocking)
+    if (status === 'draft_uploaded' && oldData.status !== 'draft_uploaded') {
+      const userDoc = await db.collection('users').doc(updatedData.userId).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        emailService.notifyDraftApproval(db, { id, ...updatedData }, userData).catch(err => {
+          console.error('Failed to send email notification for draft approval:', err);
+        });
+      }
+    }
+    
+    // Send email notification for payment when status changes to payment_completed (non-blocking)
+    if (status === 'payment_completed' && oldData.status !== 'payment_completed') {
+      const userDoc = await db.collection('users').doc(updatedData.userId).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        // Get payment info from payments collection if available
+        const paymentsSnapshot = await db.collection('payments')
+          .where('userId', '==', updatedData.userId)
+          .where('applicationId', '==', id)
+          .orderBy('createdAt', 'desc')
+          .limit(1)
+          .get();
+        
+        let paymentData = {
+          id: id,
+          amount: updatedData.paymentAmount || 0,
+          status: 'completed'
+        };
+        
+        if (!paymentsSnapshot.empty) {
+          const paymentDoc = paymentsSnapshot.docs[0].data();
+          paymentData = {
+            id: paymentsSnapshot.docs[0].id,
+            ...paymentData,
+            ...paymentDoc
+          };
+        }
+        
+        emailService.notifyPayment(db, paymentData, userData).catch(err => {
+          console.error('Failed to send email notification for payment:', err);
+        });
+      }
+    }
     
     res.json({
       success: true,
