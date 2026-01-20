@@ -9,6 +9,7 @@ const multer = require('multer');
 const { Storage } = require('@google-cloud/storage');
 const { KeyManagementServiceClient } = require('@google-cloud/kms');
 const crypto = require('crypto');
+const Razorpay = require('razorpay');
 // Environment-aware service account loading
 let serviceAccount, gcsServiceAccount;
 
@@ -227,6 +228,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'tax-filing-app-secret-key-2024';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'tax-filing-app-refresh-secret-key-2024';
 const JWT_EXPIRES_IN = '1h'; // Access token expires in 1 hour
 const JWT_REFRESH_EXPIRES_IN = '30d'; // Refresh token expires in 30 days
+
+// Razorpay Configuration
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_S68IxG9jhFN8bL';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FIhfzgbtzRL7Wc5krcJSuFD1';
+
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET
+});
 
 // Security middleware
 app.use(helmet({
@@ -1593,9 +1603,16 @@ app.post('/auth/apple-login', authLimiter, async (req, res) => {
         throw new Error('Invalid token format');
       }
 
-      const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+      // Decode base64url (Apple JWT standard) to base64
+      const base64Payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - tokenParts[1].length % 4) % 4);
+      const payload = JSON.parse(Buffer.from(base64Payload, 'base64').toString());
       appleId = payload.sub; // Apple user ID
       email = payload.email || null; // May be null if user chose to hide email
+      
+      // Validate that we have an appleId (required)
+      if (!appleId) {
+        throw new Error('Apple user ID (sub) is missing from token');
+      }
       
       // Name is not in the identity token - it's only provided on first sign-in via fullName parameter
       // Use fullName from request body if available (first sign-in only)
@@ -1635,20 +1652,18 @@ app.post('/auth/apple-login', authLimiter, async (req, res) => {
     let user;
     let userExists = false;
 
-    // Try to find user by email first (if available)
-    if (email) {
+    // Try to find user by appleId first (most reliable)
+    const userByAppleId = await db.collection('users').where('appleId', '==', appleId).limit(1).get();
+    if (!userByAppleId.empty) {
+      user = userByAppleId.docs[0];
+      userExists = true;
+    }
+
+    // If not found by appleId, try by email (if available)
+    if (!userExists && email) {
       const userByEmail = await db.collection('users').where('email', '==', email).limit(1).get();
       if (!userByEmail.empty) {
         user = userByEmail.docs[0];
-        userExists = true;
-      }
-    }
-
-    // If not found by email, try by appleId
-    if (!userExists && appleId) {
-      const userByAppleId = await db.collection('users').where('appleId', '==', appleId).limit(1).get();
-      if (!userByAppleId.empty) {
-        user = userByAppleId.docs[0];
         userExists = true;
       }
     }
@@ -1685,7 +1700,7 @@ app.post('/auth/apple-login', authLimiter, async (req, res) => {
         lastName: nameParts.slice(1).join(' ') || '',
         email: email || '', // Email might be null if user chose to hide it
         phone: '',
-        appleId: appleId,
+        appleId: appleId, // Required field
         profilePicture: '',
         role: 'taxpayer',
         status: 'active',
@@ -2910,13 +2925,24 @@ app.get('/tax-forms/history', authenticateToken, async (req, res) => {
     const taxForms = [];
     taxFormsSnapshot.forEach(doc => {
       const data = doc.data();
+      
+      // Debug logging to see what Firestore returns
+      console.log(`📋 Tax form ${doc.id}:`, {
+        taxYear: data.taxYear,
+        paymentAmount: data.paymentAmount,
+        paymentAmountType: typeof data.paymentAmount,
+        expectedReturn: data.expectedReturn,
+        status: data.status
+      });
+      
       taxForms.push({
         id: doc.id,
         formType: data.formType,
         taxYear: data.taxYear,
         filingStatus: data.filingStatus,
         status: data.status,
-        expectedReturn: data.expectedReturn || 0,
+        expectedReturn: data.expectedReturn !== undefined && data.expectedReturn !== null ? data.expectedReturn : 0,
+        paymentAmount: data.paymentAmount !== undefined && data.paymentAmount !== null ? data.paymentAmount : 0,
         adminNotes: data.adminNotes || '',
         documentCount: data.documents?.length || 0,
         dependentCount: data.dependents?.length || 0,
@@ -3152,6 +3178,347 @@ app.get('/tax-forms/:id/personal-info', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch personal information',
+      details: error.message
+    });
+  }
+});
+
+// ============================================
+// Payment Endpoints (Razorpay Integration)
+// ============================================
+
+// Create Razorpay order for payment
+app.post('/payment/create-order', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { applicationId, amount } = req.body;
+
+    if (!applicationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Application ID is required'
+      });
+    }
+
+    // Get tax form to verify ownership and get payment amount
+    const taxFormDoc = await db.collection('taxForms').doc(applicationId).get();
+    
+    if (!taxFormDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Application not found'
+      });
+    }
+
+    const taxFormData = taxFormDoc.data();
+
+    // Verify user owns this application
+    if (taxFormData.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You can only pay for your own applications'
+      });
+    }
+
+    // Use paymentAmount from application or provided amount
+    const paymentAmount = amount || taxFormData.paymentAmount || 0;
+
+    if (!paymentAmount || paymentAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payment amount. Please contact support.'
+      });
+    }
+
+    // Convert USD to cents (Razorpay uses smallest currency unit)
+    // For USD, Razorpay expects amount in cents (multiply by 100)
+    const amountInCents = Math.round(paymentAmount * 100);
+
+    // Create Razorpay order
+    const options = {
+      amount: amountInCents,
+      currency: 'USD',
+      receipt: `tax_${applicationId}_${Date.now()}`,
+      notes: {
+        applicationId: applicationId,
+        userId: userId,
+        taxYear: taxFormData.taxYear || new Date().getFullYear()
+      }
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    // Store order details in database for verification
+    await db.collection('payments').doc(order.id).set({
+      orderId: order.id,
+      applicationId: applicationId,
+      userId: userId,
+      amount: paymentAmount,
+      amountInCents: amountInCents,
+      currency: 'USD',
+      status: 'created',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({
+      success: true,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+        key_id: RAZORPAY_KEY_ID
+      }
+    });
+  } catch (error) {
+    console.error('❌ Create payment order error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create payment order',
+      details: error.message
+    });
+  }
+});
+
+// Verify Razorpay payment and update application status
+app.post('/payment/verify', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, applicationId } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !applicationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required payment verification parameters'
+      });
+    }
+
+    // Verify payment signature
+    const crypto = require('crypto');
+    const generatedSignature = crypto
+      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payment signature'
+      });
+    }
+
+    // Get payment order from database
+    const paymentDoc = await db.collection('payments').doc(razorpay_order_id).get();
+    
+    if (!paymentDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Payment order not found'
+      });
+    }
+
+    const paymentData = paymentDoc.data();
+
+    // Verify user owns this payment
+    if (paymentData.userId !== userId || paymentData.applicationId !== applicationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Payment verification failed'
+      });
+    }
+
+    // Update payment record
+    await db.collection('payments').doc(razorpay_order_id).update({
+      paymentId: razorpay_payment_id,
+      signature: razorpay_signature,
+      status: 'completed',
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Update tax form status to payment_completed
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    await taxFormRef.update({
+      status: 'payment_completed',
+      paymentId: razorpay_payment_id,
+      paymentOrderId: razorpay_order_id,
+      paymentCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Add history entry
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const userName = userData.firstName && userData.lastName 
+      ? `${userData.firstName} ${userData.lastName}` 
+      : userData.email?.split('@')[0] || 'User';
+    await addApplicationHistory(applicationId, 'payment_completed', {
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+      amount: paymentData.amount,
+      currency: 'USD'
+    }, `${userName} (${userId})`, 'user');
+
+    // Create notification for user
+    await db.collection('notifications').add({
+      userId: userId,
+      title: 'Payment Successful',
+      message: `Your payment of $${paymentData.amount} has been processed successfully.`,
+      type: 'success',
+      read: false,
+      relatedId: applicationId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment verified and processed successfully',
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id
+    });
+  } catch (error) {
+    console.error('❌ Payment verification error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify payment',
+      details: error.message
+    });
+  }
+});
+
+// Verify Razorpay payment by URL (when handler doesn't fire - fetches payment details from Razorpay)
+app.post('/payment/verify-by-url', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { razorpay_order_id, razorpay_payment_id, applicationId } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !applicationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required payment verification parameters'
+      });
+    }
+
+    console.log('🔍 Verifying payment by URL - fetching payment details from Razorpay');
+    console.log('📦 Order ID:', razorpay_order_id);
+    console.log('📦 Payment ID:', razorpay_payment_id);
+
+    // Fetch payment details from Razorpay (using existing instance)
+    let paymentDetails;
+    try {
+      paymentDetails = await razorpay.payments.fetch(razorpay_payment_id);
+      console.log('✅ Payment details fetched from Razorpay:', {
+        id: paymentDetails.id,
+        status: paymentDetails.status,
+        order_id: paymentDetails.order_id,
+        amount: paymentDetails.amount
+      });
+    } catch (rzpError) {
+      console.error('❌ Error fetching payment from Razorpay:', rzpError);
+      return res.status(400).json({
+        success: false,
+        error: 'Failed to fetch payment details from Razorpay'
+      });
+    }
+
+    // Verify payment status
+    if (paymentDetails.status !== 'authorized' && paymentDetails.status !== 'captured') {
+      return res.status(400).json({
+        success: false,
+        error: `Payment status is ${paymentDetails.status}, expected authorized or captured`
+      });
+    }
+
+    // Verify order_id matches
+    if (paymentDetails.order_id !== razorpay_order_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Order ID mismatch'
+      });
+    }
+
+    // Get payment order from database
+    const paymentDoc = await db.collection('payments').doc(razorpay_order_id).get();
+    
+    if (!paymentDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Payment order not found'
+      });
+    }
+
+    const paymentData = paymentDoc.data();
+
+    // Verify user owns this payment
+    if (paymentData.userId !== userId || paymentData.applicationId !== applicationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Payment verification failed'
+      });
+    }
+
+    // Generate signature for verification
+    const crypto = require('crypto');
+    const generatedSignature = crypto
+      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    // Update payment record
+    await db.collection('payments').doc(razorpay_order_id).update({
+      paymentId: razorpay_payment_id,
+      signature: generatedSignature,
+      status: 'completed',
+      verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Update tax form status to payment_completed
+    const taxFormRef = db.collection('taxForms').doc(applicationId);
+    await taxFormRef.update({
+      status: 'payment_completed',
+      paymentId: razorpay_payment_id,
+      paymentOrderId: razorpay_order_id,
+      paymentCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // Add history entry
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    const userName = userData.firstName && userData.lastName 
+      ? `${userData.firstName} ${userData.lastName}` 
+      : userData.email?.split('@')[0] || 'User';
+    await addApplicationHistory(applicationId, 'payment_completed', {
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+      amount: paymentData.amount,
+      currency: 'USD'
+    }, `${userName} (${userId})`, 'user');
+
+    // Create notification for user
+    await db.collection('notifications').add({
+      userId: userId,
+      title: 'Payment Successful',
+      message: `Your payment of $${paymentData.amount} has been processed successfully.`,
+      type: 'success',
+      read: false,
+      relatedId: applicationId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({
+      success: true,
+      message: 'Payment verified and processed successfully',
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id
+    });
+  } catch (error) {
+    console.error('❌ Payment verification by URL error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify payment',
       details: error.message
     });
   }

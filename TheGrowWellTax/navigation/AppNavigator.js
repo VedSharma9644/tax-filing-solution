@@ -19,6 +19,7 @@ import SupportRequestScreen from '../screens/SupportRequestScreen';
 import AppointmentScreen from '../screens/AppointmentScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
 import CacheManagementScreen from '../screens/CacheManagementScreen';
+import AccountDeletionRequestScreen from '../screens/AccountDeletionRequestScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -110,6 +111,7 @@ const AppNavigator = () => {
             <Stack.Screen name="Appointment" component={AppointmentScreen} />
             <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
             <Stack.Screen name="CacheManagement" component={CacheManagementScreen} />
+            <Stack.Screen name="AccountDeletionRequest" component={AccountDeletionRequestScreen} />
           </>
         ) : (
           // Unauthenticated screens

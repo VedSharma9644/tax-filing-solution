@@ -261,6 +261,25 @@ const AuthScreen = () => {
     Alert.alert('Error', 'Google login failed. Please try again.');
   };
 
+  const handleAppleLoginSuccess = (userInfo: any) => {
+    console.log('Apple Login Success:', userInfo);
+    Alert.alert('Success', 'Apple login successful!', [
+      {
+        text: 'Continue',
+        onPress: () => {
+          // Navigation happens automatically when user state changes
+          console.log('Apple login successful, user state updated automatically');
+        }
+      }
+    ]);
+  };
+
+  const handleAppleLoginError = (error: any) => {
+    console.log('Apple Login Error:', error);
+    const errorMessage = error?.message || 'Apple login failed. Please try again.';
+    Alert.alert('Error', errorMessage);
+  };
+
   const handleEmailPasswordAuth = async () => {
     // Validate email
     if (!email || !email.includes('@')) {
@@ -544,8 +563,8 @@ const AuthScreen = () => {
                 onLoginError={handleGoogleLoginError}
               />
               <AppleLoginButton 
-                onLoginSuccess={handleGoogleLoginSuccess}
-                onLoginError={handleGoogleLoginError}
+                onLoginSuccess={handleAppleLoginSuccess}
+                onLoginError={handleAppleLoginError}
               />
             </View>
 

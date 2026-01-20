@@ -3,7 +3,7 @@
 
 // Using production backend (Cloud Run)
 // To switch back to local: change to 'http://localhost:5000'
-const API_BASE_URL = 'https://tax-filing-backend-693306869303.us-central1.run.app';
+export const API_BASE_URL = 'https://tax-filing-backend-693306869303.us-central1.run.app';
 
 console.log('🌐 API Base URL:', API_BASE_URL);
 

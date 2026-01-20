@@ -17,6 +17,7 @@
       "bundleIdentifier": "com.creayaa.thegrowwellios",
       "googleServicesFile": "./GoogleService-Info.plist",
       "usesAppleSignIn": true,
+      "buildNumber": "6",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
@@ -26,6 +27,8 @@
             ]
           }
         ],
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library so you can choose a profile picture.",
+        "NSPhotoLibraryAddUsageDescription": "We store your chosen photo as your profile picture.",
         "LSApplicationQueriesSchemes": [
           "googlegmail",
           "googleplus",
@@ -61,10 +64,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "5d65c201-b77b-4289-a079-46c6e1f2949d"
+        "projectId": "efcd0532-f8ed-47ab-95a8-50f7765d984e"
       }
     },
     "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       "expo-font",
       [
         "expo-notifications",
@@ -91,6 +96,6 @@
       ],
       "./plugins/withModularHeaders"
     ],
-    "owner": "devlopercreayaa"
+    "owner": ""
   }
 }

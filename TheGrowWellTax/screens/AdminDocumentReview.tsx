@@ -443,7 +443,25 @@ const DocumentReview = () => {
     return approvedForm && approvedForm.status === 'under_review';
   };
 
+  // Check if payment is completed
+  const isPaymentCompleted = () => {
+    const approvedForm = getApprovedTaxForm();
+    return approvedForm && approvedForm.status === 'payment_completed';
+  };
+
   const handleApprove = () => {
+    // If payment is not completed, redirect to payment page
+    if (!isPaymentCompleted()) {
+      const approvedForm = getApprovedTaxForm();
+      if (approvedForm && approvedForm.id) {
+        navigation.navigate('Payment', { applicationId: approvedForm.id });
+      } else {
+        Alert.alert('Error', 'Application not found. Please try again.');
+      }
+      return;
+    }
+
+    // If payment is completed, show approval modal
     setShowApprovalModal(true);
   };
 
@@ -456,10 +474,19 @@ const DocumentReview = () => {
     setShowApprovalModal(false);
     setIsApproved(true);
     
-    // Navigate to Payment after a brief delay
-    setTimeout(() => {
-      navigation.navigate('Payment');
-    }, 1500);
+    // Payment is already completed, so just show success
+    Alert.alert(
+      'Document Approved!',
+      'Your draft document has been approved. The admin will proceed with final document preparation.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.navigate('Home');
+          }
+        }
+      ]
+    );
   };
 
   const handleRejectDocuments = () => {
@@ -1285,7 +1312,11 @@ const DocumentReview = () => {
                 >
                   <Ionicons name="checkmark" size={20} color="#fff" />
                   <Text style={styles.actionButtonText}>
-                    {isUnderReview() ? 'Under Review' : 'Approve & Continue'}
+                    {isUnderReview() 
+                      ? 'Under Review' 
+                      : isPaymentCompleted() 
+                        ? 'Approve & Continue' 
+                        : 'Pay & Continue'}
                   </Text>
                 </Button>
 
@@ -1308,7 +1339,23 @@ const DocumentReview = () => {
                 <View style={styles.approvedContent}>
                   <Ionicons name="checkmark-circle" size={32} color="#28a745" />
                   <Text style={styles.approvedText}>
-                    Document approved! Redirecting to payment...
+                    {isPaymentCompleted() 
+                      ? 'Document approved successfully!' 
+                      : 'Document approved! Redirecting to payment...'}
+                  </Text>
+                </View>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Payment Status Indicator */}
+          {isPaymentCompleted() && !isApproved && (
+            <Card style={[styles.card, { backgroundColor: '#d4edda' }]}>
+              <CardContent>
+                <View style={styles.approvedContent}>
+                  <Ionicons name="checkmark-circle" size={24} color="#28a745" />
+                  <Text style={[styles.approvedText, { fontSize: 14 }]}>
+                    Payment completed. You can now approve the document.
                   </Text>
                 </View>
               </CardContent>

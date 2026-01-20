@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './DocumentPreview.css';
+import { API_BASE_URL } from '../../../config/api';
 
 const DocumentPreview = ({ document, onDelete, onReplace, onImageLoad, onImageError, imageLoading, imageError, showActions = true }) => {
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -30,9 +31,6 @@ const DocumentPreview = ({ document, onDelete, onReplace, onImageLoad, onImageEr
     // If it's a gs:// URL, we need to use the decryption endpoint
     if (url.startsWith('gs://')) {
       const gcsPath = url.replace('gs://tax-filing-documents-tax-filing-app-3649f/', '');
-      const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
-        ? 'https://tax-filing-backend-693306869303.us-central1.run.app'
-        : 'http://localhost:5000';
       return `${API_BASE_URL}/upload/view/${encodeURIComponent(gcsPath)}`;
     }
     return url;

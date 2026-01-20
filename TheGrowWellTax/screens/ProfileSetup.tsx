@@ -21,8 +21,6 @@ const ProfileSetup = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
     dateOfBirth: '',
     address: '',
     city: '',
@@ -118,17 +116,8 @@ const ProfileSetup = () => {
 
     setLoading(true);
     try {
-      // Validate required fields
-      if (!formData.firstName || !formData.lastName) {
-        Alert.alert('Required Fields', 'Please provide first name and last name');
-        setLoading(false);
-        return;
-      }
-
       // Prepare profile data
       const profileData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
         dateOfBirth: formData.dateOfBirth || undefined,
         address: formData.address || undefined,
         city: formData.city || undefined,
@@ -210,22 +199,6 @@ const ProfileSetup = () => {
             <Text style={styles.stepTitle}>Personal Information</Text>
             <Text style={styles.stepDescription}>Tell us about yourself</Text>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                placeholder="John"
-                placeholderTextColor="#000"
-                value={formData.firstName}
-                onChangeText={val => updateFormData('firstName', val)}
-                style={styles.input}
-              />
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                placeholder="Doe"
-                placeholderTextColor="#000"
-                value={formData.lastName}
-                onChangeText={val => updateFormData('lastName', val)}
-                style={styles.input}
-              />
               <Text style={styles.label}>Date of Birth</Text>
               <TouchableOpacity 
                 onPress={() => setShowDatePicker(true)}
@@ -371,7 +344,7 @@ const ProfileSetup = () => {
             <Ionicons name="arrow-back" size={18} color="#000" style={{ marginRight: 4, alignSelf: 'center' }} />
             <Text style={[styles.buttonText, { color: '#000', lineHeight: 18 }]}>Back</Text>
           </Button>
-          <Button onPress={handleNext} style={[styles.buttonNav, loading && styles.buttonDisabled]} disabled={loading}>
+          <Button onPress={handleNext} style={loading ? { ...styles.buttonNav, ...styles.buttonDisabled } : styles.buttonNav} disabled={loading}>
             {loading ? (
               <Text style={[styles.buttonText, { lineHeight: 18 }]}>Saving...</Text>
             ) : (

@@ -84,9 +84,6 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
                 <Text style={styles.avatarText}>{getUserInitials()}</Text>
               )}
             </View>
-            <TouchableOpacity style={styles.cameraButton}>
-              <Ionicons name="camera" size={12} color="#fff" />
-            </TouchableOpacity>
           </View>
         )}
         
@@ -138,19 +135,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  cameraButton: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#0E502B',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   titleContainer: {
     flex: 1,

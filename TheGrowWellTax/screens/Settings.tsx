@@ -187,6 +187,10 @@ const Settings = () => {
             </View>
             <Card style={styles.card}>
               <CardContent>
+                <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('AccountDeletionRequest')}>
+                  <Text style={styles.supportButtonText}>Request Account Deletion</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#666" />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.supportButton} onPress={() => navigation.navigate('SupportRequest')}>
                   <Text style={styles.supportButtonText}>Submit Support Request</Text>
                   <Ionicons name="chevron-forward" size={20} color="#666" />

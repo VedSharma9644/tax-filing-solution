@@ -1,0 +1,63 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore
+
+# Node modules (will be installed during build)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+dist/
+build/
+*.tgz
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
+coverage/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Git
+.git/
+.gitignore
+
+# Service account files (should be in environment variables in production)
+firebase-service-account.json
+gcs-service-account.json
+*-service-account.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Deployment scripts (not needed in container)
+deploy.sh
+deploy-clean.sh
+

@@ -2,19 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './DraftDocumentReview.css';
 import Colors from '../utils/colors';
-import ApiService from '../config/api';
-
-// Helper function to get API base URL
-const getApiBaseUrl = () => {
-  return typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
-    ? 'https://tax-filing-backend-693306869303.us-central1.run.app'
-    : 'http://localhost:5000';
-};
+import ApiService, { API_BASE_URL } from '../config/api';
 
 // Helper function to construct decryption URL
 const getDecryptionUrl = (gcsPath) => {
   if (!gcsPath) return null;
-  const API_BASE_URL = getApiBaseUrl();
   return `${API_BASE_URL}/upload/view/${encodeURIComponent(gcsPath)}`;
 };
 

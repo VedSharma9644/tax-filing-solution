@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ReviewDocuments.css';
 import Colors from '../utils/colors';
-import ApiService from '../config/api';
+import ApiService, { API_BASE_URL } from '../config/api';
 import DocumentPreview from './TaxWizard/components/DocumentPreview';
 
 const ReviewDocuments = () => {
@@ -336,10 +336,6 @@ const ReviewDocuments = () => {
       formData.append('userId', userId);
       formData.append('category', uploadCategory);
       formData.append('taxFormId', taxFormId);
-
-      const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
-        ? 'https://tax-filing-backend-693306869303.us-central1.run.app'
-        : 'http://localhost:5000';
 
       console.log('📤 Uploading document:', {
         fileName: uploadFile.name,

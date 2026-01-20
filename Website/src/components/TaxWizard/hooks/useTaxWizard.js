@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { API_BASE_URL } from '../../../config/api';
 
 const useTaxWizard = () => {
   const [step, setStep] = useState(1);
@@ -154,10 +155,6 @@ const useTaxWizard = () => {
       formData.append('category', category);
 
       // Upload to backend endpoint (backend handles encryption)
-      const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
-        ? 'https://tax-filing-backend-693306869303.us-central1.run.app'
-        : 'http://localhost:5000';
-
       const response = await fetch(`${API_BASE_URL}/upload/document`, {
         method: 'POST',
         headers: {
@@ -304,10 +301,6 @@ const useTaxWizard = () => {
       formData.append('category', 'additional_income');
 
       // Upload to backend endpoint (backend handles encryption)
-      const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
-        ? 'https://tax-filing-backend-693306869303.us-central1.run.app'
-        : 'http://localhost:5000';
-
       console.log('📤 Uploading income source file:', {
         fileName: file.name,
         fileSize: file.size,

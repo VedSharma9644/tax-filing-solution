@@ -2,6 +2,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
+      - '--no-cache'
       - '-t'
       - 'gcr.io/$PROJECT_ID/tax-filing-backend:latest'
       - '--file'
@@ -41,7 +42,7 @@ steps:
       - '--timeout'
       - '300'
       - '--set-env-vars'
-      - 'NODE_ENV=production,JWT_SECRET=Y5CV6Cm0eNewJOvbzDmujrskwZCUoISUtNzG6+hA/R5hP3Vxr0FjRG8AWLut2SNPzHicB/2uUM2LLseFdW2isA==,FIREBASE_PROJECT_ID=tax-filing-app-3649f,GCS_PROJECT_ID=tax-filing-app-3649f,GCS_BUCKET_NAME=tax-filing-documents-tax-filing-app-3649f,KMS_PROJECT_ID=tax-filing-app-3649f,KMS_LOCATION=global,KMS_KEY_RING=tax-filing-key-ring,KMS_KEY_NAME=tax-filing-key'
+      - 'NODE_ENV=production,JWT_SECRET=Y5CV6Cm0eNewJOvbzDmujrskwZCUoISUtNzG6+hA/R5hP3Vxr0FjRG8AWLut2SNPzHicB/2uUM2LLseFdW2isA==,FIREBASE_PROJECT_ID=tax-filing-app-3649f,GCS_PROJECT_ID=tax-filing-app-3649f,GCS_BUCKET_NAME=tax-filing-documents-tax-filing-app-3649f,KMS_PROJECT_ID=tax-filing-app-3649f,KMS_LOCATION=global,KMS_KEY_RING=tax-filing-key-ring,KMS_KEY_NAME=tax-filing-key,RAZORPAY_KEY_ID=rzp_test_S68IxG9jhFN8bL,RAZORPAY_KEY_SECRET=FIhfzgbtzRL7Wc5krcJSuFD1'
 
 images:
   - 'gcr.io/$PROJECT_ID/tax-filing-backend:latest'

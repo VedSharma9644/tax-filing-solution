@@ -139,7 +139,23 @@ const Dashboard = () => {
       const currentYearForm = taxForms.find(form => form.taxYear === currentYear);
       if (!currentYearForm) return;
       
-      const submittedStatuses = ['submitted', 'under_review', 'processing', 'approved', 'completed'];
+      // Includes both legacy and new status values from admin panel
+      const submittedStatuses = [
+        // Legacy statuses
+        'submitted', 
+        'under_review', 
+        'processing', 
+        'approved', 
+        'completed',
+        // New statuses from admin panel
+        'new_application_submitted',
+        'awaiting_for_documents',
+        'new_documents_submitted',
+        'draft_uploaded',
+        'draft_rejected',
+        'payment_completed',
+        'close_application'
+      ];
       if (!submittedStatuses.includes(currentYearForm.status)) return;
       
       try {
@@ -272,7 +288,23 @@ const Dashboard = () => {
     if (!currentYearForm) return false;
     
     // Check if the form has been submitted or is in any post-submission state
-    const submittedStatuses = ['submitted', 'under_review', 'processing', 'approved', 'completed'];
+    // Includes both legacy and new status values from admin panel
+    const submittedStatuses = [
+      // Legacy statuses
+      'submitted', 
+      'under_review', 
+      'processing', 
+      'approved', 
+      'completed',
+      // New statuses from admin panel
+      'new_application_submitted',
+      'awaiting_for_documents',
+      'new_documents_submitted',
+      'draft_uploaded',
+      'draft_rejected',
+      'payment_completed',
+      'close_application'
+    ];
     return submittedStatuses.includes(currentYearForm.status);
   };
 

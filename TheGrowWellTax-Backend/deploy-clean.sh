@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Tax Filing Backend Deployment Script
+# Tax Filing Backend Deployment Script - Clean Build (No Cache)
 # Updated for correct project: tax-filing-app-3649f
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Tax Filing Backend Deployment..."
+echo "🚀 Starting Tax Filing Backend Deployment (Clean Build)..."
 
 # Configuration
 PROJECT_ID="tax-filing-app-3649f"
@@ -29,9 +29,9 @@ gcloud services enable cloudbuild.googleapis.com
 gcloud services enable run.googleapis.com
 gcloud services enable containerregistry.googleapis.com
 
-# Step 3: Build and push Docker image
-echo "🐳 Building Docker image..."
-docker build -t ${IMAGE_NAME} .
+# Step 3: Build and push Docker image (NO CACHE)
+echo "🐳 Building Docker image (NO CACHE)..."
+docker build --no-cache -t ${IMAGE_NAME} .
 
 echo "📤 Pushing image to Google Container Registry..."
 docker push ${IMAGE_NAME}
@@ -55,3 +55,4 @@ gcloud run deploy ${SERVICE_NAME} \
 echo "✅ Deployment completed successfully!"
 echo "🌐 Your backend is now running on Google Cloud Run"
 echo "📱 Update your mobile app's API_BASE_URL to the Cloud Run URL"
+

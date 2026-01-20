@@ -28,14 +28,19 @@ const ProfileForm = ({
     setProfileImage(profile?.profilePicture || null);
   }, [profile]);
 
-  // Request camera permissions
+  // Request media library permissions; allow Limited on iOS
   const requestPermissions = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please grant camera roll permissions to upload profile pictures.');
-      return false;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (permission.status === 'granted' || permission.status === 'limited') {
+      return true;
     }
-    return true;
+
+    Alert.alert(
+      'Permission Required',
+      'Please allow photo library access to upload a profile picture from your device.',
+    );
+    return false;
   };
 
   // Pick image from gallery
@@ -50,10 +55,21 @@ const ProfileForm = ({
         aspect: [1, 1],
         quality: 0.8,
         base64: false,
+        presentationStyle: 'pageSheet', // improves iPad UX vs full screen
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+
+        // Warn before uploading very large files (multer limit is 10MB)
+        if (asset.fileSize && asset.fileSize > 9.5 * 1024 * 1024) {
+          Alert.alert(
+            'Image Too Large',
+            'This photo is larger than 10 MB. Please pick a smaller image or reduce the size before uploading.'
+          );
+          return;
+        }
+
         await uploadProfileImage(asset);
       }
     } catch (error) {

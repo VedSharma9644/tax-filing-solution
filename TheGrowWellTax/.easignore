@@ -1,0 +1,33 @@
+# EAS ignore file (applies to the directory where you run `eas build`).
+#
+# This repo is a monorepo; for iOS App Store builds, run EAS from:
+#   E:\TheGrowWellTax-CS\TheGrowWellTax
+#
+# If you instead run EAS from the monorepo root, move this file to the repo root
+# and adjust patterns accordingly.
+
+# Dependencies / caches
+node_modules/
+.expo/
+.expo-shared/
+.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Android native build artifacts (safe to ignore for EAS)
+android/.gradle/
+android/app/build/
+
+# iOS native build artifacts (safe to ignore for EAS)
+ios/Pods/
+ios/build/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

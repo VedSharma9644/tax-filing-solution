@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import Colors from '../utils/colors';
-import ApiService from '../config/api';
+import ApiService, { API_BASE_URL } from '../config/api';
 import { auth } from '../config/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -242,9 +242,6 @@ const Dashboard = () => {
       
       // Fallback: try to construct decryption URL from gcsPath
       if (finalDoc.gcsPath) {
-        const API_BASE_URL = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production'
-          ? 'https://tax-filing-backend-693306869303.us-central1.run.app'
-          : 'http://localhost:5000';
         const decryptionUrl = `${API_BASE_URL}/upload/view/${encodeURIComponent(finalDoc.gcsPath)}`;
         console.log('🔓 Using fallback decryption URL:', decryptionUrl);
         window.open(decryptionUrl, '_blank');

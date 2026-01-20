@@ -70,6 +70,24 @@ class ApiService {
       if (__DEV__) {
       }
       
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('❌ Non-JSON response received. Status:', response.status);
+        console.error('❌ Response preview:', text.substring(0, 500));
+        console.error('❌ Endpoint:', url);
+        
+        // Provide specific error message based on status code
+        if (response.status === 404) {
+          throw new Error(`Backend endpoint ${endpoint} not found. Please deploy the backend with the latest changes.`);
+        } else if (response.status >= 500) {
+          throw new Error(`Backend server error (${response.status}). Please check backend logs.`);
+        } else {
+          throw new Error(`Server returned non-JSON response (${response.status}). The endpoint may not exist or there's a server error.`);
+        }
+      }
+      
       const data = await response.json();
       
       if (!response.ok) {
@@ -82,6 +100,15 @@ class ApiService {
       }
       return data;
     } catch (error) {
+      // If it's already our custom error, rethrow it
+      if (error.message && (error.message.includes('non-JSON') || error.message.includes('endpoint') || error.message.includes('Backend'))) {
+        throw error;
+      }
+      // If it's a JSON parse error, provide better message
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        const url = `${this.baseURL}${endpoint}`;
+        throw new Error(`Server returned an invalid response. The endpoint ${endpoint} may not exist. Please deploy the backend with the latest changes.`);
+      }
       if (__DEV__) {
       }
       throw error;
