@@ -13,15 +13,50 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Wrap setUser to add logging
+  const setUserWithLogging = (newUser) => {
+    console.log('🔍 [AuthContext] setUser called:', {
+      previousUser: user ? {
+        id: user.id,
+        profileComplete: user.profileComplete,
+        profileCompleteType: typeof user.profileComplete
+      } : null,
+      newUser: newUser ? {
+        id: newUser.id,
+        profileComplete: newUser.profileComplete,
+        profileCompleteType: typeof newUser?.profileComplete,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email
+      } : null,
+      stackTrace: new Error().stack
+    });
+    setUser(newUser);
+  };
+
   useEffect(() => { loadStoredAuth(); }, []);
 
   const loadStoredAuth = async () => {
     try {
       const { accessToken, refreshToken } = await secureStorage.getAuthTokens();
       const storedUser = await secureStorage.getUserData();
+      console.log('🔍 [AuthContext] loadStoredAuth:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        hasStoredUser: !!storedUser,
+        storedUserProfileComplete: storedUser?.profileComplete,
+        storedUserProfileCompleteType: typeof storedUser?.profileComplete
+      });
       if (accessToken && storedUser) {
         const ok = await validateStoredToken(accessToken);
-        if (ok) { setToken(accessToken); setUser(storedUser); }
+        if (ok) { 
+          console.log('🔍 [AuthContext] Setting user from stored auth:', {
+            userId: storedUser.id,
+            profileComplete: storedUser.profileComplete
+          });
+          setToken(accessToken); 
+          setUserWithLogging(storedUser); 
+        }
         else {
           if (refreshToken) {
             const r = await refreshAccessToken();
@@ -29,7 +64,7 @@ export const AuthProvider = ({ children }) => {
           } else await secureStorage.clear();
         }
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('🔍 [AuthContext] loadStoredAuth error:', e); }
     finally { setLoading(false); }
   };
 
@@ -44,9 +79,19 @@ export const AuthProvider = ({ children }) => {
       if (!refreshToken) return false;
       const res = await ApiService.refreshToken(refreshToken);
       if (res?.success) {
+        console.log('🔍 [AuthContext] Token refresh successful, updating user:', {
+          userId: res.user?.id,
+          profileComplete: res.user?.profileComplete,
+          profileCompleteType: typeof res.user?.profileComplete,
+          userObject: res.user
+        });
         await secureStorage.setAuthTokens(res.accessToken, res.refreshToken);
         setToken(res.accessToken);
-        if (res.user) { await secureStorage.setUserData(res.user); setUser(res.user); }
+        if (res.user) { 
+          await secureStorage.setUserData(res.user); 
+          console.log('🔍 [AuthContext] Setting user from refreshToken response');
+          setUserWithLogging(res.user); 
+        }
         return true;
       }
       return false;
@@ -70,20 +115,34 @@ export const AuthProvider = ({ children }) => {
       const result = await confirmation.confirm(code);
       const firebaseUser = { uid: result.user.uid, phone: result.user.phoneNumber };
       const idToken = await result.user.getIdToken();
+      console.log('🔍 [AuthContext] verifyPhoneOTP: Calling backend firebasePhoneLogin');
       const backend = await ApiService.firebasePhoneLogin(idToken).catch(()=>null);
       if (backend?.success) {
+        console.log('🔍 [AuthContext] verifyPhoneOTP: Backend response successful:', {
+          userId: backend.user?.id,
+          profileComplete: backend.user?.profileComplete,
+          profileCompleteType: typeof backend.user?.profileComplete,
+          firstName: backend.user?.firstName,
+          lastName: backend.user?.lastName,
+          email: backend.user?.email,
+          fullUserObject: backend.user
+        });
         await secureStorage.setAuthTokens(backend.accessToken, null);
         await secureStorage.setUserData(backend.user);
-        setUser(backend.user); setToken(backend.accessToken);
+        console.log('🔍 [AuthContext] verifyPhoneOTP: Setting user from backend response');
+        setUserWithLogging(backend.user); 
+        setToken(backend.accessToken);
         return { success: true, user: backend.user };
       } else {
+        console.log('🔍 [AuthContext] verifyPhoneOTP: Backend failed, using Firebase user');
         await secureStorage.setAuthTokens(idToken, null);
         await secureStorage.setUserData(firebaseUser);
-        setUser(firebaseUser); setToken(idToken);
+        setUserWithLogging(firebaseUser); 
+        setToken(idToken);
         return { success: true, user: firebaseUser };
       }
     } catch (err) {
-      console.error('verifyPhoneOTP error', err);
+      console.error('🔍 [AuthContext] verifyPhoneOTP error:', err);
       throw err;
     }
   };
@@ -93,9 +152,14 @@ export const AuthProvider = ({ children }) => {
     const idToken = await cred.user.getIdToken();
     const backend = await ApiService.firebaseEmailLogin(idToken);
     if (!backend?.success) throw new Error(backend?.error||'backend error');
+    console.log('🔍 [AuthContext] emailPasswordSignup: Backend response:', {
+      userId: backend.user?.id,
+      profileComplete: backend.user?.profileComplete
+    });
     await secureStorage.setAuthTokens(backend.accessToken, backend.refreshToken);
     await secureStorage.setUserData(backend.user);
-    setUser(backend.user); setToken(backend.accessToken);
+    setUserWithLogging(backend.user); 
+    setToken(backend.accessToken);
     return { success: true, user: backend.user };
   };
 
@@ -104,9 +168,14 @@ export const AuthProvider = ({ children }) => {
     const idToken = await cred.user.getIdToken();
     const backend = await ApiService.firebaseEmailLogin(idToken);
     if (!backend?.success) throw new Error(backend?.error||'backend error');
+    console.log('🔍 [AuthContext] emailPasswordLogin: Backend response:', {
+      userId: backend.user?.id,
+      profileComplete: backend.user?.profileComplete
+    });
     await secureStorage.setAuthTokens(backend.accessToken, backend.refreshToken);
     await secureStorage.setUserData(backend.user);
-    setUser(backend.user); setToken(backend.accessToken);
+    setUserWithLogging(backend.user); 
+    setToken(backend.accessToken);
     return { success: true, user: backend.user };
   };
 
@@ -156,7 +225,11 @@ export const AuthProvider = ({ children }) => {
       });
       
       await secureStorage.setUserData(backend.user);
-      setUser(backend.user);
+      console.log('🔍 [AuthContext] googleLogin: Setting user:', {
+        userId: backend.user?.id,
+        profileComplete: backend.user?.profileComplete
+      });
+      setUserWithLogging(backend.user);
       setToken(accessToken);
       console.log('AuthContext: User and token set in state', { 
         userId: backend.user?.id,
@@ -172,10 +245,24 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = async (updatedUser) => {
     try {
+      console.log('🔍 [AuthContext] updateUser called:', {
+        userId: updatedUser?.id,
+        profileComplete: updatedUser?.profileComplete,
+        profileCompleteType: typeof updatedUser?.profileComplete,
+        firstName: updatedUser?.firstName,
+        lastName: updatedUser?.lastName,
+        email: updatedUser?.email,
+        previousUser: user ? {
+          id: user.id,
+          profileComplete: user.profileComplete
+        } : null,
+        stackTrace: new Error().stack
+      });
       await secureStorage.setUserData(updatedUser);
-      setUser(updatedUser);
+      console.log('🔍 [AuthContext] updateUser: Setting new user state');
+      setUserWithLogging(updatedUser);
     } catch (err) {
-      console.error('updateUser error', err);
+      console.error('🔍 [AuthContext] updateUser error:', err);
       throw err;
     }
   };
@@ -230,7 +317,11 @@ export const AuthProvider = ({ children }) => {
       });
       
       await secureStorage.setUserData(backend.user);
-      setUser(backend.user);
+      console.log('🔍 [AuthContext] appleLogin: Setting user:', {
+        userId: backend.user?.id,
+        profileComplete: backend.user?.profileComplete
+      });
+      setUserWithLogging(backend.user);
       setToken(accessToken);
       console.log('AuthContext: User and token set in state', { 
         userId: backend.user?.id,

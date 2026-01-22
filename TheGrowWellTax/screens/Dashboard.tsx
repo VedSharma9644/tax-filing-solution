@@ -529,9 +529,6 @@ const Dashboard = () => {
               <Text style={styles.heroSubtitle}>Let's get your taxes done</Text>
             </View>
             <View style={styles.heroIcons}>
-              <TouchableOpacity style={styles.heroIconButton} onPress={() => setShowTestPanel(true)}>
-                <Ionicons name="bug-outline" size={20} color="#fff" />
-              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.heroIconButton} 
                 onPress={() => navigation.navigate('Notifications')}

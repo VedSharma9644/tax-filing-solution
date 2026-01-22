@@ -26,6 +26,7 @@ const Stack = createNativeStackNavigator();
 const AppNavigator = () => {
   const { user, loading } = useAuth();
   const navigationRef = useRef(null);
+  const hasNavigatedRef = useRef(false); // Track if we've done initial navigation
 
   // Handle navigation after user state changes
   useEffect(() => {
@@ -33,19 +34,54 @@ const AppNavigator = () => {
       const isProfileComplete = user.profileComplete === true;
       const shouldNavigateTo = isProfileComplete ? 'Home' : 'CreateProfile';
       
-      console.log('🔄 User state changed, navigating to:', shouldNavigateTo);
+      console.log('🔄 [AppNavigator] User state changed - Navigation Effect Triggered');
+      console.log('🔄 [AppNavigator] User object:', {
+        userId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        profileComplete: user.profileComplete,
+        profileCompleteType: typeof user.profileComplete,
+        profileCompleteStrict: user.profileComplete === true,
+        profileCompleteLoose: !!user.profileComplete,
+        isProfileComplete,
+        shouldNavigateTo,
+        currentRoute: navigationRef.current?.getCurrentRoute()?.name,
+        hasNavigated: hasNavigatedRef.current
+      });
+      console.log('🔄 [AppNavigator] Stack trace:', new Error().stack);
       
-      if (shouldNavigateTo === 'CreateProfile') {
-        navigationRef.current.reset({
-          index: 0,
-          routes: [{ name: 'CreateProfile' }],
-        });
-      } else if (shouldNavigateTo === 'Home') {
-        navigationRef.current.reset({
-          index: 0,
-          routes: [{ name: 'Home' }],
-        });
+      // Get current route to check if we need to navigate
+      const currentRoute = navigationRef.current?.getCurrentRoute()?.name;
+      
+      // Only navigate if:
+      // 1. We haven't done initial navigation yet, OR
+      // 2. The current route doesn't match where we should be
+      if (!hasNavigatedRef.current || currentRoute !== shouldNavigateTo) {
+        if (shouldNavigateTo === 'CreateProfile') {
+          console.log('🔄 [AppNavigator] Resetting navigation to CreateProfile');
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'CreateProfile' }],
+          });
+          hasNavigatedRef.current = true;
+        } else if (shouldNavigateTo === 'Home') {
+          console.log('🔄 [AppNavigator] Resetting navigation to Home');
+          navigationRef.current.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
+          hasNavigatedRef.current = true;
+        }
+      } else {
+        console.log('🔄 [AppNavigator] Already on correct route, skipping navigation');
       }
+    } else {
+      console.log('🔄 [AppNavigator] Navigation effect skipped:', {
+        loading,
+        hasUser: !!user,
+        hasNavigationRef: !!navigationRef.current
+      });
     }
   }, [user, loading]);
 
@@ -59,46 +95,72 @@ const AppNavigator = () => {
   }
 
   // Determine initial route for authenticated users
+  // IMPORTANT: This is only used as a fallback. The useEffect will handle actual navigation
+  // We use a safe default to avoid showing the wrong screen
   const getInitialRoute = () => {
-    console.log('🚨 UPDATED CODE IS RUNNING - Profile Setup Integration v2');
+    console.log('🚨 [AppNavigator] getInitialRoute called');
     
-    if (!user) return "Signup";
+    if (!user) {
+      console.log('🚨 [AppNavigator] No user, returning Signup');
+      return "Signup";
+    }
     
     // Check if profile is complete
     // profileComplete is returned by backend based on firstName, lastName, email
     // Only redirect to profile setup if profileComplete is explicitly false or undefined
     const isProfileComplete = user.profileComplete === true;
     
-    console.log('🔍 AppNavigator Debug:', {
+    console.log('🔍 [AppNavigator] getInitialRoute Debug:', {
       userId: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       profileComplete: user.profileComplete,
+      profileCompleteType: typeof user.profileComplete,
       isProfileComplete,
       redirectTo: isProfileComplete ? 'Home' : 'CreateProfile'
     });
     
+    // Default to CreateProfile for safety - useEffect will handle navigation
+    // This prevents showing Home screen briefly before redirect
     if (!isProfileComplete) {
-      console.log('✅ Redirecting to CreateProfile');
+      console.log('✅ [AppNavigator] Initial route: CreateProfile (safe default)');
       return "CreateProfile";
     }
     
-    console.log('✅ Redirecting to Home');
+    console.log('✅ [AppNavigator] Initial route: Home');
     return "Home";
   };
+
+  // Get initial route before rendering
+  const initialRoute = getInitialRoute();
+  
+  // Use key to force remount when user state changes significantly
+  // This ensures initialRouteName is respected when screens change
+  const navigatorKey = user ? `authenticated-${user.id}` : 'unauthenticated';
 
   return (
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator 
-        initialRouteName={getInitialRoute()}
+        key={navigatorKey}
+        initialRouteName={initialRoute}
         screenOptions={{ headerShown: false }}
       >
         {user ? (
-          // Authenticated screens
+          // Authenticated screens - IMPORTANT: Order matters for initialRouteName
+          // Put CreateProfile first if profile is incomplete to ensure it's the default
           <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="CreateProfile" component={CreateProfileScreen} />
+            {user.profileComplete !== true ? (
+              <>
+                <Stack.Screen name="CreateProfile" component={CreateProfileScreen} />
+                <Stack.Screen name="Home" component={HomeScreen} />
+              </>
+            ) : (
+              <>
+                <Stack.Screen name="Home" component={HomeScreen} />
+                <Stack.Screen name="CreateProfile" component={CreateProfileScreen} />
+              </>
+            )}
             <Stack.Screen name="TaxForm" component={TaxFormScreen} />
             <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />

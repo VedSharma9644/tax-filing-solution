@@ -1970,12 +1970,24 @@ app.put('/profile/update', authenticateToken, async (req, res) => {
     } = req.body;
     const userId = req.user.userId;
 
-    // Validate required fields
-    if (!firstName || !lastName) {
-      return res.status(400).json({
-        success: false,
-        error: 'First name and last name are required'
-      });
+    // Validate firstName format if provided (and not empty)
+    if (firstName !== undefined && firstName !== null && firstName.trim() !== '') {
+      if (firstName.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: 'First name must be at least 2 characters if provided'
+        });
+      }
+    }
+
+    // Validate lastName format if provided (and not empty)
+    if (lastName !== undefined && lastName !== null && lastName.trim() !== '') {
+      if (lastName.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: 'Last name must be at least 2 characters if provided'
+        });
+      }
     }
 
     // Validate email format if provided
@@ -2031,8 +2043,8 @@ app.put('/profile/update', authenticateToken, async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
+    if (firstName !== undefined && firstName !== null && firstName.trim() !== '') updateData.firstName = firstName.trim();
+    if (lastName !== undefined && lastName !== null && lastName.trim() !== '') updateData.lastName = lastName.trim();
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
     if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
